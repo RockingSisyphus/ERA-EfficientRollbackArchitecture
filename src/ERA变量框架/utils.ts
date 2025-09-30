@@ -1,7 +1,7 @@
 'use strict';
 
 import _ from 'lodash';
-import { CHAT_SCOPE, LOGS_PATH } from './constants';
+import { CHAT_SCOPE } from './constants';
 
 /**
  * 日志记录器，用于缓存日志并一次性刷入变量
@@ -10,12 +10,14 @@ export class Logger {
   private buffer: string[] = [];
 
   /**
-   * 记录一条日志到缓冲区
+   * 记录一条日志到缓冲区，并立即输出到浏览器控制台
    * @param line 日志内容
    * @param module 日志模块
    */
   log(line: string, module: string) {
     const text = `《${module}》 ${String(line)}`;
+    // 立即输出到浏览器控制台，并添加醒目的前缀
+    console.log(`%c[ERA] ${text}`, 'color: #3498db; font-weight: bold;');
     this.buffer.push(text);
   }
 
@@ -207,104 +209,3 @@ export const J = (o: any) => {
     return `<<stringify失败: ${e?.message || e}>>`;
   }
 };
-
-/**
- * 向上追溯历史，查找某个变量路径在最近的有效AI消息中的最终值(value_new)
- * @param path 要查找的变量的完整路径
- * @param startMessageId 从此消息ID的前一条消息开始向上查找
- * @param logger 一个 Logger 实例，用于记录追溯过程
- * @returns 返回找到的 value_new，如果追溯到顶都未找到则返回 null
- */
-export async function findLatestNewValue(path: string, startMessageId: number, logger?: Logger): Promise<any> {
-  logger?.log(`[findLatestNewValue] 开始为路径 <${path}> 从消息ID <${startMessageId}> 向上追溯历史值...`, '获取旧值');
-  const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
-  logger?.log(`[findLatestNewValue] 原始消息列表: ${J(messages)}`, '获取旧值');
-  if (!messages || messages.length < 1) {
-    logger?.log(`[findLatestNewValue] 消息历史为空，无法追溯。`, '获取旧值');
-    return null;
-  }
-
-  const startIndex = messages.findIndex(m => m.message_id === startMessageId);
-  if (startIndex === -1) {
-    logger?.log(`[findLatestNewValue] 错误：在消息列表中未找到起始消息ID: ${startMessageId}`, '获取旧值');
-    return null;
-  }
-  logger?.log(`[findLatestNewValue] 进入循环查找逻辑`, '获取旧值');
-  // 从起始消息的前一条开始向上循环
-  for (let i = startIndex - 1; i >= 0; i--) {
-    const message = messages[i];
-    const messageId = message?.message_id;
-    logger?.log(
-      `[findLatestNewValue] 开始检索消息:id=${messageId};消息内容message=${JSON.stringify(message)}`,
-      '获取旧值',
-    );
-    // 跳过非AI消息或无效消息
-    if (message?.role !== 'assistant' || typeof messageId !== 'number') {
-      logger?.log(`[findLatestNewValue] 消息:id=${messageId},role=${message.role}不符合要求，跳过`, '获取旧值');
-      continue;
-    }
-
-    const messageVars = getVariables({ type: 'message', message_id: messageId }) || {};
-    const mk = String(_.get(messageVars, ['_keys', 'MK']) || '');
-    logger?.log(
-      `[findLatestNewValue] 正在检查AI消息 ID=${messageId};messageVars=${JSON.stringify(messageVars)};mk=${mk}`,
-      '获取旧值',
-    );
-    // 跳过没有 messageKey 的AI消息
-    if (!mk) {
-      logger?.log(`[findLatestNewValue] -> 消息 (ID: ${messageId}) 没有MK，跳过。`, '获取旧值');
-      continue;
-    }
-
-    const chatVars = getVariables(CHAT_SCOPE) || {};
-    const editLogRaw = _.get(chatVars, [LOGS_PATH, mk]);
-    const editLog = parseEditLog(editLogRaw);
-
-    if (!editLog || editLog.length === 0) {
-      logger?.log(`[findLatestNewValue] -> 消息 (ID: ${messageId}, MK: ${mk}) 的EditLog为空，跳过。`, '获取旧值');
-      continue;
-    }
-
-    logger?.log(
-      `[findLatestNewValue] -> 正在逆序扫描消息 (ID: ${messageId}, MK: ${mk}) 的 EditLog=${JSON.stringify(editLog)}`,
-      '获取旧值',
-    );
-    // 从后向前遍历 editLog，找到的第一个就是最新的
-    for (let j = editLog.length - 1; j >= 0; j--) {
-      const logEntry = editLog[j];
-      if (!logEntry || !logEntry.path) continue;
-
-      // Case 1: 精确路径匹配
-      if (logEntry.path === path) {
-        logger?.log(
-          `[findLatestNewValue] >> 成功! 在消息(ID:${messageId}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`,
-          '获取旧值',
-        );
-        return _.cloneDeep(logEntry.value_new);
-      }
-
-      // Case 2: 查找路径是 logEntry 路径的子路径 (即 logEntry.path 是父级)
-      // 例如, path="a.b.c", logEntry.path="a.b"
-      if (path.startsWith(logEntry.path + '.')) {
-        const subPath = path.substring(logEntry.path.length + 1);
-        const parentNewVal = logEntry.value_new;
-        if (_.isPlainObject(parentNewVal) && _.has(parentNewVal, subPath)) {
-          const foundVal = _.get(parentNewVal, subPath);
-          logger?.log(
-            `[findLatestNewValue] >> 成功! 在消息(ID:${messageId}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`,
-            '获取旧值',
-          );
-          return _.cloneDeep(foundVal);
-        }
-      }
-    }
-    logger?.log(
-      `[findLatestNewValue] -> 在消息 (ID: ${messageId}, MK: ${mk}) 的EditLog中未找到路径 <${path}> 或其有效父级，继续向上...`,
-      '获取旧值',
-    );
-  }
-
-  // 追溯到顶都没找到
-  logger?.log(`[findLatestNewValue] 向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`, '获取旧值');
-  return null;
-}

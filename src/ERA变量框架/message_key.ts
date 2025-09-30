@@ -146,7 +146,7 @@ export async function ensureMessageKey(msg: any): Promise<string> {
 export const ensureMkForLatestMessage = async () => {
   const logger = new Logger();
   try {
-    logger.log(`[调试] 进入 ensureMkForLatestMessage。`, '调试');
+    //logger.log(`[调试] 进入 ensureMkForLatestMessage。`, '调试');
     const _arr = getChatMessages(-1, { include_swipes: true });
     const msg: any = _arr && _arr[0];
 

@@ -1,6 +1,7 @@
 'use strict';
 
-import { findLatestNewValue, Logger, mergeReplaceArray, sanitizeArrays } from './utils';
+import { findLatestNewValue } from './rollback';
+import { Logger, mergeReplaceArray, sanitizeArrays } from './utils';
 
 /**
  * 只“插入”的递归：仅在键不存在时写入；可用 template；已存在的一律不改

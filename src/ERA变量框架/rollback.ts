@@ -1,7 +1,8 @@
 'use strict';
 
 import { CHAT_SCOPE, LOGS_PATH } from './constants';
-import { Logger, parseEditLog } from './utils';
+import { readMessageKey } from './message_key';
+import { J, Logger, parseEditLog } from './utils';
 
 /**
  * 回退：按 MK 把变量撤回（用原子更新，避免旧快照整包覆盖）
@@ -12,25 +13,42 @@ import { Logger, parseEditLog } from './utils';
 export async function rollbackByMk(MK: string, silent = false) {
   const logger = new Logger();
   try {
+    logger.log(`[回退] rollbackByMk 开始, MK=${MK}`, '调试');
     await updateVariablesWith(v => {
       const raw = _.get(v, [LOGS_PATH, MK]);
+      logger.log(`[回退] 读取到原始 EditLog: ${raw}`, '调试');
       const arr = parseEditLog(raw);
-      if (!arr.length) return v;
+      if (!arr || !arr.length) {
+        logger.log(`[回退] EditLog 为空或无效，跳过回退。`, '调试');
+        return v;
+      }
+      logger.log(`[回退] 解析后 EditLog: ${J(arr)}`, '调试');
       // 必须逆序回退，以正确处理对同一变量的多次修改
       for (let i = arr.length - 1; i >= 0; i--) {
         const e = arr[i];
         const op = String(e?.op || '').toLowerCase();
         const path = String(e?.path || '');
-        if (!path) continue;
+        logger.log(`[回退] 处理条目 #${i}: op=${op}, path=${path}`, '调试');
+        if (!path) {
+          logger.log(`[回退] 条目 #${i} 路径为空，跳过。`, '调试');
+          continue;
+        }
         if (op === 'insert') {
+          logger.log(`[回退] 执行 unset 操作, path=${path}`, '调试');
           _.unset(v, path);
           continue;
         }
         if (op === 'update' || op === 'delete') {
-          if (typeof e?.value_old === 'undefined') _.unset(v, path);
-          else _.set(v, path, _.cloneDeep(e.value_old));
+          if (typeof e?.value_old === 'undefined') {
+            logger.log(`[回退] 执行 unset 操作 (因 value_old 未定义), path=${path}`, '调试');
+            _.unset(v, path);
+          } else {
+            logger.log(`[回退] 执行 set 操作, path=${path}, value_old=${J(e.value_old)}`, '调试');
+            _.set(v, path, _.cloneDeep(e.value_old));
+          }
         }
       }
+      logger.log(`[回退] 所有条目处理完毕。`, '调试');
       return v;
     }, CHAT_SCOPE);
     logger.log(`回退完成：MK=${MK}（原子更新）`, '变量回退');
@@ -119,10 +137,107 @@ export async function calibrate(evTag: string) {
   } catch (e: any) {
     logger.log(`校准异常：${e?.message || e}`, '变量校准');
   } finally {
-    // 在 calibrate 函数的 return 之前确保日志被刷新
+// 在 calibrate 函数的 return 之前确保日志被刷新
     if (logger.length > 0) {
       await logger.flush();
     }
   }
 }
 */
+
+/**
+ * 向上追溯历史，查找某个变量路径在最近的有效AI消息中的最终值(value_new)
+ * @param path 要查找的变量的完整路径
+ * @param startMessageId 从此消息ID的前一条消息开始向上查找
+ * @param logger 一个 Logger 实例，用于记录追溯过程
+ * @returns 返回找到的 value_new，如果追溯到顶都未找到则返回 null
+ */
+export async function findLatestNewValue(path: string, startMessageId: number, logger?: Logger): Promise<any> {
+  logger?.log(`[findLatestNewValue] 开始为路径 <${path}> 从消息ID <${startMessageId}> 向上追溯历史值...`, '获取旧值');
+  const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+  logger?.log(`[findLatestNewValue] 原始消息列表: ${J(messages)}`, '获取旧值');
+  if (!messages || messages.length < 1) {
+    logger?.log(`[findLatestNewValue] 消息历史为空，无法追溯。`, '获取旧值');
+    return null;
+  }
+
+  const startIndex = messages.findIndex(m => m.message_id === startMessageId);
+  if (startIndex === -1) {
+    logger?.log(`[findLatestNewValue] 错误：在消息列表中未找到起始消息ID: ${startMessageId}`, '获取旧值');
+    return null;
+  }
+  logger?.log(`[findLatestNewValue] 进入循环查找逻辑`, '获取旧值');
+  // 从起始消息的前一条开始向上循环
+  for (let i = startIndex - 1; i >= 0; i--) {
+    const message = messages[i];
+    const messageId = message?.message_id;
+    logger?.log(
+      `[findLatestNewValue] 开始检索消息:id=${messageId};消息内容message=${JSON.stringify(message)}`,
+      '获取旧值',
+    );
+    // 跳过非AI消息或无效消息
+    if (message?.role !== 'assistant' || typeof messageId !== 'number') {
+      logger?.log(`[findLatestNewValue] 消息:id=${messageId},role=${message.role}不符合要求，跳过`, '获取旧值');
+      continue;
+    }
+
+    const mk = readMessageKey(message);
+    logger?.log(`[findLatestNewValue] 正在检查AI消息 ID=${messageId};mk=${mk}`, '获取旧值');
+    // 跳过没有 messageKey 的AI消息
+    if (!mk) {
+      logger?.log(`[findLatestNewValue] -> 消息 (ID: ${messageId}) 没有MK，跳过。`, '获取旧值');
+      continue;
+    }
+
+    const chatVars = getVariables(CHAT_SCOPE) || {};
+    const editLogRaw = _.get(chatVars, [LOGS_PATH, mk]);
+    const editLog = parseEditLog(editLogRaw);
+
+    if (!editLog || editLog.length === 0) {
+      logger?.log(`[findLatestNewValue] -> 消息 (ID: ${messageId}, MK: ${mk}) 的EditLog为空，跳过。`, '获取旧值');
+      continue;
+    }
+
+    logger?.log(
+      `[findLatestNewValue] -> 正在逆序扫描消息 (ID: ${messageId}, MK: ${mk}) 的 EditLog=${JSON.stringify(editLog)}`,
+      '获取旧值',
+    );
+    // 从后向前遍历 editLog，找到的第一个就是最新的
+    for (let j = editLog.length - 1; j >= 0; j--) {
+      const logEntry = editLog[j];
+      if (!logEntry || !logEntry.path) continue;
+
+      // Case 1: 精确路径匹配
+      if (logEntry.path === path) {
+        logger?.log(
+          `[findLatestNewValue] >> 成功! 在消息(ID:${messageId}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`,
+          '获取旧值',
+        );
+        return _.cloneDeep(logEntry.value_new);
+      }
+
+      // Case 2: 查找路径是 logEntry 路径的子路径 (即 logEntry.path 是父级)
+      // 例如, path="a.b.c", logEntry.path="a.b"
+      if (path.startsWith(logEntry.path + '.')) {
+        const subPath = path.substring(logEntry.path.length + 1);
+        const parentNewVal = logEntry.value_new;
+        if (_.isPlainObject(parentNewVal) && _.has(parentNewVal, subPath)) {
+          const foundVal = _.get(parentNewVal, subPath);
+          logger?.log(
+            `[findLatestNewValue] >> 成功! 在消息(ID:${messageId}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`,
+            '获取旧值',
+          );
+          return _.cloneDeep(foundVal);
+        }
+      }
+    }
+    logger?.log(
+      `[findLatestNewValue] -> 在消息 (ID: ${messageId}, MK: ${mk}) 的EditLog中未找到路径 <${path}> 或其有效父级，继续向上...`,
+      '获取旧值',
+    );
+  }
+
+  // 追溯到顶都没找到
+  logger?.log(`[findLatestNewValue] 向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`, '获取旧值');
+  return null;
+}

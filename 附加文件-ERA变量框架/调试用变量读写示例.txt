@@ -10,8 +10,6 @@
 ```
 </VariableEdit>
 
-mk_1759160904473_y9y7ny
-
 <VariableInsert>
 ```json
 {

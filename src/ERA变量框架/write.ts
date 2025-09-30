@@ -13,10 +13,10 @@ import { extractBlocks, Logger, parseEditLog, parseJsonl } from './utils';
 export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null> => {
   const logger = new Logger();
   try {
-    logger.log(
-      `[调试] 进入 ApplyVarChangeForMessage。当前消息列表: ${JSON.stringify(getChatMessages('0-{{lastMessageId}}', { include_swipes: true }))}`,
-      '调试',
-    );
+    // logger.log(
+    //   `[调试] 进入 ApplyVarChangeForMessage。当前消息列表: ${JSON.stringify(getChatMessages('0-{{lastMessageId}}', { include_swipes: true }))}`,
+    //   '调试',
+    // );
     if (!msg) {
       logger.log('无效消息对象，退出', '变量写入');
       return null;
@@ -56,6 +56,10 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
 
     // --- 处理所有插入操作 ---
     if (allInserts.length > 0) {
+      // N.B. 必须对每个 insertRoot 单独调用 updateVariablesWith，而不是将所有操作合并到一次调用中。
+      // 这是为了确保在同一条消息内，前一个 <VariableInsert> 块中插入的模板或数据，
+      // 可以被后一个 <VariableInsert> 或 <VariableEdit> 块访问和使用。
+      // 每次 await updateVariablesWith 完成后，变量状态都会被刷新，从而使后续操作能看到最新的结果。
       for (const insertRoot of allInserts) {
         if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
         try {
@@ -70,6 +74,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
             }
             return v;
           }, CHAT_SCOPE);
+          logger.log(`[调试] insertRoot 处理完毕后，EditLog: ${JSON.stringify(editLog)}`, '变量写入');
         } catch (e: any) {
           logger.log(`处理 insertRoot 失败: ${e?.message || e}`, '变量写入');
         }
@@ -80,6 +85,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     // --- 处理所有编辑操作 ---
     if (allEdits.length > 0) {
       const intraMessageState = new Map<string, any>();
+      // N.B. 同样，编辑操作也需要独立调用以确保能读取到同一消息中、此前已完成的插入或编辑操作的结果。
       for (const editRoot of allEdits) {
         if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
         try {
@@ -92,6 +98,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
             }
             return v;
           }, CHAT_SCOPE);
+          logger.log(`[调试] editRoot 处理完毕后，EditLog: ${JSON.stringify(editLog)}`, '变量写入');
         } catch (e: any) {
           logger.log(`处理 editRoot 失败: ${e?.message || e}`, '变量写入');
         }
@@ -112,6 +119,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     // 因此，正确的做法是：用本次生成的 editLog (在这个场景下是 `[]`) 去覆盖，
     // 确保每个 MK 的 EditLog 严格对应其当前消息内容所产生的变量修改。
     try {
+      logger.log(`[调试] 最终写入前，EditLog: ${JSON.stringify(editLog)}`, '变量写入');
       await updateVariablesWith(v => {
         const newArr = Array.isArray(editLog) ? editLog : parseEditLog(editLog);
         _.set(v, [LOGS_PATH, MK], JSON.stringify(newArr));
