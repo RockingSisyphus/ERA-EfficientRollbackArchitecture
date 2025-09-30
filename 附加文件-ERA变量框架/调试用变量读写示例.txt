@@ -1,0 +1,50 @@
+<VariableEdit>
+```json
+{
+  "stat_data": {
+    "世界": {
+      "timeProgress": 111
+    }
+}
+}
+```
+</VariableEdit>
+
+mk_1759160904473_y9y7ny
+
+<VariableInsert>
+```json
+{
+  "stat_data": {
+"chars": {
+      
+        "char02": {
+          "dk": "未命名角色1"
+        }
+      }
+    }
+}
+```
+</VariableInsert>
+<VariableEdit>
+```json
+{
+  "stat_data": {
+    "世界": {
+      "timeProgress": 100,
+"dd":11
+    },
+    "user": {
+      "姓名": "Sisyphus",
+      "性别": "未知",
+      "年龄": 1,
+      "特殊能力": "在地上行走程度的能力",
+      "身份": "外来者1",
+      "所在地区": "博丽神社",
+      "居住地区": "博丽神社",
+      "重要经历": "因为未知的原因，来到了幻想乡"
+    }
+}
+}
+```
+</VariableEdit>
