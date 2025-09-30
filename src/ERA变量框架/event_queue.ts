@@ -80,7 +80,10 @@ async function processQueue() {
   while (eventQueue.length > 0) {
     // --- 1. 事件批处理与合并 ---
     let currentBatch = eventQueue.splice(0, eventQueue.length);
-    logger.log(`[队列] 取出批次，包含 ${currentBatch.length} 个事件: ${currentBatch.map(e => e.type).join(', ')}`, '调试');
+    logger.log(
+      `[队列] 取出批次，包含 ${currentBatch.length} 个事件: ${currentBatch.map(e => e.type).join(', ')}`,
+      '调试',
+    );
 
     // a. 合并可覆盖的事件，只保留最后一个。
     // 例如，短时间内多次触发 `CHARACTER_MESSAGE_RENDERED`，实际上我们只关心最后一次渲染完成时的状态。

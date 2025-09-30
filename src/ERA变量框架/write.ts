@@ -53,7 +53,11 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     }
 
     const rawContent = String(
-      (msg?.message && msg.message.length ? msg.message : Array.isArray(msg?.swipes) ? msg.swipes[Number(msg?.swipe_id ?? 0)] : '') || '',
+      (msg?.message && msg.message.length
+        ? msg.message
+        : Array.isArray(msg?.swipes)
+          ? msg.swipes[Number(msg?.swipe_id ?? 0)]
+          : '') || '',
     );
 
     // 1. 从消息内容中解析出所有 insert 和 edit 指令块。

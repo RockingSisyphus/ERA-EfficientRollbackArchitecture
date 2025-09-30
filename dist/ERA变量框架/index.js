@@ -27,10 +27,6 @@ var __webpack_require__ = {};
   __webpack_require__.o = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
 })();
 
-const external_namespaceObject = _;
-
-var external_default = __webpack_require__.n(external_namespaceObject);
-
 const CHAT_SCOPE = {
   type: "chat"
 };
@@ -38,6 +34,17 @@ const CHAT_SCOPE = {
 const LOGS_PATH = "EditLogs";
 
 const SEL_PATH = "SelectedMks";
+
+const ERA_API_EVENTS = {
+  INSERT_BY_OBJECT: "era:insertByObject",
+  UPDATE_BY_OBJECT: "era:updateByObject",
+  INSERT_BY_PATH: "era:insertByPath",
+  UPDATE_BY_PATH: "era:updateByPath"
+};
+
+const external_namespaceObject = _;
+
+var external_default = __webpack_require__.n(external_namespaceObject);
 
 class Logger {
   buffer=[];
@@ -101,6 +108,14 @@ function sanitizeArrays(v) {
   }
 }
 
+const J = o => {
+  try {
+    return JSON.stringify(o, null, 2);
+  } catch (e) {
+    return `<<stringify失败: ${e?.message || e}>>`;
+  }
+};
+
 function mergeReplaceArray(base, patch) {
   return external_default().mergeWith(external_default().cloneDeep(base), external_default().cloneDeep(patch), (a, b) => {
     if (Array.isArray(a) || Array.isArray(b)) return b;
@@ -135,10 +150,8 @@ function parseJsonl(str, logger) {
   let inString = false;
   for (let i = 0; i < trimmedStr.length; i++) {
     const char = trimmedStr[i];
-    if (char === '"') {
-      if (i === 0 || trimmedStr[i - 1] !== "\\") {
-        inString = !inString;
-      }
+    if (char === '"' && (i === 0 || trimmedStr[i - 1] !== "\\")) {
+      inString = !inString;
     }
     if (inString) continue;
     if (char === "{") {
@@ -165,15 +178,7 @@ function parseJsonl(str, logger) {
   return objects;
 }
 
-const J = o => {
-  try {
-    return JSON.stringify(o, null, 2);
-  } catch (e) {
-    return `<<stringify失败: ${e?.message || e}>>`;
-  }
-};
-
-const MODULE_NAME = "变量API";
+const MODULE_NAME = "外部事件API";
 
 async function findLastAiMessage() {
   const messages = getChatMessages("0-{{lastMessageId}}", {
@@ -272,9 +277,9 @@ function parseEraData(messageContent) {
     return null;
   }
   try {
-    const jsonLike = match[1];
-    const keyMatch = jsonLike.match(/"era-message-key"\s*=\s*"(.*?)"/);
-    const typeMatch = jsonLike.match(/"era-message-type"\s*=\s*"(.*?)"/);
+    const customFormatBlock = match[1];
+    const keyMatch = customFormatBlock.match(/"era-message-key"\s*=\s*"(.*?)"/);
+    const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
     if (keyMatch?.[1] && typeMatch?.[1]) {
       return {
         "era-message-key": keyMatch[1],
@@ -303,67 +308,59 @@ function isUserMessage(msg) {
 
 async function ensureMessageKey(msg) {
   const logger = new Logger;
-  if (!msg) {
-    logger.log("无效的 null 消息对象，无法确保Key", "ensureMessageKey");
+  try {
+    if (!msg) {
+      logger.log("无效的 null 消息对象，无法确保Key", "ensureMessageKey");
+      return "";
+    }
+    const messageId = msg.message_id;
+    const role = msg.role;
+    const messageContent = getMessageContent(msg);
+    if (typeof messageId !== "number" || typeof messageContent !== "string" || !role) {
+      logger.log(`无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`, "ensureMessageKey");
+      return "";
+    }
+    const existingMk = readMessageKey(msg);
+    if (existingMk) {
+      return existingMk;
+    }
+    const newMk = `era_mk_${Date.now()}_${rnd()}`;
+    const messageType = role === "user" ? "user" : "assistant";
+    const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
+    const newContent = dataString + messageContent;
+    logger.log(`为消息 (ID: ${messageId}) 注入新的Key: ${newMk}`, "ensureMessageKey");
+    const updatePayload = {
+      message_id: messageId
+    };
+    if (Array.isArray(msg.swipes)) {
+      const sid = Number(msg.swipe_id ?? 0);
+      const newSwipes = [ ...msg.swipes ];
+      newSwipes[sid] = newContent;
+      updatePayload.swipes = newSwipes;
+    } else {
+      updatePayload.message = newContent;
+    }
+    await setChatMessages([ updatePayload ], {
+      refresh: "none"
+    });
+    return newMk;
+  } finally {
     await logger.flush();
-    return "";
   }
-  const messageId = msg.message_id;
-  const role = msg.role;
-  const messageContent = getMessageContent(msg);
-  if (typeof messageId !== "number" || typeof messageContent !== "string" || !role) {
-    logger.log(`无效的消息对象，无法确保Key。msg=${JSON.stringify(msg)}`, "ensureMessageKey");
-    await logger.flush();
-    return "";
-  }
-  const existingMk = readMessageKey(msg);
-  if (existingMk) {
-    return existingMk;
-  }
-  const newMk = `era_mk_${Date.now()}_${rnd()}`;
-  const messageType = role === "user" ? "user" : "assistant";
-  const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
-  const newContent = dataString + messageContent;
-  logger.log(`为消息 (ID: ${messageId}) 注入新的Key: ${newMk}`, "ensureMessageKey");
-  const updatePayload = {
-    message_id: messageId
-  };
-  if (Array.isArray(msg.swipes)) {
-    const sid = Number(msg.swipe_id ?? 0);
-    const newSwipes = [ ...msg.swipes ];
-    newSwipes[sid] = newContent;
-    updatePayload.swipes = newSwipes;
-  } else {
-    updatePayload.message = newContent;
-  }
-  await setChatMessages([ updatePayload ], {
-    refresh: "none"
-  });
-  await logger.flush();
-  return newMk;
 }
 
 const ensureMkForLatestMessage = async () => {
   const logger = new Logger;
   try {
-    const _arr = getChatMessages(-1, {
+    const msg = getChatMessages(-1, {
       include_swipes: true
-    });
-    const msg = _arr && _arr[0];
-    if (!msg) {
-      logger.log("无法读取最新消息，退出", "确保MK");
-      await logger.flush();
-      return;
-    }
-    const messageId = msg.message_id;
-    if (typeof messageId !== "number") {
-      logger.log("无法读取消息ID，退出", "确保MK");
-      await logger.flush();
+    })?.[0];
+    if (!msg || typeof msg.message_id !== "number") {
+      logger.log("无法读取最新消息或其ID，退出", "确保MK");
       return;
     }
     await ensureMessageKey(msg);
-    logger.log(`已为消息 ${messageId} 确保 MK 存在。`, "确保MK");
-    logger.log(`[调试] 退出 ensureMkForLatestMessage。`, "调试");
+    logger.log(`已为最新消息 ${msg.message_id} 确保 MK 存在。`, "确保MK");
   } catch (err) {
     logger.log(`确保MK时异常: ${err?.message || err}`, "确保MK");
   } finally {
@@ -375,15 +372,13 @@ const updateLatestSelectedMk = async () => {
   const msg = getChatMessages(-1, {
     include_swipes: true
   })?.[0];
-  if (!msg) return;
-  const messageId = msg.message_id;
-  if (typeof messageId !== "number") return;
+  if (!msg || typeof msg.message_id !== "number") return;
   const MK = await ensureMessageKey(msg);
   if (!MK) return;
   await updateVariablesWith(v => {
     const selectedMks = _.get(v, SEL_PATH, []);
-    if (selectedMks[messageId] !== MK) {
-      selectedMks[messageId] = MK;
+    if (selectedMks[msg.message_id] !== MK) {
+      selectedMks[msg.message_id] = MK;
       _.set(v, SEL_PATH, selectedMks);
     }
     return v;
@@ -398,41 +393,31 @@ async function rollbackByMk(MK, silent = false) {
     logger.log(`[回退] rollbackByMk 开始, MK=${MK}`, "调试");
     await updateVariablesWith(v => {
       const raw = _.get(v, [ LOGS_PATH, MK ]);
-      logger.log(`[回退] 读取到原始 EditLog: ${raw}`, "调试");
       const arr = parseEditLog(raw);
       if (!arr || !arr.length) {
         logger.log(`[回退] EditLog 为空或无效，跳过回退。`, "调试");
         return v;
       }
-      logger.log(`[回退] 解析后 EditLog: ${J(arr)}`, "调试");
       for (let i = arr.length - 1; i >= 0; i--) {
         const e = arr[i];
         const op = String(e?.op || "").toLowerCase();
         const path = String(e?.path || "");
-        logger.log(`[回退] 处理条目 #${i}: op=${op}, path=${path}`, "调试");
-        if (!path) {
-          logger.log(`[回退] 条目 #${i} 路径为空，跳过。`, "调试");
-          continue;
-        }
+        if (!path) continue;
         if (op === "insert") {
-          logger.log(`[回退] 执行 unset 操作, path=${path}`, "调试");
           _.unset(v, path);
           continue;
         }
         if (op === "update" || op === "delete") {
           if (typeof e?.value_old === "undefined") {
-            logger.log(`[回退] 执行 unset 操作 (因 value_old 未定义), path=${path}`, "调试");
             _.unset(v, path);
           } else {
-            logger.log(`[回退] 执行 set 操作, path=${path}, value_old=${J(e.value_old)}`, "调试");
             _.set(v, path, _.cloneDeep(e.value_old));
           }
         }
       }
-      logger.log(`[回退] 所有条目处理完毕。`, "调试");
       return v;
     }, CHAT_SCOPE);
-    logger.log(`回退完成：MK=${MK}（原子更新）`, "变量回退");
+    logger.log(`回退完成：MK=${MK}`, "变量回退");
   } catch (e) {
     logger.log(`回退异常：MK=${MK} → ${e?.message || e}`, "变量回退");
   } finally {
@@ -447,7 +432,6 @@ async function findLatestNewValue(path, startMessageId, logger) {
   const messages = getChatMessages("0-{{lastMessageId}}", {
     include_swipes: false
   });
-  logger?.log(`[findLatestNewValue] 原始消息列表: ${J(messages)}`, "获取旧值");
   if (!messages || messages.length < 1) {
     logger?.log(`[findLatestNewValue] 消息历史为空，无法追溯。`, "获取旧值");
     return null;
@@ -457,34 +441,22 @@ async function findLatestNewValue(path, startMessageId, logger) {
     logger?.log(`[findLatestNewValue] 错误：在消息列表中未找到起始消息ID: ${startMessageId}`, "获取旧值");
     return null;
   }
-  logger?.log(`[findLatestNewValue] 进入循环查找逻辑`, "获取旧值");
   for (let i = startIndex - 1; i >= 0; i--) {
     const message = messages[i];
-    const messageId = message?.message_id;
-    logger?.log(`[findLatestNewValue] 开始检索消息:id=${messageId};消息内容message=${JSON.stringify(message)}`, "获取旧值");
-    if (message?.role !== "assistant" || typeof messageId !== "number") {
-      logger?.log(`[findLatestNewValue] 消息:id=${messageId},role=${message.role}不符合要求，跳过`, "获取旧值");
+    if (message?.role !== "assistant" || typeof message?.message_id !== "number") {
       continue;
     }
     const mk = readMessageKey(message);
-    logger?.log(`[findLatestNewValue] 正在检查AI消息 ID=${messageId};mk=${mk}`, "获取旧值");
-    if (!mk) {
-      logger?.log(`[findLatestNewValue] -> 消息 (ID: ${messageId}) 没有MK，跳过。`, "获取旧值");
-      continue;
-    }
+    if (!mk) continue;
     const chatVars = getVariables(CHAT_SCOPE) || {};
     const editLogRaw = _.get(chatVars, [ LOGS_PATH, mk ]);
     const editLog = parseEditLog(editLogRaw);
-    if (!editLog || editLog.length === 0) {
-      logger?.log(`[findLatestNewValue] -> 消息 (ID: ${messageId}, MK: ${mk}) 的EditLog为空，跳过。`, "获取旧值");
-      continue;
-    }
-    logger?.log(`[findLatestNewValue] -> 正在逆序扫描消息 (ID: ${messageId}, MK: ${mk}) 的 EditLog=${JSON.stringify(editLog)}`, "获取旧值");
+    if (!editLog || editLog.length === 0) continue;
     for (let j = editLog.length - 1; j >= 0; j--) {
       const logEntry = editLog[j];
       if (!logEntry || !logEntry.path) continue;
       if (logEntry.path === path) {
-        logger?.log(`[findLatestNewValue] >> 成功! 在消息(ID:${messageId}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`, "获取旧值");
+        logger?.log(`[findLatestNewValue] >> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`, "获取旧值");
         return _.cloneDeep(logEntry.value_new);
       }
       if (path.startsWith(logEntry.path + ".")) {
@@ -492,12 +464,11 @@ async function findLatestNewValue(path, startMessageId, logger) {
         const parentNewVal = logEntry.value_new;
         if (_.isPlainObject(parentNewVal) && _.has(parentNewVal, subPath)) {
           const foundVal = _.get(parentNewVal, subPath);
-          logger?.log(`[findLatestNewValue] >> 成功! 在消息(ID:${messageId}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`, "获取旧值");
+          logger?.log(`[findLatestNewValue] >> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`, "获取旧值");
           return _.cloneDeep(foundVal);
         }
       }
     }
-    logger?.log(`[findLatestNewValue] -> 在消息 (ID: ${messageId}, MK: ${mk}) 的EditLog中未找到路径 <${path}> 或其有效父级，继续向上...`, "获取旧值");
   }
   logger?.log(`[findLatestNewValue] 向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`, "获取旧值");
   return null;
@@ -522,7 +493,6 @@ function applyInsertAtLevel(rootVars, basePath, patchObj, editLog, inheritedTpl,
     return;
   }
   for (const key of Object.keys(patchObj)) {
-    if (key === "$meta") continue;
     const fullPath = basePath ? `${basePath}.${key}` : key;
     const valNew = patchObj[key];
     if (_.has(rootVars, fullPath)) {
@@ -550,7 +520,6 @@ function applyInsertAtLevel(rootVars, basePath, patchObj, editLog, inheritedTpl,
 
 async function applyEditAtLevel(rootVars, basePath, patchObj, editLog, logger, messageId, intraMessageState) {
   for (const key of Object.keys(patchObj)) {
-    if (key === "$meta") continue;
     const fullPath = basePath ? `${basePath}.${key}` : key;
     const valNew = patchObj[key];
     if (_.isPlainObject(valNew)) {
@@ -588,26 +557,21 @@ async function applyEditAtLevel(rootVars, basePath, patchObj, editLog, logger, m
 const ApplyVarChangeForMessage = async msg => {
   const logger = new Logger;
   try {
-    if (!msg) {
-      logger.log("无效消息对象，退出", "变量写入");
+    if (!msg || typeof msg.message_id !== "number") {
+      logger.log("无效消息对象或缺少 message_id，退出", "变量写入");
       return null;
     }
     const messageId = msg.message_id;
-    if (typeof messageId !== "number") {
-      logger.log("无法读取消息ID，退出", "变量写入");
-      return null;
-    }
-    const sid = Number(msg?.swipe_id ?? 0);
     const MK = readMessageKey(msg);
     if (!MK || isUserMessage(msg)) {
       logger.log(`消息 (ID: ${messageId}) 不含 MK 或为用户消息，跳过变量写入。`, "变量写入");
       return null;
     }
-    const raw = String((msg?.message && msg.message.length ? msg.message : Array.isArray(msg?.swipes) ? msg.swipes[sid] : "") || "");
-    const insertBlocks = extractBlocks(raw, "VariableInsert");
-    const editBlocks = extractBlocks(raw, "VariableEdit");
+    const rawContent = String((msg?.message && msg.message.length ? msg.message : Array.isArray(msg?.swipes) ? msg.swipes[Number(msg?.swipe_id ?? 0)] : "") || "");
+    const insertBlocks = extractBlocks(rawContent, "VariableInsert");
+    const editBlocks = extractBlocks(rawContent, "VariableEdit");
     if (!insertBlocks.length && !editBlocks.length) {
-      logger.log(`消息 (ID: ${messageId}) 未检测到 <VariableInsert>/<VariableEdit> 标签：本轮写入空 EditLog 并更新选中`, "变量写入");
+      logger.log(`消息 (ID: ${messageId}) 未检测到变量修改标签。`, "变量写入");
     }
     const allInserts = insertBlocks.flatMap(s => parseJsonl(s, logger));
     const allEdits = editBlocks.flatMap(s => parseJsonl(s, logger));
@@ -625,7 +589,6 @@ const ApplyVarChangeForMessage = async msg => {
             }
             return v;
           }, CHAT_SCOPE);
-          logger.log(`[调试] insertRoot 处理完毕后，EditLog: ${JSON.stringify(editLog)}`, "变量写入");
         } catch (e) {
           logger.log(`处理 insertRoot 失败: ${e?.message || e}`, "变量写入");
         }
@@ -646,7 +609,6 @@ const ApplyVarChangeForMessage = async msg => {
             }
             return v;
           }, CHAT_SCOPE);
-          logger.log(`[调试] editRoot 处理完毕后，EditLog: ${JSON.stringify(editLog)}`, "变量写入");
         } catch (e) {
           logger.log(`处理 editRoot 失败: ${e?.message || e}`, "变量写入");
         }
@@ -654,7 +616,6 @@ const ApplyVarChangeForMessage = async msg => {
       logger.log("所有 VariableEdit 操作完成", "变量写入");
     }
     try {
-      logger.log(`[调试] 最终写入前，EditLog: ${JSON.stringify(editLog)}`, "变量写入");
       await updateVariablesWith(v => {
         const newArr = Array.isArray(editLog) ? editLog : parseEditLog(editLog);
         _.set(v, [ LOGS_PATH, MK ], JSON.stringify(newArr));
@@ -663,9 +624,6 @@ const ApplyVarChangeForMessage = async msg => {
     } catch (e) {
       logger.log(`写入 EditLogs 失败: ${e?.message || e}`, "变量写入");
     }
-    logger.log(`[调试] 退出 ApplyVarChangeForMessage。当前消息列表: ${JSON.stringify(getChatMessages("0-{{lastMessageId}}", {
-      include_swipes: true
-    }))}`, "调试");
     return MK;
   } catch (err) {
     logger.log(`变量写入器异常: ${err?.message || err}`, "变量写入");
@@ -677,16 +635,11 @@ const ApplyVarChangeForMessage = async msg => {
 
 const ApplyVarChange = async () => {
   const logger = new Logger;
-  logger.log(`[调试] 进入 ApplyVarChange。当前消息列表: ${JSON.stringify(getChatMessages("0-{{lastMessageId}}", {
+  const msg = getChatMessages(-1, {
     include_swipes: true
-  }))}`, "调试");
-  const _arr = getChatMessages(-1, {
-    include_swipes: true
-  });
-  const msg = _arr && _arr[0];
-  if (!msg) return;
+  })?.[0];
+  if (!msg || typeof msg.message_id !== "number") return;
   const messageId = msg.message_id;
-  if (typeof messageId !== "number") return;
   const MK = await ApplyVarChangeForMessage(msg);
   try {
     await updateVariablesWith(v => {
@@ -696,7 +649,6 @@ const ApplyVarChange = async () => {
       return v;
     }, CHAT_SCOPE);
   } catch (e) {
-    const logger = new Logger;
     logger.log(`(ApplyVarChange) 更新 SelectedMks 失败: ${e?.message || e}`, "变量写入");
     await logger.flush();
   }
@@ -860,7 +812,7 @@ async function processQueue() {
     if (currentBatch.length > 0) {
       finalJobs.push(currentBatch[0]);
       for (let i = 1; i < currentBatch.length; i++) {
-        const prevJob = currentBatch[i - 1];
+        const prevJob = finalJobs[finalJobs.length - 1];
         const currentJob = currentBatch[i];
         if (currentJob.type === prevJob.type && (currentJob.type === tavern_events.MESSAGE_RECEIVED || currentJob.type === tavern_events.MESSAGE_SWIPED)) {
           finalJobs[finalJobs.length - 1] = currentJob;
@@ -899,19 +851,19 @@ async function processQueue() {
           await resyncStateOnHistoryChange();
           break;
 
-         case "era:insertByObject":
+         case ERA_API_EVENTS.INSERT_BY_OBJECT:
           if (detail && typeof detail === "object") await insertByObject(detail);
           break;
 
-         case "era:updateByObject":
+         case ERA_API_EVENTS.UPDATE_BY_OBJECT:
           if (detail && typeof detail === "object") await updateByObject(detail);
           break;
 
-         case "era:insertByPath":
+         case ERA_API_EVENTS.INSERT_BY_PATH:
           if (detail && typeof detail.path === "string") await insertByPath(detail.path, detail.value);
           break;
 
-         case "era:updateByPath":
+         case ERA_API_EVENTS.UPDATE_BY_PATH:
           if (detail && typeof detail.path === "string") await updateByPath(detail.path, detail.value);
           break;
 
@@ -932,7 +884,7 @@ async function processQueue() {
   await logger.flush();
 }
 
-const eventsToListen = [ "rollback_done_reapply_var_start", tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, tavern_events.MESSAGE_SENT, tavern_events.CHARACTER_MESSAGE_RENDERED, "era:insertByObject", "era:updateByObject", "era:insertByPath", "era:updateByPath" ];
+const eventsToListen = [ "rollback_done_reapply_var_start", tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, tavern_events.MESSAGE_SENT, tavern_events.CHARACTER_MESSAGE_RENDERED, ...Object.values(ERA_API_EVENTS) ];
 
 eventsToListen.forEach(ev => {
   eventOn(ev, detail => pushToQueue(ev, detail));
