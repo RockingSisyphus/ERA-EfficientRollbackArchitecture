@@ -1,28 +1,39 @@
+/**
+ * @file ERA 变量框架 - 事件队列与处理器模块
+ * @description
+ * 该模块是 ERA 框架的“神经中枢”，它通过一个事件队列机制，优雅地解决了因酒馆（SillyTavern）
+ * 高频、并发事件（特别是 `character_message_rendered`）可能导致的状态竞争和逻辑错乱问题。
+ *
+ * **工作原理**:
+ * 1. **事件入队**: 所有来自酒馆的、与 ERA 相关的事件以及来自 API 的调用，都不会立即执行，
+ *    而是被封装成一个 `EventJob` 对象，推入一个先进先出的 `eventQueue` 队列中。
+ * 2. **单线程处理**: 一个独立的、异步的 `processQueue` 函数作为唯一的处理器。它使用一个
+ *    `isProcessing` 锁来确保在任何时刻，只有一个事件处理循环在运行，从而从根本上避免了并发问题。
+ * 3. **智能批处理与合并**: 在每个处理循环的开始，处理器会一次性取出队列中的所有事件形成一个“批次”。
+ *    然后对这个批次进行“智能合并”，例如，多个连续的、效果可覆盖的写入事件（如 `MESSAGE_RECEIVED`）
+ *    可以被合并为一次，只保留最后一个，这极大地减少了不必要的重复计算。
+ * 4. **顺序执行与任务分发**: 合并后的任务会按照严格的顺序被逐一执行。`switch` 语句根据事件类型，
+ *    将任务分发给相应的核心处理函数（如 `ApplyVarChange`, `resyncStateOnHistoryChange` 等）。
+ * 5. **保障与节流**:
+ *    - 在处理每个任务**之前**，都会调用 `ensureMkForLatestMessage`，确保即将操作的消息有 MK。
+ *    - 在处理每个任务**之后**，都会调用 `updateLatestSelectedMk`，校准 `SelectedMks` 的最新记录。
+ *    - 每个任务处理后都有一个短暂的 `setTimeout` 节流，给予酒馆底层异步操作完成的时间。
+ */
+
 'use strict';
 
 import _ from 'lodash';
 import { insertByObject, insertByPath, updateByObject, updateByPath } from './api';
+import { ERA_API_EVENTS } from './constants';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from './message_key';
 import { rollbackByMk } from './rollback';
 import { resyncStateOnHistoryChange } from './sync';
 import { Logger } from './utils';
 import { ApplyVarChange } from './write';
 
-// =================================================================
-// 事件处理队列机制
-// 解决了因高频、并发事件（如 character_message_rendered）导致的状态竞争和逻辑错乱问题。
-//
-// 工作原理：
-// 1. 所有事件触发时，不直接执行逻辑，而是被推入一个先进先出的“事件队列”(eventQueue)。
-// 2. 一个独立的、持续运行的“处理器”(processQueue)负责从队列中取出事件并执行。
-// 3. 处理器使用一个“处理中”标志(isProcessing)来确保任何时候只有一个核心逻辑在运行，防止并发。
-// 4. 在处理一批事件前，会进行“智能合并”，例如，多个连续的写入事件可以合并为一次，
-//    而重要的同步事件（如删除消息）则拥有更高优先级。
-// 5. 每次处理循环后，会有一个短暂的“节流”等待，确保酒馆底层的异步操作有时间完成。
-// =================================================================
-
 /**
- * @description 事件对象的接口定义
+ * @interface EventJob
+ * @description 定义了事件队列中每个任务对象的结构。
  */
 interface EventJob {
   type: string;
@@ -30,22 +41,22 @@ interface EventJob {
 }
 
 /**
- * @description 事件队列，存储所有待处理的事件
+ * @const {EventJob[]} eventQueue
+ * @description 事件队列，存储所有待处理的事件任务。
  */
 const eventQueue: EventJob[] = [];
 
 /**
- * @description 处理中标志，为 true 时表示 processQueue 正在运行，防止重入
+ * @let {boolean} isProcessing
+ * @description 处理器锁。为 true 时表示 `processQueue` 正在运行，防止重入。
  */
 let isProcessing = false;
 
-// (移除优先级定义)
-
 /**
- * @description 将事件推入队列，并尝试启动处理器
- * 这是所有事件监听器的统一入口。
- * @param type 事件类型
- * @param detail 事件数据
+ * **【事件入口】**
+ * 将一个事件推入队列，并尝试启动处理器。这是所有事件监听器的统一入口点。
+ * @param {string} type - 事件类型 (e.g., `tavern_events.MESSAGE_DELETED`)。
+ * @param {any} [detail] - 事件附带的数据。
  */
 export function pushToQueue(type: string, detail?: any) {
   const logger = new Logger();
@@ -55,11 +66,12 @@ export function pushToQueue(type: string, detail?: any) {
 }
 
 /**
- * @description 核心事件处理器
- * 持续从队列中取出事件、合并、并执行最高优先级的任务。
+ * **【核心事件处理器】**
+ * 持续从队列中取出事件、合并、并按顺序执行。
+ * 这是一个自驱动的异步函数，只要队列不为空就会一直运行，直到处理完所有任务。
  */
 async function processQueue() {
-  if (isProcessing) return;
+  if (isProcessing) return; // 如果已在处理中，则直接返回，等待当前循环完成。
   isProcessing = true;
 
   const logger = new Logger();
@@ -70,7 +82,8 @@ async function processQueue() {
     let currentBatch = eventQueue.splice(0, eventQueue.length);
     logger.log(`[队列] 取出批次，包含 ${currentBatch.length} 个事件: ${currentBatch.map(e => e.type).join(', ')}`, '调试');
 
-    // a. 合并 CHARACTER_MESSAGE_RENDERED, 只保留最后一个
+    // a. 合并可覆盖的事件，只保留最后一个。
+    // 例如，短时间内多次触发 `CHARACTER_MESSAGE_RENDERED`，实际上我们只关心最后一次渲染完成时的状态。
     const lastRenderIndex = _.findLastIndex(currentBatch, { type: tavern_events.CHARACTER_MESSAGE_RENDERED });
     if (lastRenderIndex > -1) {
       currentBatch = currentBatch.filter(
@@ -78,21 +91,19 @@ async function processQueue() {
       );
     }
 
-    // b. 合并连续的 MESSAGE_RECEIVED
-    // c. 合并连续的 MESSAGE_SWIPED
-    // (为了简化，我们先实现一个更通用的合并逻辑：如果一个事件连续出现，只保留最后一个)
+    // b. 合并连续的同类型事件，如 MESSAGE_RECEIVED, MESSAGE_SWIPED。
     const finalJobs: EventJob[] = [];
     if (currentBatch.length > 0) {
       finalJobs.push(currentBatch[0]);
       for (let i = 1; i < currentBatch.length; i++) {
-        const prevJob = currentBatch[i - 1];
+        const prevJob = finalJobs[finalJobs.length - 1];
         const currentJob = currentBatch[i];
-        // 如果当前事件和前一个事件类型相同，并且是可合并的类型，则跳过（相当于丢弃前一个，保留当前的）
+        // 如果当前事件和前一个事件类型相同，并且是可合并的类型，则用当前事件替换掉前一个。
         if (
           currentJob.type === prevJob.type &&
           (currentJob.type === tavern_events.MESSAGE_RECEIVED || currentJob.type === tavern_events.MESSAGE_SWIPED)
         ) {
-          finalJobs[finalJobs.length - 1] = currentJob; // 替换掉最后一个
+          finalJobs[finalJobs.length - 1] = currentJob;
         } else {
           finalJobs.push(currentJob);
         }
@@ -105,15 +116,18 @@ async function processQueue() {
       const { type: eventType, detail } = job;
       logger.log(`[队列] 执行任务: ${eventType}`, '调试');
       try {
+        // **前置保障**: 确保最新消息有 MK。
         await ensureMkForLatestMessage();
 
-        // 根据事件类型执行对应逻辑
+        // **任务分发**
         switch (eventType) {
-          case 'rollback_done_reapply_var_start':
+          // --- 写入类事件 ---
+          case 'rollback_done_reapply_var_start': // 内部事件，由同步流程触发
           case tavern_events.MESSAGE_RECEIVED:
           case tavern_events.CHARACTER_MESSAGE_RENDERED:
           case 'manual_write': {
-            // 写入前先回滚，确保幂等性
+            // 关键：写入前先回滚，确保操作的幂等性。
+            // 即使事件被意外触发多次，也只会产生一次有效写入。
             const msg = getChatMessages(-1, { include_swipes: true })?.[0];
             if (msg) {
               const MK = readMessageKey(msg);
@@ -123,6 +137,7 @@ async function processQueue() {
             break;
           }
 
+          // --- 同步类事件 ---
           case tavern_events.MESSAGE_DELETED:
           case tavern_events.MESSAGE_SWIPED:
           case tavern_events.CHAT_CHANGED:
@@ -130,35 +145,38 @@ async function processQueue() {
             await resyncStateOnHistoryChange();
             break;
 
-          case 'era:insertByObject':
+          // --- API 调用事件 ---
+          case ERA_API_EVENTS.INSERT_BY_OBJECT:
             if (detail && typeof detail === 'object') await insertByObject(detail);
             break;
-          case 'era:updateByObject':
+          case ERA_API_EVENTS.UPDATE_BY_OBJECT:
             if (detail && typeof detail === 'object') await updateByObject(detail);
             break;
-          case 'era:insertByPath':
+          case ERA_API_EVENTS.INSERT_BY_PATH:
             if (detail && typeof detail.path === 'string') await insertByPath(detail.path, detail.value);
             break;
-          case 'era:updateByPath':
+          case ERA_API_EVENTS.UPDATE_BY_PATH:
             if (detail && typeof detail.path === 'string') await updateByPath(detail.path, detail.value);
             break;
 
+          // --- 忽略的事件 ---
           case tavern_events.MESSAGE_SENT:
-            // 无需操作
+            // 用户发送消息的瞬间，AI 尚未回复，此时无需操作。
             break;
         }
       } catch (error) {
         logger.log(`[队列] 事件 ${eventType} 处理异常: ${error}`, '错误');
       } finally {
+        // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
         await updateLatestSelectedMk();
-        // 在每个独立任务后都进行短暂节流
+        // **节流**: 在每个独立任务后都进行短暂等待，确保酒馆底层有时间完成其异步操作。
         await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
     logger.log('[队列] 本轮批次处理完毕。', '调试');
   }
 
-  // 队列处理完毕，释放锁
+  // 队列处理完毕，释放锁，等待下一次事件入队。
   isProcessing = false;
   logger.log('[队列] 处理器空闲，已释放锁。', '调试');
   await logger.flush();
