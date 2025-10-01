@@ -24,13 +24,7 @@ import { Logger } from './utils';
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
  * @param {Logger} logger - 日志记录器实例。
  */
-function applyDeleteAtLevel(
-  rootVars: any,
-  basePath: string,
-  patchObj: any,
-  editLog: any[],
-  logger: Logger,
-) {
+function applyDeleteAtLevel(rootVars: any, basePath: string, patchObj: any, editLog: any[], logger: Logger) {
   // --- 1. 入口守卫和状态获取 ---
   const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
 
@@ -40,7 +34,7 @@ function applyDeleteAtLevel(
   }
 
   const necessary = _.get(currentNodeInVars, ['$meta', 'necessary']);
-  
+
   // 精确判断豁免条件
   const metaPatch = _.get(patchObj, '$meta');
   const isBypassingProtection =
@@ -55,7 +49,10 @@ function applyDeleteAtLevel(
 
     // 权限检查：如果节点受 'all' 保护，且指令不满足豁免条件，则禁止深入。
     if (necessary === 'all' && !isBypassingProtection) {
-      logger.error('applyDeleteAtLevel', `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`);
+      logger.error(
+        'applyDeleteAtLevel',
+        `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`,
+      );
       return;
     }
 
@@ -75,7 +72,10 @@ function applyDeleteAtLevel(
   // 权限检查：'self' 或 'all' 都会阻止当前节点的直接删除。
   // 直接删除节点的意图无法豁免保护，必须通过递归意图删除 '$meta' 来解除保护。
   if (necessary === 'self' || necessary === 'all') {
-    logger.error('applyDeleteAtLevel', `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`);
+    logger.error(
+      'applyDeleteAtLevel',
+      `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`,
+    );
     return;
   }
 
@@ -91,7 +91,6 @@ function applyDeleteAtLevel(
   editLog.push({ op: 'delete', path: basePath, value_old: valOld });
   logger.debug('applyDeleteAtLevel', `成功删除节点: ${basePath}`);
 }
-
 
 /**
  * 处理所有 `<VariableDelete>` 指令块。
