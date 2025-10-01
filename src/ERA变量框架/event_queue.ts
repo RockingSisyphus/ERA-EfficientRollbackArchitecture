@@ -23,7 +23,7 @@
 'use strict';
 
 import _ from 'lodash';
-import { insertByObject, insertByPath, updateByObject, updateByPath } from './api';
+import { deleteByObject, deleteByPath, insertByObject, insertByPath, updateByObject, updateByPath } from './api';
 import { ERA_API_EVENTS } from './constants';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from './message_key';
 import { rollbackByMk } from './rollback';
@@ -160,6 +160,12 @@ async function processQueue() {
             break;
           case ERA_API_EVENTS.UPDATE_BY_PATH:
             if (detail && typeof detail.path === 'string') await updateByPath(detail.path, detail.value);
+            break;
+          case ERA_API_EVENTS.DELETE_BY_OBJECT:
+            if (detail && typeof detail === 'object') await deleteByObject(detail);
+            break;
+          case ERA_API_EVENTS.DELETE_BY_PATH:
+            if (detail && typeof detail.path === 'string') await deleteByPath(detail.path);
             break;
 
           // --- 忽略的事件 ---

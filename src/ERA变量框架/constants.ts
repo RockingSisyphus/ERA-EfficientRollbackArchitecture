@@ -75,4 +75,6 @@ export const ERA_API_EVENTS = {
   UPDATE_BY_OBJECT: 'era:updateByObject',
   INSERT_BY_PATH: 'era:insertByPath',
   UPDATE_BY_PATH: 'era:updateByPath',
+  DELETE_BY_OBJECT: 'era:deleteByObject',
+  DELETE_BY_PATH: 'era:deleteByPath',
 } as const;

@@ -73,6 +73,32 @@ const logger = new Logger('api');
  * });
  */
 
+/**
+ * @section API Event: 'era:deleteByObject'
+ * @description 通过一个对象，删除已存在的变量。
+ * @param {object} detail - 描述要删除路径的结构。值的结构决定了删除行为。
+ * @example
+ * // 准备删除 player.gold。指令中 gold 的值必须是空对象 {}
+ * eventEmit('era:deleteByObject', { player: { gold: {} } });
+ *
+ * // 准备删除整个 player 对象。
+ * eventEmit('era:deleteByObject', { player: {} });
+ *
+ * // **重要**: 如果 player 对象包含 gold 和 mana 两个属性，
+ * // 以下指令只会删除 gold 和 mana，而 player 对象本身会被保留（变为空对象）。
+ * // 这与 `eventEmit('era:deleteByObject', { player: {} })` 的效果是不同的。
+ * eventEmit('era:deleteByObject', { player: { gold: {}, mana: {} } });
+ */
+
+/**
+ * @section API Event: 'era:deleteByPath'
+ * @description 通过指定路径，删除一个已存在的变量。
+ * @param {object} detail - 包含路径的对象。
+ * @param {string} detail.path - 要删除的变量的路径。
+ * @example
+ * eventEmit('era:deleteByPath', { path: 'player.inventory[0]' });
+ */
+
 // ==================================================================
 // 内部核心函数
 // ==================================================================
@@ -100,9 +126,9 @@ async function findLastAiMessage(): Promise<any | null> {
  * 它找到最后一条 AI 消息，将指定的变量修改块追加到其内容末尾，然后通过酒馆 API 更新该消息。
  *
  * @param {object} blockContent - 要注入的变量修改内容，一个可被序列化为 JSON 的对象。
- * @param {'VariableInsert' | 'VariableEdit'} blockTag - 变量修改块的标签类型。
+ * @param {'VariableInsert' | 'VariableEdit' | 'VariableDelete'} blockTag - 变量修改块的标签类型。
  */
-async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 'VariableEdit') {
+async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 'VariableEdit' | 'VariableDelete') {
   const lastAiMessage = await findLastAiMessage();
   if (!lastAiMessage) {
     logger.warn('performUpdate', '找不到任何 AI 消息，无法执行变量更新。');
@@ -159,4 +185,22 @@ export async function insertByPath(path: string, value: any) {
 export async function updateByPath(path: string, value: any) {
   const block = _.set({}, path, value);
   await performUpdate(block, 'VariableEdit');
+}
+
+/**
+ * **【处理器】** 处理 `era:deleteByObject` 事件。
+ * @param {object} data - 从事件的 `detail` 中获取的变量结构。
+ */
+export async function deleteByObject(data: object) {
+  await performUpdate(data, 'VariableDelete');
+}
+
+/**
+ * **【处理器】** 处理 `era:deleteByPath` 事件。
+ * @param {string} path - 从事件 `detail` 的 `path` 属性获取。
+ */
+export async function deleteByPath(path: string) {
+  // 对于删除操作，我们用一个空对象作为值来表示删除该路径的意图
+  const block = _.set({}, path, {});
+  await performUpdate(block, 'VariableDelete');
 }
