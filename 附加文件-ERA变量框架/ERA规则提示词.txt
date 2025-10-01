@@ -29,7 +29,6 @@
     -   在 `<VariableThink>` 块之后，必须立即输出一个或多个指令块 (`<VariableInsert>`、`<VariableEdit>`、`<VariableDelete>`)。
 
 3.  **格式要求**:
-    -   `<VariableThink>` 和所有指令块的内容，都必须被包裹在 `<!-- -->` 标记中。`<!--` 和 `-->` 必须分别独占一行。
     -   所有指令块的内容都必须是 **严格合法** 的 JSON 格式。
     -   所有 JSON 的键（key）都必须使用双引号 `"`。
     -   严格遵循 `<variable_rule>` 中定义的所有规则。
@@ -37,17 +36,15 @@
 ### 格式示例
 
 ```
-这是AI回复的正文部分。
+其他内容（如正文）和格式
+
 <VariableThink>
-<!--
 1.  **意图分析**: 故事中出现了一个新角色 "Elara"，需要将其添加到 `characters` 对象中。同时，主角 "player" 的 `hp` 从 15 减少到了 10。
 2.  **操作计划**:
     -   生成一个 `<VariableInsert>` 块来添加新角色 "Elara"。
     -   生成一个 `<VariableEdit>` 块来更新 "player" 的 `hp`。
--->
 </VariableThink>
 <VariableInsert>
-<!--
 {
   "characters": {
     "Elara": {
@@ -55,10 +52,8 @@
     }
   }
 }
--->
 </VariableInsert>
 <VariableEdit>
-<!--
 {
   "characters": {
     "player": {
@@ -66,7 +61,6 @@
     }
   }
 }
--->
 </VariableEdit>
 ```
 </format_request>
