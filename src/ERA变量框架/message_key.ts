@@ -176,19 +176,19 @@ export async function ensureMessageKey(msg: any): Promise<string> {
   // 3. 构造更新负载，并调用酒馆 API 更新消息内容
   const updatePayload: { message_id: number; message?: string; swipes?: string[] } = { message_id: messageId };
 
-    if (Array.isArray(msg.swipes)) {
-      // 如果是 swipe 消息，只更新当前选中的 swipe
-      const sid = Number(msg.swipe_id ?? 0);
-      const newSwipes = [...msg.swipes];
-      newSwipes[sid] = newContent;
-      updatePayload.swipes = newSwipes;
-    } else {
-      // 否则，直接更新 message
-      updatePayload.message = newContent;
-    }
+  if (Array.isArray(msg.swipes)) {
+    // 如果是 swipe 消息，只更新当前选中的 swipe
+    const sid = Number(msg.swipe_id ?? 0);
+    const newSwipes = [...msg.swipes];
+    newSwipes[sid] = newContent;
+    updatePayload.swipes = newSwipes;
+  } else {
+    // 否则，直接更新 message
+    updatePayload.message = newContent;
+  }
 
-    await setChatMessages([updatePayload], { refresh: 'none' });
-    return newMk;
+  await setChatMessages([updatePayload], { refresh: 'none' });
+  return newMk;
 }
 
 /**

@@ -91,7 +91,10 @@ export const resyncStateOnHistoryChange = async () => {
 
       if (currentMk === recordedMk) {
         firstRecalcId = i + 1;
-        logger.log('resyncStateOnHistoryChange', `找到对齐点于 message_id=${i} (MK=${currentMk})。将从 ID ${firstRecalcId} 开始检查。`);
+        logger.log(
+          'resyncStateOnHistoryChange',
+          `找到对齐点于 message_id=${i} (MK=${currentMk})。将从 ID ${firstRecalcId} 开始检查。`,
+        );
         break;
       }
     }
@@ -111,7 +114,10 @@ export const resyncStateOnHistoryChange = async () => {
     logger.debug('resyncStateOnHistoryChange', `计算出的被删除MK: [${deletedMks.join(', ')}]`);
 
     if (deletedMks.length > 0 && checkEditLogsAreEmpty(deletedMks)) {
-      logger.log('resyncStateOnHistoryChange', `检测到被删除的 ${deletedMks.length} 条消息均不含变量修改，执行快速同步。`);
+      logger.log(
+        'resyncStateOnHistoryChange',
+        `检测到被删除的 ${deletedMks.length} 条消息均不含变量修改，执行快速同步。`,
+      );
       const newSelectedMks: (string | null)[] = [];
       for (let i = 0; i < allMessages.length; i++) {
         newSelectedMks[i] = getMkFromMsg(allMessages[i]);
