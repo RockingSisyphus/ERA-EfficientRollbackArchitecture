@@ -46,17 +46,6 @@ const external_namespaceObject = _;
 
 var external_default = __webpack_require__.n(external_namespaceObject);
 
-const ERA_API_EVENTS = {
-  INSERT_BY_OBJECT: "era:insertByObject",
-  UPDATE_BY_OBJECT: "era:updateByObject",
-  INSERT_BY_PATH: "era:insertByPath",
-  UPDATE_BY_PATH: "era:updateByPath"
-};
-
-const external_namespaceObject = _;
-
-var external_default = __webpack_require__.n(external_namespaceObject);
-
 class Logger {
   moduleName;
   constructor(moduleName) {
@@ -130,14 +119,6 @@ const J = o => {
   }
 };
 
-const J = o => {
-  try {
-    return JSON.stringify(o, null, 2);
-  } catch (e) {
-    return `<<stringify失败: ${e?.message || e}>>`;
-  }
-};
-
 function mergeReplaceArray(base, patch) {
   return external_default().mergeWith(external_default().cloneDeep(base), external_default().cloneDeep(patch), (a, b) => {
     if (Array.isArray(a) || Array.isArray(b)) return b;
@@ -172,8 +153,6 @@ function parseJsonl(str, logger) {
   let inString = false;
   for (let i = 0; i < trimmedStr.length; i++) {
     const char = trimmedStr[i];
-    if (char === '"' && (i === 0 || trimmedStr[i - 1] !== "\\")) {
-      inString = !inString;
     if (char === '"' && (i === 0 || trimmedStr[i - 1] !== "\\")) {
       inString = !inString;
     }
@@ -286,9 +265,6 @@ function parseEraData(messageContent) {
     const customFormatBlock = match[1];
     const keyMatch = customFormatBlock.match(/"era-message-key"\s*=\s*"(.*?)"/);
     const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
-    const customFormatBlock = match[1];
-    const keyMatch = customFormatBlock.match(/"era-message-key"\s*=\s*"(.*?)"/);
-    const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
     if (keyMatch?.[1] && typeMatch?.[1]) {
       return {
         "era-message-key": keyMatch[1],
@@ -356,7 +332,6 @@ async function ensureMessageKey(msg) {
 const ensureMkForLatestMessage = async () => {
   try {
     const msg = getChatMessages(-1, {
-    const msg = getChatMessages(-1, {
       include_swipes: true
     })?.[0];
     if (!msg || typeof msg.message_id !== "number") {
@@ -375,13 +350,10 @@ const updateLatestSelectedMk = async () => {
     include_swipes: true
   })?.[0];
   if (!msg || typeof msg.message_id !== "number") return;
-  if (!msg || typeof msg.message_id !== "number") return;
   const MK = await ensureMessageKey(msg);
   if (!MK) return;
   await updateVariablesWith(v => {
     const selectedMks = _.get(v, SEL_PATH, []);
-    if (selectedMks[msg.message_id] !== MK) {
-      selectedMks[msg.message_id] = MK;
     if (selectedMks[msg.message_id] !== MK) {
       selectedMks[msg.message_id] = MK;
       _.set(v, SEL_PATH, selectedMks);
@@ -408,7 +380,6 @@ async function rollbackByMk(MK, silent = false) {
         const e = arr[i];
         const op = String(e?.op || "").toLowerCase();
         const path = String(e?.path || "");
-        if (!path) continue;
         if (!path) continue;
         if (op === "insert") {
           _.unset(v, path);
@@ -447,16 +418,13 @@ async function findLatestNewValue(path, startMessageId, logger) {
   for (let i = startIndex - 1; i >= 0; i--) {
     const message = messages[i];
     if (message?.role !== "assistant" || typeof message?.message_id !== "number") {
-    if (message?.role !== "assistant" || typeof message?.message_id !== "number") {
       continue;
     }
     const mk = readMessageKey(message);
     if (!mk) continue;
-    if (!mk) continue;
     const chatVars = getVariables(CHAT_SCOPE) || {};
     const editLogRaw = _.get(chatVars, [ LOGS_PATH, mk ]);
     const editLog = parseEditLog(editLogRaw);
-    if (!editLog || editLog.length === 0) continue;
     if (!editLog || editLog.length === 0) continue;
     for (let j = editLog.length - 1; j >= 0; j--) {
       const logEntry = editLog[j];
@@ -577,9 +545,6 @@ const ApplyVarChangeForMessage = async msg => {
     const rawContent = String((msg?.message && msg.message.length ? msg.message : Array.isArray(msg?.swipes) ? msg.swipes[Number(msg?.swipe_id ?? 0)] : "") || "");
     const insertBlocks = extractBlocks(rawContent, "VariableInsert");
     const editBlocks = extractBlocks(rawContent, "VariableEdit");
-    const rawContent = String((msg?.message && msg.message.length ? msg.message : Array.isArray(msg?.swipes) ? msg.swipes[Number(msg?.swipe_id ?? 0)] : "") || "");
-    const insertBlocks = extractBlocks(rawContent, "VariableInsert");
-    const editBlocks = extractBlocks(rawContent, "VariableEdit");
     if (!insertBlocks.length && !editBlocks.length) {
       write_logger.debug("ApplyVarChangeForMessage", `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
@@ -644,8 +609,6 @@ const ApplyVarChangeForMessage = async msg => {
 const ApplyVarChange = async () => {
   const msg = getChatMessages(-1, {
     include_swipes: true
-  })?.[0];
-  if (!msg || typeof msg.message_id !== "number") return;
   })?.[0];
   if (!msg || typeof msg.message_id !== "number") return;
   const messageId = msg.message_id;
@@ -816,7 +779,6 @@ async function processQueue() {
       finalJobs.push(currentBatch[0]);
       for (let i = 1; i < currentBatch.length; i++) {
         const prevJob = finalJobs[finalJobs.length - 1];
-        const prevJob = finalJobs[finalJobs.length - 1];
         const currentJob = currentBatch[i];
         if (currentJob.type === prevJob.type && (currentJob.type === tavern_events.MESSAGE_RECEIVED || currentJob.type === tavern_events.MESSAGE_SWIPED)) {
           finalJobs[finalJobs.length - 1] = currentJob;
@@ -856,21 +818,17 @@ async function processQueue() {
           break;
 
          case ERA_API_EVENTS.INSERT_BY_OBJECT:
-         case ERA_API_EVENTS.INSERT_BY_OBJECT:
           if (detail && typeof detail === "object") await insertByObject(detail);
           break;
 
-         case ERA_API_EVENTS.UPDATE_BY_OBJECT:
          case ERA_API_EVENTS.UPDATE_BY_OBJECT:
           if (detail && typeof detail === "object") await updateByObject(detail);
           break;
 
          case ERA_API_EVENTS.INSERT_BY_PATH:
-         case ERA_API_EVENTS.INSERT_BY_PATH:
           if (detail && typeof detail.path === "string") await insertByPath(detail.path, detail.value);
           break;
 
-         case ERA_API_EVENTS.UPDATE_BY_PATH:
          case ERA_API_EVENTS.UPDATE_BY_PATH:
           if (detail && typeof detail.path === "string") await updateByPath(detail.path, detail.value);
           break;
@@ -891,7 +849,6 @@ async function processQueue() {
   event_queue_logger.log("processQueue", "处理器空闲，已释放锁。");
 }
 
-const eventsToListen = [ "rollback_done_reapply_var_start", tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, tavern_events.MESSAGE_SENT, tavern_events.CHARACTER_MESSAGE_RENDERED, ...Object.values(ERA_API_EVENTS) ];
 const eventsToListen = [ "rollback_done_reapply_var_start", tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, tavern_events.MESSAGE_SENT, tavern_events.CHARACTER_MESSAGE_RENDERED, ...Object.values(ERA_API_EVENTS) ];
 
 eventsToListen.forEach(ev => {
