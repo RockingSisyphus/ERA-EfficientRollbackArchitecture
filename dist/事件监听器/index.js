@@ -6,7 +6,7 @@ class Logger {
     this.moduleName = moduleName;
   }
   formatMessage(funcName, message) {
-    return `《ERA-ApiTest》「${this.moduleName}」【${funcName}】${String(message)}`;
+    return `《ERA-事件监听器》「${this.moduleName}」【${funcName}】${String(message)}`;
   }
   debug(funcName, message) {
     console.debug(this.formatMessage(funcName, message));
@@ -135,87 +135,57 @@ function parseJsonl(str, logger) {
   return objects;
 }
 
-const logger = new Logger("ApiTest");
-
-const basicTestSuite = [ {
-  description: "1.1. Initialize State",
-  event: "era:insertByObject",
-  data: {
-    testData: {
-      description: "Initial state",
-      user: {
-        name: "Tester",
-        level: 1
-      },
-      items: [ "apple", "banana" ]
-    }
-  }
-}, {
-  description: "1.2. Update user name",
-  event: "era:updateByPath",
-  data: {
-    path: "testData.user.name",
-    value: "Advanced Tester"
-  }
-}, {
-  description: "1.3. Update by merging an object",
-  event: "era:updateByObject",
-  data: {
-    testData: {
-      user: {
-        level: 2
-      },
-      status: "active"
-    }
-  }
-} ];
-
-const insertionTestSuite = [ {
-  description: "2.1. Insert a new top-level key (inventory)",
-  event: "era:insertByPath",
-  data: {
-    path: "testData.inventory",
-    value: {
-      gold: 100,
-      slots: [ "sword", "shield" ]
-    }
-  }
-}, {
-  description: "2.2. Insert a new nested key (user.stats)",
-  event: "era:insertByPath",
-  data: {
-    path: "testData.user.stats",
-    value: {
-      str: 10,
-      dex: 8
-    }
-  }
-}, {
-  description: "2.3. Insert another object to merge at top level",
-  event: "era:insertByObject",
-  data: {
-    testData: {
-      metadata: {
-        version: "1.0"
+(() => {
+  "use strict";
+  const logger = new Logger("事件监听器");
+  const now = () => performance && performance.now ? performance.now() : Date.now();
+  let SEQ = 0;
+  let chain = Promise.resolve();
+  const enqueue = task => {
+    chain = chain.then(task).catch(e => {
+      logger.error("enqueue", `【监听错误】${e?.message || e}`, e);
+    });
+  };
+  const safe = v => {
+    try {
+      return JSON.stringify(v, (k, val) => {
+        if (typeof val === "string" && val.length > 300) return `${val.slice(0, 300)}…(${val.length})`;
+        if (typeof val === "function") return `[Function ${val.name || "anonymous"}]`;
+        if (val && typeof Element !== "undefined" && val instanceof Element) return `[Element <${val.tagName}>]`;
+        if (val && typeof val.jquery === "string") return `[jQuery ${val.length}]`;
+        return val;
+      });
+    } catch {
+      try {
+        return String(v);
+      } catch {
+        return "[Unserializable]";
       }
     }
-  }
-} ];
-
-$(() => {
-  logger.log("init", "ERA API 分组测试脚本已加载");
-  function runTestSuite(suite, delay = 500) {
-    suite.forEach((testCase, index) => {
-      setTimeout(() => {
-        logger.log("runTestSuite", `[${index + 1}/${suite.length}] ${testCase.description}`);
-        eventEmit(testCase.event, testCase.data);
-      }, index * delay);
-    });
-  }
-  eventOn(getButtonEvent("RunBasicTestSuite"), () => {
-    runTestSuite(basicTestSuite);
+  };
+  const attach = eventName => {
+    const handler = (...args) => {
+      const id = ++SEQ;
+      const t = now();
+      enqueue(async () => {
+        let logMessage = `[#${id}] 触发事件：${eventName} @${t.toFixed ? t.toFixed(3) : t}`;
+        if (args.length > 0) {
+          logMessage += ` | 数据：${args.map(a => safe(a)).join(" | ")}`;
+        }
+        logger.log("handler", logMessage);
+      });
+    };
+    try {
+      eventMakeFirst(eventName, handler);
+    } catch {
+      eventOn(eventName, handler);
+    }
+  };
+  const iframeList = Object.values(typeof iframe_events !== "undefined" && iframe_events || {});
+  const tavernList = Object.values(typeof tavern_events !== "undefined" && tavern_events || {});
+  iframeList.forEach(attach);
+  tavernList.forEach(attach);
+  enqueue(async () => {
+    logger.log("main", `【事件监听就绪】iframe=${iframeList.length}，tavern=${tavernList.length}（统一串行输出，保障顺序）`);
   });
-  eventOn(getButtonEvent("RunInsertionTestSuite"), () => {
-    runTestSuite(insertionTestSuite);
-  });
-});
+})();

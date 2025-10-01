@@ -31,7 +31,7 @@ import { rollbackByMk } from './rollback';
 import { Logger, parseEditLog } from './utils';
 import { ApplyVarChange, ApplyVarChangeForMessage } from './write';
 
-const logger = new Logger();
+const logger = new Logger('sync');
 
 /**
  * 获取用于变量操作的MK。如果消息是用户消息，则返回null以跳过操作。
@@ -68,16 +68,14 @@ const checkEditLogsAreEmpty = (mks: (string | null)[]): boolean => {
  * 实现了“逆序回滚，顺序重算”的逻辑
  */
 export const resyncStateOnHistoryChange = async () => {
-  await logger.flush();
-  logger.log('聊天记录变更，启动状态同步...', '核心同步');
+  logger.log('resyncStateOnHistoryChange', '聊天记录变更，启动状态同步...');
 
   // 核心假设：getChatMessages 会重新生成 message_id，使其保持从 0 开始的连续序列。
   const allMessages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
   const oldSelectedMks: (string | null)[] = _.cloneDeep(getVariables(CHAT_SCOPE)?.[SEL_PATH] || []);
 
   if (!allMessages || allMessages.length === 0) {
-    logger.log('当前聊天记录为空，不执行任何操作，同步终止。', '核心同步');
-    await logger.flush();
+    logger.log('resyncStateOnHistoryChange', '当前聊天记录为空，不执行任何操作，同步终止。');
     return;
   }
 
@@ -85,7 +83,7 @@ export const resyncStateOnHistoryChange = async () => {
 
   // Case 1: 消息被删除 (新列表比旧列表短)
   if (allMessages.length < oldSelectedMks.length) {
-    logger.log('检测到消息删除。', '核心同步');
+    logger.log('resyncStateOnHistoryChange', '检测到消息删除。');
     // 从后往前，寻找第一个 "currentMk === oldMk_at_same_index" 的对齐点
     for (let i = allMessages.length - 1; i >= 0; i--) {
       const currentMk = getMkFromMsg(allMessages[i]);
@@ -93,13 +91,13 @@ export const resyncStateOnHistoryChange = async () => {
 
       if (currentMk === recordedMk) {
         firstRecalcId = i + 1;
-        logger.log(`找到对齐点于 message_id=${i} (MK=${currentMk})。将从 ID ${firstRecalcId} 开始检查。`, '核心同步');
+        logger.log('resyncStateOnHistoryChange', `找到对齐点于 message_id=${i} (MK=${currentMk})。将从 ID ${firstRecalcId} 开始检查。`);
         break;
       }
     }
     if (firstRecalcId === -1) {
       firstRecalcId = 0;
-      logger.log('未找到任何对齐点，将从头开始检查。', '核心同步');
+      logger.log('resyncStateOnHistoryChange', '未找到任何对齐点，将从头开始检查。');
     }
 
     // 【优化】检查被删除的 MK 是否影响变量
@@ -108,12 +106,12 @@ export const resyncStateOnHistoryChange = async () => {
     const oldMkSequence = oldSelectedMks.filter(mk => mk);
     const deletedMks = _.difference(oldMkSequence, currentMkSequence);
 
-    logger.log(`旧MK序列: [${oldMkSequence.join(', ')}]`, '优化检查');
-    logger.log(`新MK序列: [${currentMkSequence.join(', ')}]`, '优化检查');
-    logger.log(`计算出的被删除MK: [${deletedMks.join(', ')}]`, '优化检查');
+    logger.debug('resyncStateOnHistoryChange', `旧MK序列: [${oldMkSequence.join(', ')}]`);
+    logger.debug('resyncStateOnHistoryChange', `新MK序列: [${currentMkSequence.join(', ')}]`);
+    logger.debug('resyncStateOnHistoryChange', `计算出的被删除MK: [${deletedMks.join(', ')}]`);
 
     if (deletedMks.length > 0 && checkEditLogsAreEmpty(deletedMks)) {
-      logger.log(`检测到被删除的 ${deletedMks.length} 条消息均不含变量修改，执行快速同步。`, '优化');
+      logger.log('resyncStateOnHistoryChange', `检测到被删除的 ${deletedMks.length} 条消息均不含变量修改，执行快速同步。`);
       const newSelectedMks: (string | null)[] = [];
       for (let i = 0; i < allMessages.length; i++) {
         newSelectedMks[i] = getMkFromMsg(allMessages[i]);
@@ -122,14 +120,13 @@ export const resyncStateOnHistoryChange = async () => {
         _.set(v, SEL_PATH, newSelectedMks);
         return v;
       }, CHAT_SCOPE);
-      logger.log('快速同步完成，仅修正 SelectedMks 数组。', '优化');
-      await logger.flush();
+      logger.log('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
       return;
     }
   }
   // Case 2: 消息被修改/切换 (长度不变)
   else if (allMessages.length === oldSelectedMks.length) {
-    logger.log('检测到消息长度不变，可能为修改或切换。', '核心同步');
+    logger.log('resyncStateOnHistoryChange', '检测到消息长度不变，可能为修改或切换。');
     // 从后往前，寻找第一个不匹配的点
     for (let i = allMessages.length - 1; i >= 0; i--) {
       const currentMk = getMkFromMsg(allMessages[i]);
@@ -139,21 +136,20 @@ export const resyncStateOnHistoryChange = async () => {
       }
     }
     if (firstRecalcId === -1) {
-      logger.log('所有MK均匹配，无需重算。', '核心同步');
+      logger.log('resyncStateOnHistoryChange', '所有MK均匹配，无需重算。');
       // N.B. 即使所有 MK 看起来都匹配，也无法排除一种特殊情况：
       // 在最后一楼删除 swipe。此时消息内容改变，但消息变量（包括MK）不变。
       // 因此，即使此处检查通过，我们依然需要执行后续的“保险”逻辑。
     } else {
-      logger.log(`找到最早的不匹配点于 message_id=${firstRecalcId}。将从该点开始重算。`, '核心同步');
+      logger.log('resyncStateOnHistoryChange', `找到最早的不匹配点于 message_id=${firstRecalcId}。将从该点开始重算。`);
     }
   }
   // Case 3: 消息被添加 (新列表比旧列表长)
   else {
-    logger.log('检测到消息添加。', '核心同步');
+    logger.log('resyncStateOnHistoryChange', '检测到消息添加。');
     // 只需处理新增部分，但为了逻辑统一，我们让 ApplyVarChange 自己处理
     // 这里我们认为不需要re-sync，直接返回
-    logger.log('新增消息由其他事件处理，本次同步终止。', '核心同步');
-    await logger.flush();
+    logger.log('resyncStateOnHistoryChange', '新增消息由其他事件处理，本次同步终止。');
     return;
   }
 
@@ -161,16 +157,16 @@ export const resyncStateOnHistoryChange = async () => {
   if (firstRecalcId > -1) {
     const mksToRollback = oldSelectedMks.slice(firstRecalcId).filter(mk => mk) as string[];
     if (mksToRollback.length > 0) {
-      logger.log(`准备回滚 ${mksToRollback.length} 个MK: [${mksToRollback.join(', ')}]`, '核心同步');
+      logger.log('resyncStateOnHistoryChange', `准备回滚 ${mksToRollback.length} 个MK: [${mksToRollback.join(', ')}]`);
       for (const mk of mksToRollback.reverse()) {
         await rollbackByMk(mk, true); // true 表示只回滚，不重写
       }
-      logger.log('逆序回滚完成。', '核心同步');
+      logger.log('resyncStateOnHistoryChange', '逆序回滚完成。');
     }
   }
 
   // 4. 从不匹配点开始，顺序重新应用变量修改，并构建新的 selectedMks
-  logger.log(`从 ID ${firstRecalcId} 开始顺序重算...`, '核心同步');
+  logger.log('resyncStateOnHistoryChange', `从 ID ${firstRecalcId} 开始顺序重算...`);
   const newSelectedMks: (string | null)[] = oldSelectedMks.slice(0, firstRecalcId); // 继承匹配部分
 
   for (let i = firstRecalcId; i < allMessages.length; i++) {
@@ -178,14 +174,14 @@ export const resyncStateOnHistoryChange = async () => {
     const newMk = await ApplyVarChangeForMessage(msg);
     newSelectedMks[i] = newMk; // 使用重算后的新 message_id (即 i) 作为索引
   }
-  logger.log('顺序重算完成。', '核心同步');
+  logger.log('resyncStateOnHistoryChange', '顺序重算完成。');
 
   // 5. 更新 SelectedMks 数组
   await updateVariablesWith(v => {
     _.set(v, SEL_PATH, newSelectedMks);
     return v;
   }, CHAT_SCOPE);
-  logger.log('状态同步完成。', '核心同步');
+  logger.log('resyncStateOnHistoryChange', '状态同步完成。');
 
   // ==================================================================
   // 【保险机制】
@@ -203,17 +199,15 @@ export const resyncStateOnHistoryChange = async () => {
   // 上述的“内容-变量错位”问题理论上已不会发生。因此，这个保险机制在当前架构下可能已是冗余的。
   // 但我们暂时保留它，作为对历史设计决策的记录和一道额外的防线。
   // ==================================================================
-  logger.log('执行【保险机制】：无条件回滚并重写最后一楼...', '保险机制');
+  logger.log('resyncStateOnHistoryChange', '执行【保险机制】：无条件回滚并重写最后一楼...');
   const lastWrittenMk = [...oldSelectedMks].reverse().find(mk => mk);
   if (lastWrittenMk) {
-    logger.log(`找到最后一个写入的MK: ${lastWrittenMk}，执行回滚...`, '保险机制');
+    logger.log('resyncStateOnHistoryChange', `找到最后一个写入的MK: ${lastWrittenMk}，执行回滚...`);
     await rollbackByMk(lastWrittenMk, true);
-    logger.log('回滚完成，准备根据当前最后一楼内容重写...', '保险机制');
+    logger.log('resyncStateOnHistoryChange', '回滚完成，准备根据当前最后一楼内容重写...');
     await ApplyVarChange(); // ApplyVarChange 默认处理最后一楼
-    logger.log('保险性重写完成。', '保险机制');
+    logger.log('resyncStateOnHistoryChange', '保险性重写完成。');
   } else {
-    logger.log('未找到任何可供回滚的旧MK，跳过保险机制。', '保险机制');
+    logger.log('resyncStateOnHistoryChange', '未找到任何可供回滚的旧MK，跳过保险机制。');
   }
-
-  await logger.flush();
 };

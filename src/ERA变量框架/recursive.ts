@@ -83,7 +83,7 @@ export function applyInsertAtLevel(
         applyInsertAtLevel(rootVars, fullPath, valNew, editLog, localTpl, logger);
       } else {
         // 否则，路径已存在且无法递归，记录失败并跳过。
-        logger.log(`VariableInsert 失败：路径已存在 -> ${fullPath}`, '插入');
+        logger.warn('applyInsertAtLevel', `VariableInsert 失败：路径已存在 -> ${fullPath}`);
       }
     } else {
       // 在已存在的对象下，发现了一个全新的子路径，执行原子插入。
@@ -134,7 +134,7 @@ export async function applyEditAtLevel(
     // 如果值是对象，则继续递归，不在此层级处理。
     if (_.isPlainObject(valNew)) {
       if (!_.has(rootVars, fullPath)) {
-        logger.log(`VariableEdit 跳过：父路径不存在 -> ${fullPath}`, '编辑');
+        logger.warn('applyEditAtLevel', `VariableEdit 跳过：父路径不存在 -> ${fullPath}`);
         continue; // 跳过整个不存在的分支。
       }
       await applyEditAtLevel(rootVars, fullPath, valNew, editLog, logger, messageId, intraMessageState);
@@ -144,7 +144,7 @@ export async function applyEditAtLevel(
     // --- 只在遇到叶子节点 (非对象值) 时，才执行以下逻辑 ---
 
     if (!_.has(rootVars, fullPath)) {
-      logger.log(`VariableEdit 失败：路径非法，无法写入 -> ${fullPath}`, '编辑');
+      logger.warn('applyEditAtLevel', `VariableEdit 失败：路径非法，无法写入 -> ${fullPath}`);
       continue;
     }
 
@@ -156,9 +156,9 @@ export async function applyEditAtLevel(
      * 所以如果 findLatestNewValue 返回 null，我们可以安全地从 rootVars 获取当前值。
      */
     if (valOld === null) {
-      logger.log(`历史追溯未找到 <${fullPath}>，从楼内初始状态获取...`, '获取旧值');
+      logger.debug('applyEditAtLevel', `历史追溯未找到 <${fullPath}>，从楼内初始状态获取...`);
       valOld = _.get(rootVars, fullPath);
-      logger.log(`成功从楼内初始状态获取 <${fullPath}> 的值为: ${JSON.stringify(valOld)}`, '获取旧值');
+      logger.debug('applyEditAtLevel', `成功从楼内初始状态获取 <${fullPath}> 的值为: ${JSON.stringify(valOld)}`);
     }
 
     const cleaned = sanitizeArrays(valNew); // 清理新值

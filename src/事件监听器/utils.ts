@@ -42,7 +42,7 @@ export class Logger {
    * @returns {string} 格式化后的日志字符串。
    */
   private formatMessage(funcName: string, message: any): string {
-    return `《ERA》「${this.moduleName}」【${funcName}】${String(message)}`;
+    return `《ERA-事件监听器》「${this.moduleName}」【${funcName}】${String(message)}`;
   }
 
   /**

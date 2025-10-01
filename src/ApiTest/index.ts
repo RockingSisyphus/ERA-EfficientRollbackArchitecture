@@ -3,6 +3,10 @@
  * @description 在酒馆助手脚本菜单中注册几个按钮，每个按钮触发一组连续的测试操作。
  */
 
+import { Logger } from './utils';
+
+const logger = new Logger('ApiTest');
+
 // ==================================================================
 // 测试用例组定义
 // ==================================================================
@@ -81,7 +85,7 @@ const insertionTestSuite = [
 // 事件监听器注册
 // ==================================================================
 $(() => {
-  toastr.success('ERA API 分组测试脚本已加载');
+  logger.log('init', 'ERA API 分组测试脚本已加载');
 
   /**
    * 辅助函数：执行一个测试套件
@@ -91,7 +95,7 @@ $(() => {
   function runTestSuite(suite: any[], delay = 500) {
     suite.forEach((testCase, index) => {
       setTimeout(() => {
-        toastr.info(`[${index + 1}/${suite.length}] ${testCase.description}`);
+        logger.log('runTestSuite', `[${index + 1}/${suite.length}] ${testCase.description}`);
         eventEmit(testCase.event, testCase.data);
       }, index * delay);
     });

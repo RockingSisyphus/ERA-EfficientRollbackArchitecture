@@ -30,6 +30,8 @@
 import { SEL_PATH } from './constants';
 import { Logger, rnd } from './utils';
 
+const logger = new Logger('message_key');
+
 /**
  * @constant {string} ERA_DATA_TAG - 用于包裹 MK 元数据的 XML 风格标签名。
  */
@@ -142,39 +144,37 @@ export function isUserMessage(msg: any): boolean {
  * @returns {Promise<string>} 返回该消息最终的 MK。如果操作失败，则返回空字符串。
  */
 export async function ensureMessageKey(msg: any): Promise<string> {
-  const logger = new Logger();
-  try {
-    if (!msg) {
-      logger.log('无效的 null 消息对象，无法确保Key', 'ensureMessageKey');
-      return '';
-    }
+  if (!msg) {
+    logger.warn('ensureMessageKey', '无效的 null 消息对象，无法确保Key');
+    return '';
+  }
 
-    const messageId = msg.message_id;
-    const role = msg.role;
-    const messageContent = getMessageContent(msg);
+  const messageId = msg.message_id;
+  const role = msg.role;
+  const messageContent = getMessageContent(msg);
 
-    if (typeof messageId !== 'number' || typeof messageContent !== 'string' || !role) {
-      logger.log(`无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`, 'ensureMessageKey');
-      return '';
-    }
+  if (typeof messageId !== 'number' || typeof messageContent !== 'string' || !role) {
+    logger.warn('ensureMessageKey', `无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`);
+    return '';
+  }
 
-    // 1. 检查是否已存在 MK
-    const existingMk = readMessageKey(msg);
-    if (existingMk) {
-      return existingMk; // 已存在，直接返回
-    }
+  // 1. 检查是否已存在 MK
+  const existingMk = readMessageKey(msg);
+  if (existingMk) {
+    return existingMk; // 已存在，直接返回
+  }
 
-    // 2. 生成新的 MK 和自定义格式的元数据块
-    const newMk = `era_mk_${Date.now()}_${rnd()}`;
-    const messageType = role === 'user' ? 'user' : 'assistant';
-    const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
-    // 注入到消息内容的顶部
-    const newContent = dataString + messageContent;
+  // 2. 生成新的 MK 和自定义格式的元数据块
+  const newMk = `era_mk_${Date.now()}_${rnd()}`;
+  const messageType = role === 'user' ? 'user' : 'assistant';
+  const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
+  // 注入到消息内容的顶部
+  const newContent = dataString + messageContent;
 
-    logger.log(`为消息 (ID: ${messageId}) 注入新的Key: ${newMk}`, 'ensureMessageKey');
+  logger.log('ensureMessageKey', `为消息 (ID: ${messageId}) 注入新的Key: ${newMk}`);
 
-    // 3. 构造更新负载，并调用酒馆 API 更新消息内容
-    const updatePayload: { message_id: number; message?: string; swipes?: string[] } = { message_id: messageId };
+  // 3. 构造更新负载，并调用酒馆 API 更新消息内容
+  const updatePayload: { message_id: number; message?: string; swipes?: string[] } = { message_id: messageId };
 
     if (Array.isArray(msg.swipes)) {
       // 如果是 swipe 消息，只更新当前选中的 swipe
@@ -189,9 +189,6 @@ export async function ensureMessageKey(msg: any): Promise<string> {
 
     await setChatMessages([updatePayload], { refresh: 'none' });
     return newMk;
-  } finally {
-    await logger.flush();
-  }
 }
 
 /**
@@ -200,22 +197,19 @@ export async function ensureMessageKey(msg: any): Promise<string> {
  * 它通常在监听到新消息生成等事件时被调用，以确保新消息能被 ERA 系统正确追踪。
  */
 export const ensureMkForLatestMessage = async () => {
-  const logger = new Logger();
   try {
     const msg = getChatMessages(-1, { include_swipes: true })?.[0];
 
     if (!msg || typeof msg.message_id !== 'number') {
-      logger.log('无法读取最新消息或其ID，退出', '确保MK');
+      logger.warn('ensureMkForLatestMessage', '无法读取最新消息或其ID，退出');
       return;
     }
 
     // ensureMessageKey 内部会处理所有检查和注入逻辑
     await ensureMessageKey(msg);
-    logger.log(`已为最新消息 ${msg.message_id} 确保 MK 存在。`, '确保MK');
+    logger.log('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。`);
   } catch (err: any) {
-    logger.log(`确保MK时异常: ${err?.message || err}`, '确保MK');
-  } finally {
-    await logger.flush();
+    logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, err);
   }
 };
 

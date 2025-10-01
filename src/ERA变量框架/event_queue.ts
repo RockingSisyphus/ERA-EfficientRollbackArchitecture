@@ -31,6 +31,8 @@ import { resyncStateOnHistoryChange } from './sync';
 import { Logger } from './utils';
 import { ApplyVarChange } from './write';
 
+const logger = new Logger('event_queue');
+
 /**
  * @interface EventJob
  * @description 定义了事件队列中每个任务对象的结构。
@@ -59,8 +61,7 @@ let isProcessing = false;
  * @param {any} [detail] - 事件附带的数据。
  */
 export function pushToQueue(type: string, detail?: any) {
-  const logger = new Logger();
-  logger.log(`[队列] 接收到事件: ${type}，已推入队列。`, '调试');
+  logger.debug('pushToQueue', `接收到事件: ${type}，已推入队列。`);
   eventQueue.push({ type, detail });
   processQueue(); // 尝试启动处理器
 }
@@ -74,16 +75,12 @@ async function processQueue() {
   if (isProcessing) return; // 如果已在处理中，则直接返回，等待当前循环完成。
   isProcessing = true;
 
-  const logger = new Logger();
-  logger.log('[队列] 处理器启动...', '调试');
+  logger.log('processQueue', '处理器启动...');
 
   while (eventQueue.length > 0) {
     // --- 1. 事件批处理与合并 ---
     let currentBatch = eventQueue.splice(0, eventQueue.length);
-    logger.log(
-      `[队列] 取出批次，包含 ${currentBatch.length} 个事件: ${currentBatch.map(e => e.type).join(', ')}`,
-      '调试',
-    );
+    logger.debug('processQueue', `取出批次，包含 ${currentBatch.length} 个事件: ${currentBatch.map(e => e.type).join(', ')}`);
 
     // a. 合并可覆盖的事件，只保留最后一个。
     // 例如，短时间内多次触发 `CHARACTER_MESSAGE_RENDERED`，实际上我们只关心最后一次渲染完成时的状态。
@@ -112,12 +109,12 @@ async function processQueue() {
         }
       }
     }
-    logger.log(`[队列] 合并后，剩余 ${finalJobs.length} 个任务: ${finalJobs.map(e => e.type).join(', ')}`, '调试');
+    logger.debug('processQueue', `合并后，剩余 ${finalJobs.length} 个任务: ${finalJobs.map(e => e.type).join(', ')}`);
 
     // --- 2. 严格按顺序执行合并后的任务 ---
     for (const job of finalJobs) {
       const { type: eventType, detail } = job;
-      logger.log(`[队列] 执行任务: ${eventType}`, '调试');
+      logger.log('processQueue', `执行任务: ${eventType}`);
       try {
         // **前置保障**: 确保最新消息有 MK。
         await ensureMkForLatestMessage();
@@ -168,7 +165,7 @@ async function processQueue() {
             break;
         }
       } catch (error) {
-        logger.log(`[队列] 事件 ${eventType} 处理异常: ${error}`, '错误');
+        logger.error('processQueue', `事件 ${eventType} 处理异常: ${error}`, error);
       } finally {
         // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
         await updateLatestSelectedMk();
@@ -176,11 +173,10 @@ async function processQueue() {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
-    logger.log('[队列] 本轮批次处理完毕。', '调试');
+    logger.debug('processQueue', '本轮批次处理完毕。');
   }
 
   // 队列处理完毕，释放锁，等待下一次事件入队。
   isProcessing = false;
-  logger.log('[队列] 处理器空闲，已释放锁。', '调试');
-  await logger.flush();
+  logger.log('processQueue', '处理器空闲，已释放锁。');
 }

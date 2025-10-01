@@ -18,6 +18,8 @@ import { CHAT_SCOPE, LOGS_PATH } from './constants';
 import { readMessageKey } from './message_key';
 import { J, Logger, parseEditLog } from './utils';
 
+const logger = new Logger('rollback');
+
 /**
  * **【回滚】**
  * 根据一个给定的消息密钥（MK），精确地撤销该消息所引入的所有变量变更。
@@ -27,14 +29,13 @@ import { J, Logger, parseEditLog } from './utils';
  *   这在 `resyncStateOnHistoryChange` 等批量操作中非常有用，可以避免产生大量冗余日志。
  */
 export async function rollbackByMk(MK: string, silent = false) {
-  const logger = new Logger();
   try {
-    logger.log(`[回退] rollbackByMk 开始, MK=${MK}`, '调试');
+    logger.log('rollbackByMk', `开始回滚, MK=${MK}`);
     await updateVariablesWith(v => {
       const raw = _.get(v, [LOGS_PATH, MK]);
       const arr = parseEditLog(raw);
       if (!arr || !arr.length) {
-        logger.log(`[回退] EditLog 为空或无效，跳过回退。`, '调试');
+        logger.debug('rollbackByMk', `EditLog 为空或无效，跳过回滚。`);
         return v;
       }
 
@@ -63,13 +64,9 @@ export async function rollbackByMk(MK: string, silent = false) {
       }
       return v;
     }, CHAT_SCOPE);
-    logger.log(`回退完成：MK=${MK}`, '变量回退');
+    logger.log('rollbackByMk', `回滚完成：MK=${MK}`);
   } catch (e: any) {
-    logger.log(`回退异常：MK=${MK} → ${e?.message || e}`, '变量回退');
-  } finally {
-    if (!silent) {
-      await logger.flush();
-    }
+    logger.error('rollbackByMk', `回滚异常：MK=${MK} → ${e?.message || e}`, e);
   }
 }
 
@@ -85,16 +82,16 @@ export async function rollbackByMk(MK: string, silent = false) {
  * @returns {Promise<any>} 返回找到的 `value_new`。如果追溯到聊天记录的开头都未找到，则返回 `null`。
  */
 export async function findLatestNewValue(path: string, startMessageId: number, logger?: Logger): Promise<any> {
-  logger?.log(`[findLatestNewValue] 开始为路径 <${path}> 从消息ID <${startMessageId}> 向上追溯历史值...`, '获取旧值');
+  logger?.debug('findLatestNewValue', `开始为路径 <${path}> 从消息ID <${startMessageId}> 向上追溯历史值...`);
   const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
   if (!messages || messages.length < 1) {
-    logger?.log(`[findLatestNewValue] 消息历史为空，无法追溯。`, '获取旧值');
+    logger?.debug('findLatestNewValue', `消息历史为空，无法追溯。`);
     return null;
   }
 
   const startIndex = messages.findIndex(m => m.message_id === startMessageId);
   if (startIndex === -1) {
-    logger?.log(`[findLatestNewValue] 错误：在消息列表中未找到起始消息ID: ${startMessageId}`, '获取旧值');
+    logger?.warn('findLatestNewValue', `错误：在消息列表中未找到起始消息ID: ${startMessageId}`);
     return null;
   }
 
@@ -122,9 +119,9 @@ export async function findLatestNewValue(path: string, startMessageId: number, l
 
       // Case 1: 精确路径匹配。
       if (logEntry.path === path) {
-        logger?.log(
-          `[findLatestNewValue] >> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`,
-          '获取旧值',
+        logger?.debug(
+          'findLatestNewValue',
+          `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`,
         );
         return _.cloneDeep(logEntry.value_new);
       }
@@ -136,9 +133,9 @@ export async function findLatestNewValue(path: string, startMessageId: number, l
         const parentNewVal = logEntry.value_new;
         if (_.isPlainObject(parentNewVal) && _.has(parentNewVal, subPath)) {
           const foundVal = _.get(parentNewVal, subPath);
-          logger?.log(
-            `[findLatestNewValue] >> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`,
-            '获取旧值',
+          logger?.debug(
+            'findLatestNewValue',
+            `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`,
           );
           return _.cloneDeep(foundVal);
         }
@@ -147,7 +144,7 @@ export async function findLatestNewValue(path: string, startMessageId: number, l
   }
 
   // 如果追溯到聊天记录的开头都未找到，说明这是该变量的首次出现。
-  logger?.log(`[findLatestNewValue] 向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`, '获取旧值');
+  logger?.debug('findLatestNewValue', `向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`);
   return null;
 }
 

@@ -26,6 +26,8 @@ import { isUserMessage, readMessageKey } from './message_key';
 import { applyEditAtLevel, applyInsertAtLevel } from './recursive';
 import { extractBlocks, Logger, parseEditLog, parseJsonl } from './utils';
 
+const logger = new Logger('write');
+
 /**
  * **【核心实现】** 对指定的消息应用变量修改。
  * 这是变量写入流程的核心，处理单个消息。
@@ -34,10 +36,9 @@ import { extractBlocks, Logger, parseEditLog, parseJsonl } from './utils';
  * @returns {Promise<string | null>} 如果成功处理，返回该消息的 MK；如果消息无需处理或处理失败，返回 null。
  */
 export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null> => {
-  const logger = new Logger();
   try {
     if (!msg || typeof msg.message_id !== 'number') {
-      logger.log('无效消息对象或缺少 message_id，退出', '变量写入');
+      logger.warn('ApplyVarChangeForMessage', '无效消息对象或缺少 message_id，退出');
       return null;
     }
 
@@ -48,7 +49,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     // 如果消息没有 MK（可能是一个异常状态，如新消息还未被注入 MK），则跳过。
     // 同时，根据设计，用户消息自身不应包含变量修改指令，因此也跳过。
     if (!MK || isUserMessage(msg)) {
-      logger.log(`消息 (ID: ${messageId}) 不含 MK 或为用户消息，跳过变量写入。`, '变量写入');
+      logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 不含 MK 或为用户消息，跳过变量写入。`);
       return null;
     }
 
@@ -65,7 +66,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     const editBlocks = extractBlocks(rawContent, 'VariableEdit');
 
     if (!insertBlocks.length && !editBlocks.length) {
-      logger.log(`消息 (ID: ${messageId}) 未检测到变量修改标签。`, '变量写入');
+      logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
 
     const allInserts = insertBlocks.flatMap(s => parseJsonl(s, logger));
@@ -85,7 +86,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
         if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
         try {
           await updateVariablesWith(v => {
-            logger.log(`处理 insertRoot: ${JSON.stringify(insertRoot)}`, '变量写入');
+            logger.debug('ApplyVarChangeForMessage', `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
             for (const topKey of Object.keys(insertRoot)) {
               const topPatch = (insertRoot as any)[topKey];
               if (topPatch == null) continue;
@@ -95,10 +96,10 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
             return v;
           }, CHAT_SCOPE);
         } catch (e: any) {
-          logger.log(`处理 insertRoot 失败: ${e?.message || e}`, '变量写入');
+          logger.error('ApplyVarChangeForMessage', `处理 insertRoot 失败: ${e?.message || e}`, e);
         }
       }
-      logger.log('所有 VariableInsert 操作完成', '变量写入');
+      logger.log('ApplyVarChangeForMessage', '所有 VariableInsert 操作完成');
     }
 
     // 3. --- 处理所有编辑操作 (`<VariableEdit>`) ---
@@ -109,7 +110,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
         if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
         try {
           await updateVariablesWith(async v => {
-            logger.log(`处理 editRoot: ${JSON.stringify(editRoot)}`, '变量写入');
+            logger.debug('ApplyVarChangeForMessage', `处理 editRoot: ${JSON.stringify(editRoot)}`);
             for (const topKey of Object.keys(editRoot)) {
               const topPatch = (editRoot as any)[topKey];
               if (topPatch == null) continue;
@@ -119,10 +120,10 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
             return v;
           }, CHAT_SCOPE);
         } catch (e: any) {
-          logger.log(`处理 editRoot 失败: ${e?.message || e}`, '变量写入');
+          logger.error('ApplyVarChangeForMessage', `处理 editRoot 失败: ${e?.message || e}`, e);
         }
       }
-      logger.log('所有 VariableEdit 操作完成', '变量写入');
+      logger.log('ApplyVarChangeForMessage', '所有 VariableEdit 操作完成');
     }
 
     // 4. --- 覆盖式写入 EditLog ---
@@ -163,15 +164,13 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
         return v;
       }, CHAT_SCOPE);
     } catch (e: any) {
-      logger.log(`写入 EditLogs 失败: ${e?.message || e}`, '变量写入');
+      logger.error('ApplyVarChangeForMessage', `写入 EditLogs 失败: ${e?.message || e}`, e);
     }
 
     return MK;
   } catch (err: any) {
-    logger.log(`变量写入器异常: ${err?.message || err}`, '变量写入');
+    logger.error('ApplyVarChangeForMessage', `变量写入器异常: ${err?.message || err}`, err);
     return null;
-  } finally {
-    await logger.flush();
   }
 };
 
@@ -181,7 +180,6 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
  * 它通常被绑定到“新消息生成”等事件上。
  */
 export const ApplyVarChange = async () => {
-  const logger = new Logger();
   const msg = getChatMessages(-1, { include_swipes: true })?.[0];
   if (!msg || typeof msg.message_id !== 'number') return;
 
@@ -202,7 +200,6 @@ export const ApplyVarChange = async () => {
       return v;
     }, CHAT_SCOPE);
   } catch (e: any) {
-    logger.log(`(ApplyVarChange) 更新 SelectedMks 失败: ${e?.message || e}`, '变量写入');
-    await logger.flush();
+    logger.error('ApplyVarChange', `更新 SelectedMks 失败: ${e?.message || e}`, e);
   }
 };

@@ -20,10 +20,7 @@ import _ from 'lodash';
 import { ERA_API_EVENTS } from './constants';
 import { J, Logger } from './utils';
 
-/**
- * @constant {string} MODULE_NAME - 用于日志记录的模块名称。
- */
-const MODULE_NAME = '外部事件API';
+const logger = new Logger('api');
 
 // ==================================================================
 // API 事件参考
@@ -104,12 +101,11 @@ async function findLastAiMessage(): Promise<any | null> {
  *
  * @param {object} blockContent - 要注入的变量修改内容，一个可被序列化为 JSON 的对象。
  * @param {'VariableInsert' | 'VariableEdit'} blockTag - 变量修改块的标签类型。
- * @param {Logger} logger - 用于记录操作过程的日志记录器实例。
  */
-async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 'VariableEdit', logger: Logger) {
+async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 'VariableEdit') {
   const lastAiMessage = await findLastAiMessage();
   if (!lastAiMessage) {
-    logger.log('找不到任何 AI 消息，无法执行变量更新。', MODULE_NAME);
+    logger.warn('performUpdate', '找不到任何 AI 消息，无法执行变量更新。');
     return;
   }
 
@@ -118,11 +114,11 @@ async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 
   const variableBlock = `\n<${blockTag}>\n${contentString}\n</${blockTag}>`;
   const newMessage = originalMessage + variableBlock;
 
-  logger.log(`准备向消息 ID ${lastAiMessage.message_id} 注入 ${blockTag} 块...`, MODULE_NAME);
-  logger.log(`注入内容: ${contentString}`, MODULE_NAME);
+  logger.log('performUpdate', `准备向消息 ID ${lastAiMessage.message_id} 注入 ${blockTag} 块...`);
+  logger.debug('performUpdate', `注入内容: ${contentString}`);
 
   await setChatMessages([{ message_id: lastAiMessage.message_id, message: newMessage }]);
-  logger.log(`已调用 setChatMessages，等待 ERA 框架自动处理...`, MODULE_NAME);
+  logger.log('performUpdate', `已调用 setChatMessages，等待 ERA 框架自动处理...`);
 }
 
 // ==================================================================
@@ -134,12 +130,7 @@ async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 
  * @param {object} data - 从事件的 `detail` 中获取的变量对象。
  */
 export async function insertByObject(data: object) {
-  const logger = new Logger();
-  try {
-    await performUpdate(data, 'VariableInsert', logger);
-  } finally {
-    await logger.flush();
-  }
+  await performUpdate(data, 'VariableInsert');
 }
 
 /**
@@ -147,12 +138,7 @@ export async function insertByObject(data: object) {
  * @param {object} data - 从事件的 `detail` 中获取的变量对象。
  */
 export async function updateByObject(data: object) {
-  const logger = new Logger();
-  try {
-    await performUpdate(data, 'VariableEdit', logger);
-  } finally {
-    await logger.flush();
-  }
+  await performUpdate(data, 'VariableEdit');
 }
 
 /**
@@ -161,13 +147,8 @@ export async function updateByObject(data: object) {
  * @param {*} value - 从事件 `detail` 的 `value` 属性获取。
  */
 export async function insertByPath(path: string, value: any) {
-  const logger = new Logger();
-  try {
-    const block = _.set({}, path, value);
-    await performUpdate(block, 'VariableInsert', logger);
-  } finally {
-    await logger.flush();
-  }
+  const block = _.set({}, path, value);
+  await performUpdate(block, 'VariableInsert');
 }
 
 /**
@@ -176,11 +157,6 @@ export async function insertByPath(path: string, value: any) {
  * @param {*} value - 从事件 `detail` 的 `value` 属性获取。
  */
 export async function updateByPath(path: string, value: any) {
-  const logger = new Logger();
-  try {
-    const block = _.set({}, path, value);
-    await performUpdate(block, 'VariableEdit', logger);
-  } finally {
-    await logger.flush();
-  }
+  const block = _.set({}, path, value);
+  await performUpdate(block, 'VariableEdit');
 }
