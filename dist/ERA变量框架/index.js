@@ -41,7 +41,9 @@ const ERA_API_EVENTS = {
   INSERT_BY_OBJECT: "era:insertByObject",
   UPDATE_BY_OBJECT: "era:updateByObject",
   INSERT_BY_PATH: "era:insertByPath",
-  UPDATE_BY_PATH: "era:updateByPath"
+  UPDATE_BY_PATH: "era:updateByPath",
+  DELETE_BY_OBJECT: "era:deleteByObject",
+  DELETE_BY_PATH: "era:deleteByPath"
 };
 
 const external_namespaceObject = _;
@@ -235,6 +237,15 @@ async function insertByPath(path, value) {
 async function updateByPath(path, value) {
   const block = external_default().set({}, path, value);
   await performUpdate(block, "VariableEdit");
+}
+
+async function deleteByObject(data) {
+  await performUpdate(data, "VariableDelete");
+}
+
+async function deleteByPath(path) {
+  const block = external_default().set({}, path, {});
+  await performUpdate(block, "VariableDelete");
 }
 
 const message_key_logger = new Logger("message_key");
@@ -905,6 +916,14 @@ async function processQueue() {
 
          case ERA_API_EVENTS.UPDATE_BY_PATH:
           if (detail && typeof detail.path === "string") await updateByPath(detail.path, detail.value);
+          break;
+
+         case ERA_API_EVENTS.DELETE_BY_OBJECT:
+          if (detail && typeof detail === "object") await deleteByObject(detail);
+          break;
+
+         case ERA_API_EVENTS.DELETE_BY_PATH:
+          if (detail && typeof detail.path === "string") await deleteByPath(detail.path);
           break;
 
          case tavern_events.MESSAGE_SENT:
