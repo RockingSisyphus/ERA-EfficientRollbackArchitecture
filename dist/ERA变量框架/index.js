@@ -432,6 +432,10 @@ async function findLatestNewValue(path, startMessageId, logger) {
       const logEntry = editLog[j];
       if (!logEntry || !logEntry.path) continue;
       if (logEntry.path === path) {
+        if (logEntry.op === "delete") {
+          logger?.error("findLatestNewValue", `>> 状态异常! 在消息(ID:${message.message_id}, MK:${mk})中为路径 <${path}> 找到了 'delete' 记录。这表明 update 操作可能正在尝试修改一个已被删除的变量。`);
+          return null;
+        }
         logger?.debug("findLatestNewValue", `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`);
         return _.cloneDeep(logEntry.value_new);
       }
@@ -448,6 +452,63 @@ async function findLatestNewValue(path, startMessageId, logger) {
   }
   logger?.debug("findLatestNewValue", `向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`);
   return null;
+}
+
+function applyDeleteAtLevel(rootVars, basePath, patchObj, editLog, logger) {
+  const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
+  if (currentNodeInVars === undefined) {
+    logger.warn("applyDeleteAtLevel", `VariableDelete 跳过：路径不存在 -> ${basePath || "(root)"}`);
+    return;
+  }
+  const necessary = _.get(currentNodeInVars, [ "$meta", "necessary" ]);
+  const metaPatch = _.get(patchObj, "$meta");
+  const isBypassingProtection = _.isPlainObject(metaPatch) && _.isEmpty(metaPatch) || _.has(patchObj, [ "$meta", "necessary" ]);
+  if (_.isPlainObject(patchObj) && !_.isEmpty(patchObj)) {
+    if (necessary === "all" && !isBypassingProtection) {
+      logger.error("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`);
+      return;
+    }
+    for (const key of Object.keys(patchObj)) {
+      const fullPath = basePath ? `${basePath}.${key}` : key;
+      const subPatchObj = patchObj[key];
+      applyDeleteAtLevel(rootVars, fullPath, subPatchObj, editLog, logger);
+    }
+    return;
+  }
+  if (necessary === "self" || necessary === "all") {
+    logger.error("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`);
+    return;
+  }
+  if (basePath === "") {
+    logger.error("applyDeleteAtLevel", "VariableDelete 失败：不允许删除根对象。");
+    return;
+  }
+  const valOld = _.cloneDeep(currentNodeInVars);
+  _.unset(rootVars, basePath);
+  editLog.push({
+    op: "delete",
+    path: basePath,
+    value_old: valOld
+  });
+  logger.debug("applyDeleteAtLevel", `成功删除节点: ${basePath}`);
+}
+
+async function processDeleteBlocks(allDeletes, editLog, logger) {
+  if (allDeletes.length > 0) {
+    for (const deleteRoot of allDeletes) {
+      if (!_.isPlainObject(deleteRoot) || _.isEmpty(deleteRoot)) continue;
+      try {
+        await updateVariablesWith(v => {
+          logger.debug("processDeleteBlocks", `处理 deleteRoot: ${JSON.stringify(deleteRoot)}`);
+          applyDeleteAtLevel(v, "", deleteRoot, editLog, logger);
+          return v;
+        }, CHAT_SCOPE);
+      } catch (e) {
+        logger.error("processDeleteBlocks", `处理 deleteRoot 失败: ${e?.message || e}`, e);
+      }
+    }
+    logger.log("processDeleteBlocks", "所有 VariableDelete 操作完成");
+  }
 }
 
 function applyInsertAtLevel(rootVars, basePath, patchObj, editLog, inheritedTpl, logger) {
@@ -494,6 +555,28 @@ function applyInsertAtLevel(rootVars, basePath, patchObj, editLog, inheritedTpl,
   }
 }
 
+async function processInsertBlocks(allInserts, editLog, logger) {
+  if (allInserts.length > 0) {
+    for (const insertRoot of allInserts) {
+      if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
+      try {
+        await updateVariablesWith(v => {
+          logger.debug("processInsertBlocks", `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
+          for (const topKey of Object.keys(insertRoot)) {
+            const topPatch = insertRoot[topKey];
+            if (topPatch == null) continue;
+            applyInsertAtLevel(v, topKey, topPatch, editLog, null, logger);
+          }
+          return v;
+        }, CHAT_SCOPE);
+      } catch (e) {
+        logger.error("processInsertBlocks", `处理 insertRoot 失败: ${e?.message || e}`, e);
+      }
+    }
+    logger.log("processInsertBlocks", "所有 VariableInsert 操作完成");
+  }
+}
+
 async function applyEditAtLevel(rootVars, basePath, patchObj, editLog, logger, messageId, intraMessageState) {
   for (const key of Object.keys(patchObj)) {
     const fullPath = basePath ? `${basePath}.${key}` : key;
@@ -530,68 +613,57 @@ async function applyEditAtLevel(rootVars, basePath, patchObj, editLog, logger, m
   }
 }
 
-const write_logger = new Logger("write");
+async function processEditBlocks(allEdits, editLog, messageId, logger) {
+  if (allEdits.length > 0) {
+    const intraMessageState = new Map;
+    for (const editRoot of allEdits) {
+      if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
+      try {
+        await updateVariablesWith(async v => {
+          logger.debug("processEditBlocks", `处理 editRoot: ${JSON.stringify(editRoot)}`);
+          for (const topKey of Object.keys(editRoot)) {
+            const topPatch = editRoot[topKey];
+            if (topPatch == null) continue;
+            await applyEditAtLevel(v, topKey, topPatch, editLog, logger, messageId, intraMessageState);
+          }
+          return v;
+        }, CHAT_SCOPE);
+      } catch (e) {
+        logger.error("processEditBlocks", `处理 editRoot 失败: ${e?.message || e}`, e);
+      }
+    }
+    logger.log("processEditBlocks", "所有 VariableEdit 操作完成");
+  }
+}
+
+const variable_change_processor_logger = new Logger("write");
 
 const ApplyVarChangeForMessage = async msg => {
   try {
     if (!msg || typeof msg.message_id !== "number") {
-      write_logger.warn("ApplyVarChangeForMessage", "无效消息对象或缺少 message_id，退出");
+      variable_change_processor_logger.warn("ApplyVarChangeForMessage", "无效消息对象或缺少 message_id，退出");
       return null;
     }
     const messageId = msg.message_id;
     const MK = readMessageKey(msg);
     if (!MK || isUserMessage(msg)) {
-      write_logger.debug("ApplyVarChangeForMessage", `消息 (ID: ${messageId}) 不含 MK 或为用户消息，跳过变量写入。`);
+      variable_change_processor_logger.debug("ApplyVarChangeForMessage", `消息 (ID: ${messageId}) 不含 MK 或为用户消息，跳过变量写入。`);
       return null;
     }
     const rawContent = String((msg?.message && msg.message.length ? msg.message : Array.isArray(msg?.swipes) ? msg.swipes[Number(msg?.swipe_id ?? 0)] : "") || "");
     const insertBlocks = extractBlocks(rawContent, "VariableInsert");
     const editBlocks = extractBlocks(rawContent, "VariableEdit");
-    if (!insertBlocks.length && !editBlocks.length) {
-      write_logger.debug("ApplyVarChangeForMessage", `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
+    const deleteBlocks = extractBlocks(rawContent, "VariableDelete");
+    if (!insertBlocks.length && !editBlocks.length && !deleteBlocks.length) {
+      variable_change_processor_logger.debug("ApplyVarChangeForMessage", `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
-    const allInserts = insertBlocks.flatMap(s => parseJsonl(s, write_logger));
-    const allEdits = editBlocks.flatMap(s => parseJsonl(s, write_logger));
+    const allInserts = insertBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
+    const allEdits = editBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
+    const allDeletes = deleteBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
     const editLog = [];
-    if (allInserts.length > 0) {
-      for (const insertRoot of allInserts) {
-        if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
-        try {
-          await updateVariablesWith(v => {
-            write_logger.debug("ApplyVarChangeForMessage", `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
-            for (const topKey of Object.keys(insertRoot)) {
-              const topPatch = insertRoot[topKey];
-              if (topPatch == null) continue;
-              applyInsertAtLevel(v, topKey, topPatch, editLog, null, write_logger);
-            }
-            return v;
-          }, CHAT_SCOPE);
-        } catch (e) {
-          write_logger.error("ApplyVarChangeForMessage", `处理 insertRoot 失败: ${e?.message || e}`, e);
-        }
-      }
-      write_logger.log("ApplyVarChangeForMessage", "所有 VariableInsert 操作完成");
-    }
-    if (allEdits.length > 0) {
-      const intraMessageState = new Map;
-      for (const editRoot of allEdits) {
-        if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
-        try {
-          await updateVariablesWith(async v => {
-            write_logger.debug("ApplyVarChangeForMessage", `处理 editRoot: ${JSON.stringify(editRoot)}`);
-            for (const topKey of Object.keys(editRoot)) {
-              const topPatch = editRoot[topKey];
-              if (topPatch == null) continue;
-              await applyEditAtLevel(v, topKey, topPatch, editLog, write_logger, messageId, intraMessageState);
-            }
-            return v;
-          }, CHAT_SCOPE);
-        } catch (e) {
-          write_logger.error("ApplyVarChangeForMessage", `处理 editRoot 失败: ${e?.message || e}`, e);
-        }
-      }
-      write_logger.log("ApplyVarChangeForMessage", "所有 VariableEdit 操作完成");
-    }
+    await processInsertBlocks(allInserts, editLog, variable_change_processor_logger);
+    await processEditBlocks(allEdits, editLog, messageId, variable_change_processor_logger);
+    await processDeleteBlocks(allDeletes, editLog, variable_change_processor_logger);
     try {
       await updateVariablesWith(v => {
         const newArr = Array.isArray(editLog) ? editLog : parseEditLog(editLog);
@@ -599,11 +671,11 @@ const ApplyVarChangeForMessage = async msg => {
         return v;
       }, CHAT_SCOPE);
     } catch (e) {
-      write_logger.error("ApplyVarChangeForMessage", `写入 EditLogs 失败: ${e?.message || e}`, e);
+      variable_change_processor_logger.error("ApplyVarChangeForMessage", `写入 EditLogs 失败: ${e?.message || e}`, e);
     }
     return MK;
   } catch (err) {
-    write_logger.error("ApplyVarChangeForMessage", `变量写入器异常: ${err?.message || err}`, err);
+    variable_change_processor_logger.error("ApplyVarChangeForMessage", `变量写入器异常: ${err?.message || err}`, err);
     return null;
   }
 };
@@ -623,7 +695,7 @@ const ApplyVarChange = async () => {
       return v;
     }, CHAT_SCOPE);
   } catch (e) {
-    write_logger.error("ApplyVarChange", `更新 SelectedMks 失败: ${e?.message || e}`, e);
+    variable_change_processor_logger.error("ApplyVarChange", `更新 SelectedMks 失败: ${e?.message || e}`, e);
   }
 };
 

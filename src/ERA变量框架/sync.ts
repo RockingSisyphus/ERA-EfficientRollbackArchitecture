@@ -29,7 +29,7 @@ import { CHAT_SCOPE, LOGS_PATH, SEL_PATH } from './constants';
 import { readMessageKey } from './message_key';
 import { rollbackByMk } from './rollback';
 import { Logger, parseEditLog } from './utils';
-import { ApplyVarChange, ApplyVarChangeForMessage } from './write';
+import { ApplyVarChange, ApplyVarChangeForMessage } from './variable_change_processor';
 
 const logger = new Logger('sync');
 

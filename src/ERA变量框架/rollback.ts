@@ -119,6 +119,17 @@ export async function findLatestNewValue(path: string, startMessageId: number, l
 
       // Case 1: 精确路径匹配。
       if (logEntry.path === path) {
+        // 如果在历史追溯中找到了 delete 记录，这意味着状态可能不一致。
+        // 因为 applyEditAtLevel 的前置检查应阻止对已删除变量的更新。
+        // 记录一个错误以供调试，并返回 null，因为该变量在逻辑上是不存在的。
+        if (logEntry.op === 'delete') {
+          logger?.error(
+            'findLatestNewValue',
+            `>> 状态异常! 在消息(ID:${message.message_id}, MK:${mk})中为路径 <${path}> 找到了 'delete' 记录。这表明 update 操作可能正在尝试修改一个已被删除的变量。`,
+          );
+          return null;
+        }
+
         logger?.debug(
           'findLatestNewValue',
           `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`,

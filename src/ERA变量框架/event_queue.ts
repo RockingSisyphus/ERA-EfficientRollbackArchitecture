@@ -29,7 +29,7 @@ import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from
 import { rollbackByMk } from './rollback';
 import { resyncStateOnHistoryChange } from './sync';
 import { Logger } from './utils';
-import { ApplyVarChange } from './write';
+import { ApplyVarChange } from './variable_change_processor';
 
 const logger = new Logger('event_queue');
 

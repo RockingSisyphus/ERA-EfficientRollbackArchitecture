@@ -22,8 +22,10 @@
 'use strict';
 
 import { CHAT_SCOPE, LOGS_PATH, SEL_PATH } from './constants';
+import { processDeleteBlocks } from './delete';
+import { processInsertBlocks } from './insert';
 import { isUserMessage, readMessageKey } from './message_key';
-import { applyEditAtLevel, applyInsertAtLevel } from './recursive';
+import { processEditBlocks } from './update';
 import { extractBlocks, Logger, parseEditLog, parseJsonl } from './utils';
 
 const logger = new Logger('write');
@@ -61,72 +63,31 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
           : '') || '',
     );
 
-    // 1. 从消息内容中解析出所有 insert 和 edit 指令块。
+    // 1. 从消息内容中解析出所有指令块。
     const insertBlocks = extractBlocks(rawContent, 'VariableInsert');
     const editBlocks = extractBlocks(rawContent, 'VariableEdit');
+    const deleteBlocks = extractBlocks(rawContent, 'VariableDelete');
 
-    if (!insertBlocks.length && !editBlocks.length) {
+    if (!insertBlocks.length && !editBlocks.length && !deleteBlocks.length) {
       logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
 
     const allInserts = insertBlocks.flatMap(s => parseJsonl(s, logger));
     const allEdits = editBlocks.flatMap(s => parseJsonl(s, logger));
+    const allDeletes = deleteBlocks.flatMap(s => parseJsonl(s, logger));
 
     const editLog: any[] = []; // 用于收集本轮操作产生的所有变更记录。
 
     // 2. --- 处理所有插入操作 (`<VariableInsert>`) ---
-    if (allInserts.length > 0) {
-      /*
-       * N.B. 必须对每个 insertRoot 单独调用 updateVariablesWith，而不是将所有操作合并到一次调用中。
-       * 这是为了确保在同一条消息内，前一个 <VariableInsert> 块中插入的模板或数据，
-       * 可以被后一个 <VariableInsert> 或 <VariableEdit> 块访问和使用。
-       * 每次 await updateVariablesWith 完成后，变量状态都会被刷新，从而使后续操作能看到最新的结果。
-       */
-      for (const insertRoot of allInserts) {
-        if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
-        try {
-          await updateVariablesWith(v => {
-            logger.debug('ApplyVarChangeForMessage', `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
-            for (const topKey of Object.keys(insertRoot)) {
-              const topPatch = (insertRoot as any)[topKey];
-              if (topPatch == null) continue;
-              // 调用递归函数，实际执行插入并填充 editLog。
-              applyInsertAtLevel(v, topKey, topPatch, editLog, null, logger);
-            }
-            return v;
-          }, CHAT_SCOPE);
-        } catch (e: any) {
-          logger.error('ApplyVarChangeForMessage', `处理 insertRoot 失败: ${e?.message || e}`, e);
-        }
-      }
-      logger.log('ApplyVarChangeForMessage', '所有 VariableInsert 操作完成');
-    }
+    await processInsertBlocks(allInserts, editLog, logger);
 
     // 3. --- 处理所有编辑操作 (`<VariableEdit>`) ---
-    if (allEdits.length > 0) {
-      const intraMessageState = new Map<string, any>(); // 用于跟踪在**本消息内部**对变量的连续修改。
-      // N.B. 同样，编辑操作也需要独立调用以确保能读取到同一消息中、此前已完成的插入或编辑操作的结果。
-      for (const editRoot of allEdits) {
-        if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
-        try {
-          await updateVariablesWith(async v => {
-            logger.debug('ApplyVarChangeForMessage', `处理 editRoot: ${JSON.stringify(editRoot)}`);
-            for (const topKey of Object.keys(editRoot)) {
-              const topPatch = (editRoot as any)[topKey];
-              if (topPatch == null) continue;
-              // 调用递归函数，实际执行编辑并填充 editLog。
-              await applyEditAtLevel(v, topKey, topPatch, editLog, logger, messageId, intraMessageState);
-            }
-            return v;
-          }, CHAT_SCOPE);
-        } catch (e: any) {
-          logger.error('ApplyVarChangeForMessage', `处理 editRoot 失败: ${e?.message || e}`, e);
-        }
-      }
-      logger.log('ApplyVarChangeForMessage', '所有 VariableEdit 操作完成');
-    }
+    await processEditBlocks(allEdits, editLog, messageId, logger);
 
-    // 4. --- 覆盖式写入 EditLog ---
+    // 4. --- 处理所有删除操作 (`<VariableDelete>`) ---
+    await processDeleteBlocks(allDeletes, editLog, logger);
+
+    // 5. --- 覆盖式写入 EditLog ---
     /*
      * 核心逻辑：无论本轮是否产生了有效的变量修改，都必须用当前的 editLog (哪怕是空数组) 覆盖旧的 EditLog。
      *
