@@ -1,3 +1,5 @@
+var __webpack_exports__ = {};
+
 const external_namespaceObject = _;
 
 class Logger {
