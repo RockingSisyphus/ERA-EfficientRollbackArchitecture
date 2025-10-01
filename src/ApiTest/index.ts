@@ -1,6 +1,7 @@
 /**
  * @file ERA 变量 API 分组测试脚本
- * @description 在酒馆助手脚本菜单中注册几个按钮，每个按钮触发一组连续的测试操作。
+ * @description 在酒馆助手脚本菜单中注册三个按钮，分别用于插入、更新和删除测试数据。
+ * **使用说明**: 请按顺序点击按钮 (Insert -> Update/Delete) 以确保测试数据存在。
  */
 
 import { Logger } from './utils';
@@ -12,50 +13,24 @@ const logger = new Logger('ApiTest');
 // ==================================================================
 
 /**
- * 基础测试组：
- * 1. 初始化一个基本状态。
- * 2. 更新其中的一个值。
- * 3. 合并入一个新的对象。
+ * 插入测试组：
+ * 建立一个完整的、包含多种数据类型的初始状态。
  */
-const basicTestSuite = [
+const insertTestSuite = [
   {
-    description: '1.1. Initialize State',
+    description: '1.1. 插入一个包含 user 和 items 的基础对象',
     event: 'era:insertByObject',
     data: {
       testData: {
-        description: 'Initial state',
+        description: 'Initial state for testing',
         user: { name: 'Tester', level: 1 },
-        items: ['apple', 'banana'],
+        items: ['apple', 'banana', 'cherry'],
+        status: 'active',
       },
     },
   },
   {
-    description: '1.2. Update user name',
-    event: 'era:updateByPath',
-    data: {
-      path: 'testData.user.name',
-      value: 'Advanced Tester',
-    },
-  },
-  {
-    description: '1.3. Update by merging an object',
-    event: 'era:updateByObject',
-    data: {
-      testData: {
-        user: { level: 2 }, // 更新嵌套值
-        status: 'active', // 添加新键
-      },
-    },
-  },
-];
-
-/**
- * 插入测试组：
- * 在基础状态上，连续插入新的数据。
- */
-const insertionTestSuite = [
-  {
-    description: '2.1. Insert a new top-level key (inventory)',
+    description: '1.2. 插入 inventory 对象',
     event: 'era:insertByPath',
     data: {
       path: 'testData.inventory',
@@ -63,23 +38,100 @@ const insertionTestSuite = [
     },
   },
   {
-    description: '2.2. Insert a new nested key (user.stats)',
+    description: '1.3. 插入 user.stats 对象',
     event: 'era:insertByPath',
     data: {
       path: 'testData.user.stats',
-      value: { str: 10, dex: 8 },
+      value: { str: 10, dex: 8, int: 5 },
     },
   },
   {
-    description: '2.3. Insert another object to merge at top level',
+    description: '1.4. 插入 metadata 对象',
     event: 'era:insertByObject',
     data: {
       testData: {
-        metadata: { version: '1.0' },
+        metadata: { version: '1.0', author: 'Cline' },
       },
     },
   },
 ];
+
+/**
+ * 更新测试组：
+ * 修改由 insertTestSuite 创建的数据。
+ */
+const updateTestSuite = [
+  {
+    description: '2.1. 更新 user.name',
+    event: 'era:updateByPath',
+    data: {
+      path: 'testData.user.name',
+      value: 'Advanced Tester',
+    },
+  },
+  {
+    description: '2.2. 通过对象合并更新 level 和 status',
+    event: 'era:updateByObject',
+    data: {
+      testData: {
+        user: { level: 5 },
+        status: 'idle',
+      },
+    },
+  },
+  {
+    description: '2.3. 使用表达式更新 gold',
+    event: 'era:updateByPath',
+    data: {
+      path: 'testData.inventory.gold',
+      value: '+=50',
+    },
+  },
+];
+
+/**
+ * 删除测试组：
+ * 删除由 insertTestSuite 创建的数据。
+ */
+const deleteTestSuite = [
+  {
+    description: '3.1. [ByPath] 删除 items 数组的第一个元素',
+    event: 'era:deleteByPath',
+    data: {
+      path: 'testData.items[0]',
+    },
+  },
+  {
+    description: '3.2. [ByObject] 删除 user.stats 中的 int 属性',
+    event: 'era:deleteByObject',
+    data: {
+      testData: {
+        user: {
+          stats: {
+            int: {}, // 使用空对象表示删除'int'这个键
+          },
+        },
+      },
+    },
+  },
+  {
+    description: '3.3. [ByObject] 删除整个 metadata 对象',
+    event: 'era:deleteByObject',
+    data: {
+      testData: {
+        metadata: {}, // 使用空对象表示删除'metadata'这个键
+      },
+    },
+  },
+  {
+    description: '3.4. [ByPath] 删除整个 inventory 对象',
+    event: 'era:deleteByPath',
+    data: {
+      path: 'testData.inventory',
+    },
+  },
+];
+
 
 // ==================================================================
 // 事件监听器注册
@@ -102,11 +154,15 @@ $(() => {
   }
 
   // 注册按钮
-  eventOn(getButtonEvent('RunBasicTestSuite'), () => {
-    runTestSuite(basicTestSuite);
+  eventOn(getButtonEvent('Run Insert Tests'), () => {
+    runTestSuite(insertTestSuite);
   });
 
-  eventOn(getButtonEvent('RunInsertionTestSuite'), () => {
-    runTestSuite(insertionTestSuite);
+  eventOn(getButtonEvent('Run Update Tests'), () => {
+    runTestSuite(updateTestSuite);
+  });
+
+  eventOn(getButtonEvent('Run Delete Tests'), () => {
+    runTestSuite(deleteTestSuite);
   });
 });
