@@ -49,8 +49,8 @@ export function applyInsertAtLevel(
   const localTpl = _.isPlainObject(tplFromVars)
     ? tplFromVars
     : _.isPlainObject(inheritedTpl)
-      ? inheritedTpl
-      : tplFromPatch;
+      ? tplFromPatch
+      : inheritedTpl;
 
   // --- 2. 检查路径存在性，决定执行策略 ---
   const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
