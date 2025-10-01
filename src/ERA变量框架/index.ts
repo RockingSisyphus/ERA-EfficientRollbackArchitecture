@@ -17,6 +17,9 @@
 import { ERA_API_EVENTS } from './constants';
 import { pushToQueue } from './event_queue';
 
+// 导入查询模块, 以注册 {{ERA:...}} 宏
+import './query';
+
 // ===============================
 // 事件监听器注册
 // ===============================
@@ -34,7 +37,8 @@ const eventsToListen = [
   tavern_events.MESSAGE_DELETED, // 消息被删除
   tavern_events.MESSAGE_SWIPED, // 消息被切换 (swipe)
   tavern_events.CHAT_CHANGED, // 切换到不同的聊天会话
-  tavern_events.MESSAGE_SENT, // 用户发送消息
+  tavern_events.APP_READY,
+  //tavern_events.MESSAGE_SENT, // 用户发送消息
   tavern_events.CHARACTER_MESSAGE_RENDERED, // 每次消息渲染/重绘时触发，频率极高
 
   // 外部 API 事件: 允许其他脚本通过 `eventEmit` 与 ERA 交互。

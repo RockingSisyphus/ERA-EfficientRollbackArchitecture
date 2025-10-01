@@ -23,12 +23,20 @@
 'use strict';
 
 import _ from 'lodash';
-import { deleteByObject, deleteByPath, insertByObject, insertByPath, updateByObject, updateByPath } from './api';
-import { ERA_API_EVENTS } from './constants';
+import {
+  deleteByObject,
+  deleteByPath,
+  emitWriteDoneEvent,
+  insertByObject,
+  insertByPath,
+  updateByObject,
+  updateByPath,
+} from './api';
+import { ERA_API_EVENTS, LOGS_PATH, SEL_PATH } from './constants';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from './message_key';
 import { rollbackByMk } from './rollback';
 import { resyncStateOnHistoryChange } from './sync';
-import { Logger, logContext } from './utils';
+import { getEraData, logContext, Logger, removeMetaFields } from './utils';
 import { ApplyVarChange } from './variable_change_processor';
 
 const logger = new Logger('event_queue');
@@ -78,6 +86,13 @@ async function processQueue() {
   logger.log('processQueue', '处理器启动...');
 
   while (eventQueue.length > 0) {
+    // 在每轮批处理开始时，初始化操作记录器
+    const actionsTaken = {
+      rollback: false,
+      apply: false,
+      resync: false,
+    };
+
     // --- 1. 事件批处理与合并 ---
     let currentBatch = eventQueue.splice(0, eventQueue.length);
     logger.debug(
@@ -117,9 +132,12 @@ async function processQueue() {
     // --- 2. 严格按顺序执行合并后的任务 ---
     for (const job of finalJobs) {
       const { type: eventType, detail } = job;
+      let message_id: number | null = null;
       try {
         // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
-        logContext.mk = await ensureMkForLatestMessage();
+        const { mk, message_id: msgId } = await ensureMkForLatestMessage();
+        logContext.mk = mk;
+        message_id = msgId;
 
         logger.log('processQueue', `执行任务: ${eventType}`);
 
@@ -129,15 +147,20 @@ async function processQueue() {
           case 'rollback_done_reapply_var_start': // 内部事件，由同步流程触发
           case tavern_events.MESSAGE_RECEIVED:
           case tavern_events.CHARACTER_MESSAGE_RENDERED:
+          case tavern_events.APP_READY:
           case 'manual_write': {
             // 关键：写入前先回滚，确保操作的幂等性。
             // 即使事件被意外触发多次，也只会产生一次有效写入。
             const msg = getChatMessages(-1, { include_swipes: true })?.[0];
             if (msg) {
               const MK = readMessageKey(msg);
-              if (MK) await rollbackByMk(MK, true);
+              if (MK) {
+                await rollbackByMk(MK, true);
+                actionsTaken.rollback = true;
+              }
             }
             await ApplyVarChange();
+            actionsTaken.apply = true;
             break;
           }
 
@@ -147,6 +170,7 @@ async function processQueue() {
           case tavern_events.CHAT_CHANGED:
           case 'manual_sync':
             await resyncStateOnHistoryChange();
+            actionsTaken.resync = true;
             break;
 
           // --- API 调用事件 ---
@@ -170,18 +194,40 @@ async function processQueue() {
             break;
 
           // --- 忽略的事件 ---
-          case tavern_events.MESSAGE_SENT:
-            // 用户发送消息的瞬间，AI 尚未回复，此时无需操作。
-            break;
+          //case tavern_events.MESSAGE_SENT:
+          // 用户发送消息的瞬间，AI 尚未回复，此时无需操作。
+          //break;
         }
       } catch (error) {
         logger.error('processQueue', `事件 ${eventType} 处理异常: ${error}`, error);
       } finally {
+        // 仅当本轮处理中实际执行了 ERA 核心操作时，才校准并广播事件
+        // --- 3. 触发写入完成事件 ---
+        if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync) {
+          // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
+          await updateLatestSelectedMk();
+          // 在所有操作（包括校准）完成后，获取最新状态并广播事件
+          if (logContext.mk && message_id !== null) {
+            const { meta: metaData, stat: statData } = getEraData();
+            const selectedMks = _.get(metaData, SEL_PATH, []);
+            const editLogs = _.get(metaData, LOGS_PATH, {});
+            const statWithoutMeta = removeMetaFields(statData);
+
+            emitWriteDoneEvent({
+              mk: logContext.mk,
+              message_id: message_id,
+              actions: actionsTaken,
+              selectedMks: selectedMks,
+              editLogs: editLogs,
+              stat: statData,
+              statWithoutMeta: statWithoutMeta,
+            });
+          }
+        }
+
         // 清理日志上下文，为下一个事件做准备
         logContext.mk = '';
 
-        // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
-        await updateLatestSelectedMk();
         // **节流**: 在每个独立任务后都进行短暂等待，确保酒馆底层有时间完成其异步操作。
         await new Promise(resolve => setTimeout(resolve, 50));
       }

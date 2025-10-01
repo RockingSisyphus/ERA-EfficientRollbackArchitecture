@@ -21,12 +21,12 @@
 
 'use strict';
 
-import { CHAT_SCOPE, LOGS_PATH, SEL_PATH } from './constants';
+import { LOGS_PATH, SEL_PATH } from './constants';
 import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert';
 import { isUserMessage, readMessageKey } from './message_key';
 import { processEditBlocks } from './update';
-import { extractBlocks, Logger, parseEditLog, parseJsonl } from './utils';
+import { extractBlocks, Logger, parseEditLog, parseJsonl, updateEraMetaData } from './utils';
 
 const logger = new Logger('write');
 
@@ -49,10 +49,15 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     const MK = readMessageKey(msg);
 
     // 如果消息没有 MK（可能是一个异常状态，如新消息还未被注入 MK），则跳过。
-    // 同时，根据设计，用户消息自身不应包含变量修改指令，因此也跳过。
-    if (!MK || isUserMessage(msg)) {
-      logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 不含 MK 或为用户消息，跳过变量写入。`);
+    if (!MK) {
+      logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 不含 MK，跳过变量写入。`);
       return null;
+    }
+
+    // 根据设计，用户消息自身不应包含变量修改指令，因此跳过变量处理，但返回其已有的 MK。
+    if (isUserMessage(msg)) {
+      logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 为用户消息，跳过变量写入，但保留其 MK。`);
+      return MK;
     }
 
     const rawContent = String(
@@ -113,17 +118,17 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
      * 从而斩断任何可能存在的历史关联，确保数据的一致性和纯粹性。
      */
     try {
-      await updateVariablesWith(v => {
+      await updateEraMetaData(meta => {
         const newArr = Array.isArray(editLog) ? editLog : parseEditLog(editLog);
         // 将本轮生成的日志数组，以当前消息的 MK 为键，存入 `EditLogs` 对象。
-        _.set(v, [LOGS_PATH, MK], JSON.stringify(newArr));
+        _.set(meta, [LOGS_PATH, MK], JSON.stringify(newArr));
         /*
          * N.B. 此函数不再负责更新 SelectedMks 数组。
          * 更新 SelectedMks 的职责已移交至上层调用者 (resyncStateOnHistoryChange 或 ApplyVarChange)，
          * 以避免在 resync 循环中意外修改正在被读取的 oldSelectedMks 状态。
          */
-        return v;
-      }, CHAT_SCOPE);
+        return meta;
+      });
     } catch (e: any) {
       logger.error('ApplyVarChangeForMessage', `写入 EditLogs 失败: ${e?.message || e}`, e);
     }
@@ -151,15 +156,15 @@ export const ApplyVarChange = async () => {
 
   // 在核心流程执行完毕后，在此处统一更新 SelectedMks，确保状态一致。
   try {
-    await updateVariablesWith(v => {
-      const selectedMks = _.get(v, SEL_PATH, []);
+    await updateEraMetaData(meta => {
+      const selectedMks = _.get(meta, SEL_PATH, []);
       // 将当前消息的 MK 记录在 SelectedMks 数组的相应位置。
       // 注意：如果 MK 为 null（例如，因为上游处理失败），这里可能会写入 null。
       // 这可能是您提到的 `SelectedMks` 中出现 null 的潜在原因之一。
       selectedMks[messageId] = MK;
-      _.set(v, SEL_PATH, selectedMks);
-      return v;
-    }, CHAT_SCOPE);
+      _.set(meta, SEL_PATH, selectedMks);
+      return meta;
+    });
   } catch (e: any) {
     logger.error('ApplyVarChange', `更新 SelectedMks 失败: ${e?.message || e}`, e);
   }

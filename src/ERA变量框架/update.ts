@@ -12,9 +12,8 @@
  */
 'use strict';
 
-import { CHAT_SCOPE } from './constants';
 import { findLatestNewValue } from './rollback';
-import { Logger, sanitizeArrays } from './utils';
+import { Logger, sanitizeArrays, updateEraStatData } from './utils';
 
 /**
  * **【递归编辑】**
@@ -27,7 +26,7 @@ import { Logger, sanitizeArrays } from './utils';
  *    查找顺序为：首先通过 `findLatestNewValue` 在历史 `EditLog` 中回溯；如果找不到，
  *    则从当前消息处理开始时的变量快照中获取。这是确保日志准确性的关键。
  *
- * @param {any} rootVars - 根变量对象。
+ * @param {any} statData - 状态数据对象 (即 `stat_data`)。
  * @param {string} basePath - 当前递归层级的基础路径。
  * @param {any} patchObj - 要应用的补丁对象。
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
@@ -36,7 +35,7 @@ import { Logger, sanitizeArrays } from './utils';
  * @param {Map<string, any>} intraMessageState - 用于跟踪在**同一条消息内部**对同一变量的连续修改。
  */
 export async function applyEditAtLevel(
-  rootVars: any,
+  statData: any,
   basePath: string,
   patchObj: any,
   editLog: any[],
@@ -45,7 +44,7 @@ export async function applyEditAtLevel(
   intraMessageState: Map<string, any>,
 ) {
   // --- 1. 路径和存在性检查 ---
-  const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
+  const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
   if (currentNodeInVars === undefined) {
     logger.warn('applyEditAtLevel', `VariableEdit 跳过：路径不存在 -> ${basePath || '(root)'}`);
     return;
@@ -78,7 +77,7 @@ export async function applyEditAtLevel(
     // **策略一：递归深入**
     // 如果指令的值是对象，则继续向内递归。
     if (_.isPlainObject(valNew)) {
-      await applyEditAtLevel(rootVars, subPath, valNew, editLog, logger, messageId, intraMessageState);
+      await applyEditAtLevel(statData, subPath, valNew, editLog, logger, messageId, intraMessageState);
       continue; // 继续处理下一个键。
     }
 
@@ -86,7 +85,7 @@ export async function applyEditAtLevel(
     // 只有当指令的值不是对象时，才执行更新操作。
 
     // 路径合法性检查：确保要写入的完整路径是存在的。
-    if (!_.has(rootVars, subPath)) {
+    if (!_.has(statData, subPath)) {
       logger.warn('applyEditAtLevel', `VariableEdit 失败：路径非法，无法写入 -> ${subPath}`);
       continue;
     }
@@ -95,7 +94,7 @@ export async function applyEditAtLevel(
     // 这是确保回滚准确性的核心。
     let valOld = await findLatestNewValue(subPath, messageId, logger);
     if (valOld === null) {
-      valOld = _.get(rootVars, subPath);
+      valOld = _.get(statData, subPath);
     }
 
     const cleaned = sanitizeArrays(valNew); // 清理新值
@@ -103,7 +102,7 @@ export async function applyEditAtLevel(
     // b. 记录编辑意图
     // 即使新旧值相同，也记录 EditLog，以完整反映作者的编辑意图。
     // 这对于调试和历史追溯非常有用。
-    _.set(rootVars, subPath, cleaned);
+    _.set(statData, subPath, cleaned);
     editLog.push({
       op: 'update',
       path: subPath,
@@ -130,12 +129,12 @@ export async function processEditBlocks(allEdits: any[], editLog: any[], message
     for (const editRoot of allEdits) {
       if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
       try {
-        await updateVariablesWith(async v => {
+        await updateEraStatData(async stat => {
           logger.debug('processEditBlocks', `处理 editRoot: ${JSON.stringify(editRoot)}`);
           // 从根路径 '' 开始统一递归入口，保持逻辑一致性。
-          await applyEditAtLevel(v, '', editRoot, editLog, logger, messageId, intraMessageState);
-          return v;
-        }, CHAT_SCOPE);
+          await applyEditAtLevel(stat, '', editRoot, editLog, logger, messageId, intraMessageState);
+          return stat;
+        });
       } catch (e: any) {
         logger.error('processEditBlocks', `处理 editRoot 失败: ${e?.message || e}`, e);
       }

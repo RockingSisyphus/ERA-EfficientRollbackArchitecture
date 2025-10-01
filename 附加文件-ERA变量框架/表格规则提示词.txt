@@ -1,0 +1,45 @@
+<table_rule>
+# 表格操作注意事项
+
+插入行时必须填写每一列，特别是第0列
+当任何表格信息不变时禁止更新
+当已有行中任何原本未知的列的有关信息在上文给出时必须更新
+对于更新，所更新内容必须依据故事结尾的最终信息填写，禁止将新信息追加到过时信息后
+同一表格同一行禁止多次填入雷同信息，无论是不同列还是同一列内
+任何表格已有信息都是已经在故事中出现过的，并非初次出现，比如禁止描述表格已有角色为初次见面
+<%_ if (getLocalVar('tableConfigPresumeMode') == '1') { _%>
+**插入时对于除重要备注外的每一列**，若上文未给出足够信息，则逐一检查以下各项且**禁止输出推测过程**，直到得到所需信息则**立即结束**并不再执行后续未执行的步骤：
+  1. 仅限上文信息不足时，如果是基于公开作品的同人，依据未被上文提及的原设定
+  2. 若1信息不足，依据上文内容的合理推测
+  3. 若2信息不足，参考上文内容和风格，生成适当的新设定并填入，内容（而非格式）应当多样化而不与已有条目雷同
+  **每一列都必须填写，除重要备注允许"N/A"外，每一列禁止填写"未知"、"不确定"、null、"N/A"或""等未知项**
+  **必须直接填写内容，禁止标注"原设"/"推测"/"可能"等**
+  一些推测过程范例如下（仅作为推测过程范例，内容与正文和实际填表均无关）（推测过程禁止输出）：
+<presume_examples>
+近期角色-服装:上文提及上衣被撕开，设定为短袖上衣(破损)+短裤，无需推测
+角色信息-服装偏好风格:上文未提及服装偏好风格，开始推测：1.基于RWBY的Yang，设定为凸显身材的运动风格
+角色信息-年龄:上文未提及年龄，开始推测：1.非同人;2.上文提及是高中生，设定为17岁
+角色信息-性格:上文未提及性格，开始推测：1.非同人;2.上文无线索;3.设定为开朗外向
+</presume_examples>
+<%_ } _%>
+</table_rule>
+<format_request>
+你必须根据有关要求及<table_stored>的内容，补完{{getvar::tableConfigContentBegin}}、<tableThink>、<tableEdit>及其他要求的标签和内容，遵守:
+1. 先输出任何要求在正文前输出的内容，如果存在。
+2. 在以上内容后，严格遵循<%_ } else { -%>
+你必须根据有关要求及<table_stored>的内容，补完{{getvar::tableConfigCoTBegin}}、{{getvar::tableConfigContentBegin}}、<tableThink>、<tableEdit>及其他要求的标签和内容，遵守:
+1. 先输出{{getvar::tableConfigCoTBegin}}标签及思考内容，{{getvar::tableConfigCoTBegin}}内禁止包含正文、<tableThink>或<tableEdit>，思考完成时立即输出{{getvar::tableConfigCoTEnd}}。
+2. 在{{getvar::tableConfigCoTEnd}}后，严格遵循{{getvar::tableConfigCoTBegin}}和<%_ } -%>
+重要指引表的内容，立即输出{{getvar::tableConfigContentBegin}}标签及本次回复的正文内容，只用简体中文。正文不应违反<table_stored>内容，但可以适度新增不冲突的新信息，同时不应过度提及<table_stored>内容。必须以{{getvar::tableConfigContentEnd}}封闭正文。
+3. 在{{getvar::tableConfigContentEnd}}后，必须<%- (getLocalVar('tableConfigTagsBeforeTableEdit') == 'none')?'':'立即严格遵循有关要求输出{{getvar::tableConfigTagsBeforeTableEdit}}。然后'; %>立即分别输出<tableThink>和<tableEdit>标签及内容，只用简体中文。必须依据本次回复的正文，严格遵循<memory_table_guide>、【增删改触发条件】和<table_rule>的要求，在<table_stored>的基础上进行所有必要的改/删/增。表格操作必须遵循：
+- 所有键加双引号"，禁止单引号'
+- 值内用斜杠/分隔，禁止用逗号,
+- 值内禁止引号"及'
+- 键与值必须一一对应
+- 必须分别在<tableThink>和<tableEdit>标签内用“<!-- -->”的标记包裹全部内容，“<!--”和“-->”分别独立一行
+- 更新、删除仅限<table_stored>中已有行，行号必须使用原行号
+- 记录内容尽可能与其他记录方式（如状态栏、变量更新等）保持一致
+- 仅参照<table_example>的格式，禁止照抄<table_example>的内容
+4. 在</tableEdit>后再输出**所有**其他要求输出的标签及内容<%- (getLocalVar('tableConfigTagsAfterTableEdit') == 'none')?'':'，包括{{getvar::tableConfigTagsAfterTableEdit}}等'; %>
+5. <%- (getLocalVar('tableConfigCoTBegin') == 'none')?'':'{{getvar::tableConfigCoTBegin}}、'; %>{{getvar::tableConfigContentBegin}}、<tableThink>、<tableEdit>及其他要求输出的标签本身必须正确包裹有关内容，包括各自结尾处的<%- (getLocalVar('tableConfigCoTEnd') == 'none')?'':'{{getvar::tableConfigCoTEnd}}、'; %>{{getvar::tableConfigContentEnd}}、</tableThink>和</tableEdit>等。以上各标签互斥，禁止互相包含。必须严格遵循这些标签名，禁止翻译或进行其他修改，禁止遗漏结尾标签内的/。
+</format_request>

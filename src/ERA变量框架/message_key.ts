@@ -28,7 +28,7 @@
 'use strict';
 
 import { SEL_PATH } from './constants';
-import { Logger, rnd } from './utils';
+import { Logger, rnd, updateEraMetaData } from './utils';
 
 const logger = new Logger('message_key');
 
@@ -195,23 +195,24 @@ export async function ensureMessageKey(msg: any): Promise<string> {
  * **【确保最新消息的 MK】**
  * 这是一个便捷函数，专门用于确保当前聊天记录中的最后一条消息拥有 MK。
  * 它通常在监听到新消息生成等事件时被调用，以确保新消息能被 ERA 系统正确追踪。
+ * @returns {Promise<{mk: string, message_id: number | null}>} 返回包含 MK 和消息 ID 的对象，失败则 MK 为空字符串，ID 为 null。
  */
-export const ensureMkForLatestMessage = async (): Promise<string> => {
+export const ensureMkForLatestMessage = async (): Promise<{ mk: string; message_id: number | null }> => {
   try {
     const msg = getChatMessages(-1, { include_swipes: true })?.[0];
 
     if (!msg || typeof msg.message_id !== 'number') {
       logger.warn('ensureMkForLatestMessage', '无法读取最新消息或其ID，退出');
-      return '';
+      return { mk: '', message_id: null };
     }
 
-    // ensureMessageKey 会返回最终的 MK，我们直接将其返回
+    // ensureMessageKey 会返回最终的 MK
     const mk = await ensureMessageKey(msg);
     logger.log('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。`);
-    return mk;
+    return { mk, message_id: msg.message_id };
   } catch (err: any) {
     logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, err);
-    return '';
+    return { mk: '', message_id: null };
   }
 };
 
@@ -229,17 +230,14 @@ export const updateLatestSelectedMk = async () => {
   const MK = await ensureMessageKey(msg);
   if (!MK) return;
 
-  // 更新 chat 变量中的 SelectedMks 数组
-  await updateVariablesWith(
-    v => {
-      const selectedMks = _.get(v, SEL_PATH, []);
-      // 只有在记录不一致时才执行写操作，以优化性能
-      if (selectedMks[msg.message_id] !== MK) {
-        selectedMks[msg.message_id] = MK;
-        _.set(v, SEL_PATH, selectedMks);
-      }
-      return v;
-    },
-    { type: 'chat' },
-  );
+  // 更新 ERAMetaData 中的 SelectedMks 数组
+  await updateEraMetaData(meta => {
+    const selectedMks = _.get(meta, SEL_PATH, []);
+    // 只有在记录不一致时才执行写操作，以优化性能
+    if (selectedMks[msg.message_id] !== MK) {
+      selectedMks[msg.message_id] = MK;
+      _.set(meta, SEL_PATH, selectedMks);
+    }
+    return meta;
+  });
 };

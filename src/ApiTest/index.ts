@@ -80,11 +80,11 @@ const updateTestSuite = [
     },
   },
   {
-    description: '2.3. 使用表达式更新 gold',
+    description: '2.3. 直接赋值更新 gold',
     event: 'era:updateByPath',
     data: {
       path: 'testData.inventory.gold',
-      value: '+=50',
+      value: 150,
     },
   },
 ];
@@ -163,5 +163,29 @@ $(() => {
 
   eventOn(getButtonEvent('Run Delete Tests'), () => {
     runTestSuite(deleteTestSuite);
+  });
+
+  // 监听 ERA 框架的写入完成事件
+  eventOn('era:writeDone', detail => {
+    const { mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta } = detail;
+    const funcName = 'onWriteDone';
+
+    logger.log(
+      funcName,
+      `接收到 era:writeDone 事件 (MK: ${mk}, MsgID: ${message_id}, Actions: ${JSON.stringify(actions)})`,
+    );
+
+    // 使用 logger.debug 输出详细信息，避免在常规日志中刷屏
+    logger.debug(funcName, '--- Event Payload Details ---');
+    logger.debug(funcName, `Message Key (mk): ${mk}`);
+    logger.debug(funcName, `Message ID (message_id): ${message_id}`);
+    logger.debug(funcName, `Actions: ${JSON.stringify(actions, null, 2)}`);
+
+    // 对于大型对象，使用 JSON.stringify 配合 logger.debug
+    logger.debug(funcName, `Selected MKs (selectedMks): ${JSON.stringify(selectedMks, null, 2)}`);
+    logger.debug(funcName, `Edit Logs (editLogs): ${JSON.stringify(editLogs, null, 2)}`);
+    logger.debug(funcName, `Stat (with meta): ${JSON.stringify(stat, null, 2)}`);
+    logger.debug(funcName, `Stat (without meta): ${JSON.stringify(statWithoutMeta, null, 2)}`);
+    logger.debug(funcName, '---------------------------');
   });
 });

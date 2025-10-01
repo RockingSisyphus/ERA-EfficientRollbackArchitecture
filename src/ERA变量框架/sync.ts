@@ -25,10 +25,10 @@
  * **最终效果**: 无论历史记录发生何种变化，变量状态都能被完美地自动修复，确保数据一致性。
  */
 
-import { CHAT_SCOPE, LOGS_PATH, SEL_PATH } from './constants';
+import { LOGS_PATH, SEL_PATH } from './constants';
 import { readMessageKey } from './message_key';
 import { rollbackByMk } from './rollback';
-import { Logger, parseEditLog } from './utils';
+import { getEraData, Logger, parseEditLog, updateEraMetaData } from './utils';
 import { ApplyVarChange, ApplyVarChangeForMessage } from './variable_change_processor';
 
 const logger = new Logger('sync');
@@ -51,10 +51,10 @@ const getMkFromMsg = (msg: any): string | null => {
  * @returns 如果所有 EditLog 都为空则返回 true
  */
 const checkEditLogsAreEmpty = (mks: (string | null)[]): boolean => {
-  const chatVars = getVariables(CHAT_SCOPE) || {};
+  const { meta: metaData } = getEraData();
   for (const mk of mks) {
     if (!mk) continue; // 跳过 null (用户消息)
-    const editLogRaw = _.get(chatVars, [LOGS_PATH, mk]);
+    const editLogRaw = _.get(metaData, [LOGS_PATH, mk]);
     const editLog = parseEditLog(editLogRaw);
     if (editLog.length > 0) {
       return false; // 发现一个非空 log，直接返回 false
@@ -72,7 +72,8 @@ export const resyncStateOnHistoryChange = async () => {
 
   // 核心假设：getChatMessages 会重新生成 message_id，使其保持从 0 开始的连续序列。
   const allMessages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
-  const oldSelectedMks: (string | null)[] = _.cloneDeep(getVariables(CHAT_SCOPE)?.[SEL_PATH] || []);
+  const { meta: oldMetaData } = getEraData();
+  const oldSelectedMks: (string | null)[] = _.cloneDeep(_.get(oldMetaData, SEL_PATH, []));
 
   if (!allMessages || allMessages.length === 0) {
     logger.log('resyncStateOnHistoryChange', '当前聊天记录为空，不执行任何操作，同步终止。');
@@ -122,10 +123,10 @@ export const resyncStateOnHistoryChange = async () => {
       for (let i = 0; i < allMessages.length; i++) {
         newSelectedMks[i] = getMkFromMsg(allMessages[i]);
       }
-      await updateVariablesWith(v => {
-        _.set(v, SEL_PATH, newSelectedMks);
-        return v;
-      }, CHAT_SCOPE);
+      await updateEraMetaData(meta => {
+        _.set(meta, SEL_PATH, newSelectedMks);
+        return meta;
+      });
       logger.log('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
       return;
     }
@@ -183,10 +184,10 @@ export const resyncStateOnHistoryChange = async () => {
   logger.log('resyncStateOnHistoryChange', '顺序重算完成。');
 
   // 5. 更新 SelectedMks 数组
-  await updateVariablesWith(v => {
-    _.set(v, SEL_PATH, newSelectedMks);
-    return v;
-  }, CHAT_SCOPE);
+  await updateEraMetaData(meta => {
+    _.set(meta, SEL_PATH, newSelectedMks);
+    return meta;
+  });
   logger.log('resyncStateOnHistoryChange', '状态同步完成。');
 
   // ==================================================================

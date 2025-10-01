@@ -204,11 +204,11 @@ const updateTestSuite = [ {
     }
   }
 }, {
-  description: "2.3. 使用表达式更新 gold",
+  description: "2.3. 直接赋值更新 gold",
   event: "era:updateByPath",
   data: {
     path: "testData.inventory.gold",
-    value: "+=50"
+    value: 150
   }
 } ];
 
@@ -264,5 +264,19 @@ $(() => {
   });
   eventOn(getButtonEvent("Run Delete Tests"), () => {
     runTestSuite(deleteTestSuite);
+  });
+  eventOn("era:writeDone", detail => {
+    const {mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta} = detail;
+    const funcName = "onWriteDone";
+    logger.log(funcName, `接收到 era:writeDone 事件 (MK: ${mk}, MsgID: ${message_id}, Actions: ${JSON.stringify(actions)})`);
+    logger.debug(funcName, "--- Event Payload Details ---");
+    logger.debug(funcName, `Message Key (mk): ${mk}`);
+    logger.debug(funcName, `Message ID (message_id): ${message_id}`);
+    logger.debug(funcName, `Actions: ${JSON.stringify(actions, null, 2)}`);
+    logger.debug(funcName, `Selected MKs (selectedMks): ${JSON.stringify(selectedMks, null, 2)}`);
+    logger.debug(funcName, `Edit Logs (editLogs): ${JSON.stringify(editLogs, null, 2)}`);
+    logger.debug(funcName, `Stat (with meta): ${JSON.stringify(stat, null, 2)}`);
+    logger.debug(funcName, `Stat (without meta): ${JSON.stringify(statWithoutMeta, null, 2)}`);
+    logger.debug(funcName, "---------------------------");
   });
 });

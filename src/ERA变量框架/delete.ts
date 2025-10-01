@@ -11,22 +11,21 @@
  */
 'use strict';
 
-import { CHAT_SCOPE } from './constants';
-import { Logger } from './utils';
+import { Logger, updateEraStatData } from './utils';
 
 /**
  * **【递归删除】**
  * 实现了 `<VariableDelete>` 的核心逻辑，其行为由指令 `patchObj` 的结构驱动。
  *
- * @param {any} rootVars - 根变量对象（即 chat 变量）。
+ * @param {any} statData - 状态数据对象 (即 `stat_data`)。
  * @param {string} basePath - 当前递归层级的基础路径。
  * @param {any} patchObj - 从指令中解析出的、与 `basePath` 对应的部分。
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
  * @param {Logger} logger - 日志记录器实例。
  */
-function applyDeleteAtLevel(rootVars: any, basePath: string, patchObj: any, editLog: any[], logger: Logger) {
+function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, editLog: any[], logger: Logger) {
   // --- 1. 入口守卫和状态获取 ---
-  const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
+  const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
 
   if (currentNodeInVars === undefined) {
     logger.warn('applyDeleteAtLevel', `VariableDelete 跳过：路径不存在 -> ${basePath || '(root)'}`);
@@ -60,7 +59,7 @@ function applyDeleteAtLevel(rootVars: any, basePath: string, patchObj: any, edit
     for (const key of Object.keys(patchObj)) {
       const fullPath = basePath ? `${basePath}.${key}` : key;
       const subPatchObj = patchObj[key];
-      applyDeleteAtLevel(rootVars, fullPath, subPatchObj, editLog, logger);
+      applyDeleteAtLevel(statData, fullPath, subPatchObj, editLog, logger);
     }
     return; // 子节点处理完毕，返回。
   }
@@ -87,7 +86,7 @@ function applyDeleteAtLevel(rootVars: any, basePath: string, patchObj: any, edit
 
   // 执行原子性删除
   const valOld = _.cloneDeep(currentNodeInVars);
-  _.unset(rootVars, basePath);
+  _.unset(statData, basePath);
   editLog.push({ op: 'delete', path: basePath, value_old: valOld });
   logger.debug('applyDeleteAtLevel', `成功删除节点: ${basePath}`);
 }
@@ -104,12 +103,12 @@ export async function processDeleteBlocks(allDeletes: any[], editLog: any[], log
     for (const deleteRoot of allDeletes) {
       if (!_.isPlainObject(deleteRoot) || _.isEmpty(deleteRoot)) continue;
       try {
-        await updateVariablesWith(v => {
+        await updateEraStatData(stat => {
           logger.debug('processDeleteBlocks', `处理 deleteRoot: ${JSON.stringify(deleteRoot)}`);
           // 从根路径开始递归
-          applyDeleteAtLevel(v, '', deleteRoot, editLog, logger);
-          return v;
-        }, CHAT_SCOPE);
+          applyDeleteAtLevel(stat, '', deleteRoot, editLog, logger);
+          return stat;
+        });
       } catch (e: any) {
         logger.error('processDeleteBlocks', `处理 deleteRoot 失败: ${e?.message || e}`, e);
       }

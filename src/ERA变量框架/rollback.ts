@@ -14,9 +14,9 @@
 
 'use strict';
 
-import { CHAT_SCOPE, LOGS_PATH } from './constants';
+import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from './constants';
 import { readMessageKey } from './message_key';
-import { J, Logger, parseEditLog } from './utils';
+import { getEraData, J, Logger, parseEditLog } from './utils';
 
 const logger = new Logger('rollback');
 
@@ -32,7 +32,10 @@ export async function rollbackByMk(MK: string, silent = false) {
   try {
     logger.log('rollbackByMk', `开始回滚, MK=${MK}`);
     await updateVariablesWith(v => {
-      const raw = _.get(v, [LOGS_PATH, MK]);
+      const meta = _.get(v, META_DATA_PATH, {});
+      const stat = _.get(v, STAT_DATA_PATH, {});
+
+      const raw = _.get(meta, [LOGS_PATH, MK]);
       const arr = parseEditLog(raw);
       if (!arr || !arr.length) {
         logger.debug('rollbackByMk', `EditLog 为空或无效，跳过回滚。`);
@@ -49,19 +52,21 @@ export async function rollbackByMk(MK: string, silent = false) {
 
         if (op === 'insert') {
           // 对于“插入”操作，回滚即为“删除”。
-          _.unset(v, path);
+          _.unset(stat, path);
           continue;
         }
         if (op === 'update' || op === 'delete') {
           // 对于“更新”或“删除”操作，回滚即为恢复到“旧值”。
           if (typeof e?.value_old === 'undefined') {
             // 如果日志中没有记录旧值，最安全的回滚方式是直接删除该路径。
-            _.unset(v, path);
+            _.unset(stat, path);
           } else {
-            _.set(v, path, _.cloneDeep(e.value_old));
+            _.set(stat, path, _.cloneDeep(e.value_old));
           }
         }
       }
+
+      _.set(v, STAT_DATA_PATH, stat);
       return v;
     }, CHAT_SCOPE);
     logger.log('rollbackByMk', `回滚完成：MK=${MK}`);
@@ -106,8 +111,8 @@ export async function findLatestNewValue(path: string, startMessageId: number, l
     const mk = readMessageKey(message);
     if (!mk) continue; // 跳过没有 MK 的 AI 消息。
 
-    const chatVars = getVariables(CHAT_SCOPE) || {};
-    const editLogRaw = _.get(chatVars, [LOGS_PATH, mk]);
+    const { meta: metaData } = getEraData();
+    const editLogRaw = _.get(metaData, [LOGS_PATH, mk]);
     const editLog = parseEditLog(editLogRaw);
 
     if (!editLog || editLog.length === 0) continue; // 跳过 EditLog 为空的。
