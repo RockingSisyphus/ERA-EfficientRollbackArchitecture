@@ -28,7 +28,7 @@ import { ERA_API_EVENTS } from './constants';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from './message_key';
 import { rollbackByMk } from './rollback';
 import { resyncStateOnHistoryChange } from './sync';
-import { Logger } from './utils';
+import { Logger, logContext } from './utils';
 import { ApplyVarChange } from './variable_change_processor';
 
 const logger = new Logger('event_queue');
@@ -117,10 +117,11 @@ async function processQueue() {
     // --- 2. 严格按顺序执行合并后的任务 ---
     for (const job of finalJobs) {
       const { type: eventType, detail } = job;
-      logger.log('processQueue', `执行任务: ${eventType}`);
       try {
-        // **前置保障**: 确保最新消息有 MK。
-        await ensureMkForLatestMessage();
+        // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
+        logContext.mk = await ensureMkForLatestMessage();
+
+        logger.log('processQueue', `执行任务: ${eventType}`);
 
         // **任务分发**
         switch (eventType) {
@@ -176,6 +177,9 @@ async function processQueue() {
       } catch (error) {
         logger.error('processQueue', `事件 ${eventType} 处理异常: ${error}`, error);
       } finally {
+        // 清理日志上下文，为下一个事件做准备
+        logContext.mk = '';
+
         // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
         await updateLatestSelectedMk();
         // **节流**: 在每个独立任务后都进行短暂等待，确保酒馆底层有时间完成其异步操作。

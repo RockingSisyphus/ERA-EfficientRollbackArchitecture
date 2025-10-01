@@ -50,13 +50,18 @@ const external_namespaceObject = _;
 
 var external_default = __webpack_require__.n(external_namespaceObject);
 
+const logContext = {
+  mk: ""
+};
+
 class Logger {
   moduleName;
   constructor(moduleName) {
     this.moduleName = moduleName;
   }
   formatMessage(funcName, message) {
-    return `《ERA》「${this.moduleName}」【${funcName}】${String(message)}`;
+    const mkString = logContext.mk ? `（${logContext.mk}）` : "";
+    return `《ERA》${mkString}「${this.moduleName}」【${funcName}】${String(message)}`;
   }
   debug(funcName, message) {
     console.debug(this.formatMessage(funcName, message));
@@ -349,12 +354,14 @@ const ensureMkForLatestMessage = async () => {
     })?.[0];
     if (!msg || typeof msg.message_id !== "number") {
       message_key_logger.warn("ensureMkForLatestMessage", "无法读取最新消息或其ID，退出");
-      return;
+      return "";
     }
-    await ensureMessageKey(msg);
+    const mk = await ensureMessageKey(msg);
     message_key_logger.log("ensureMkForLatestMessage", `已为最新消息 ${msg.message_id} 确保 MK 存在。`);
+    return mk;
   } catch (err) {
     message_key_logger.error("ensureMkForLatestMessage", `确保MK时异常: ${err?.message || err}`, err);
+    return "";
   }
 };
 
@@ -875,9 +882,9 @@ async function processQueue() {
     event_queue_logger.debug("processQueue", `合并后，剩余 ${finalJobs.length} 个任务: ${finalJobs.map(e => e.type).join(", ")}`);
     for (const job of finalJobs) {
       const {type: eventType, detail} = job;
-      event_queue_logger.log("processQueue", `执行任务: ${eventType}`);
       try {
-        await ensureMkForLatestMessage();
+        logContext.mk = await ensureMkForLatestMessage();
+        event_queue_logger.log("processQueue", `执行任务: ${eventType}`);
         switch (eventType) {
          case "rollback_done_reapply_var_start":
          case tavern_events.MESSAGE_RECEIVED:
@@ -932,6 +939,7 @@ async function processQueue() {
       } catch (error) {
         event_queue_logger.error("processQueue", `事件 ${eventType} 处理异常: ${error}`, error);
       } finally {
+        logContext.mk = "";
         await updateLatestSelectedMk();
         await new Promise(resolve => setTimeout(resolve, 50));
       }

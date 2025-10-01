@@ -49,7 +49,7 @@ function applyDeleteAtLevel(rootVars: any, basePath: string, patchObj: any, edit
 
     // 权限检查：如果节点受 'all' 保护，且指令不满足豁免条件，则禁止深入。
     if (necessary === 'all' && !isBypassingProtection) {
-      logger.error(
+      logger.warn(
         'applyDeleteAtLevel',
         `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`,
       );
@@ -72,7 +72,7 @@ function applyDeleteAtLevel(rootVars: any, basePath: string, patchObj: any, edit
   // 权限检查：'self' 或 'all' 都会阻止当前节点的直接删除。
   // 直接删除节点的意图无法豁免保护，必须通过递归意图删除 '$meta' 来解除保护。
   if (necessary === 'self' || necessary === 'all') {
-    logger.error(
+    logger.warn(
       'applyDeleteAtLevel',
       `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`,
     );

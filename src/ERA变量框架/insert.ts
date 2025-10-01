@@ -41,56 +41,54 @@ export function applyInsertAtLevel(
   inheritedTpl: any,
   logger: Logger,
 ) {
-  // 确定当前层级的模板：优先使用补丁自带的，其次是变量中已有的，最后是继承的。
-  const tplFromPatch = _.get(patchObj, ['$meta', 'template']);
+  // --- 1. 确定当前层级的模板 ---
+  // 优先级: 变量中已有的 > 继承的 > 指令中提供的。
+  // 这种优先级符合 insert 的“非破坏性”原则：已存在的结构定义（变量中的模板）不应被新指令轻易覆盖。
   const tplFromVars = basePath ? _.get(rootVars, `${basePath}.$meta.template`) : _.get(rootVars, `$meta.template`);
-  const localTpl = _.isPlainObject(tplFromPatch)
-    ? tplFromPatch
-    : _.isPlainObject(tplFromVars)
-      ? tplFromVars
-      : inheritedTpl;
+  const tplFromPatch = _.get(patchObj, ['$meta', 'template']);
+  const localTpl = _.isPlainObject(tplFromVars)
+    ? tplFromVars
+    : _.isPlainObject(inheritedTpl)
+      ? inheritedTpl
+      : tplFromPatch;
 
-  // --- 原子性插入逻辑 ---
-  if (basePath && !_.has(rootVars, basePath)) {
+  // --- 2. 检查路径存在性，决定执行策略 ---
+  const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
+
+  // **策略一：原子性插入 (Atomic Insert)**
+  // 如果当前路径在变量中不存在，则将整个补丁对象作为新值一次性插入，并停止此分支的递归。
+  // 这是 insert 操作的核心，确保了新数据块的完整性。
+  if (basePath && currentNodeInVars === undefined) {
     let composed = patchObj;
-    // 如果有模板，则先将补丁与模板合并。
+    // 如果模板有效，则先将补丁与模板合并，确保新插入的数据符合预设结构。
     if (_.isPlainObject(patchObj) && _.isPlainObject(localTpl)) {
       composed = mergeReplaceArray(localTpl, patchObj);
     }
-    composed = sanitizeArrays(composed); // 清理数据
-    _.set(rootVars, basePath, composed); // 写入整个对象
-    // 只记录一条日志，代表整个对象的插入。
+    composed = sanitizeArrays(composed); // 清理数组中的 null 等无效值。
+    _.set(rootVars, basePath, composed); // 执行插入。
     editLog.push({ op: 'insert', path: basePath, value_new: _.cloneDeep(composed) });
-    return; // 原子性插入完成，无需再递归。
+    logger.debug('applyInsertAtLevel', `原子性插入到新路径: ${basePath}`);
+    return; // 插入完成，终止递归。
   }
 
-  // --- 递归补充插入逻辑 ---
-  // 如果 basePath 已存在，或 basePath 为空（即在根级别操作），则遍历补丁的键。
-  for (const key of Object.keys(patchObj)) {
-    // if (key === '$meta') continue; // 暂时注释掉，以允许在初始化时通过顶层插入 `$meta` 数据。
-    const fullPath = basePath ? `${basePath}.${key}` : key;
-    const valNew = patchObj[key];
-
-    if (_.has(rootVars, fullPath)) {
-      const valOld = _.get(rootVars, fullPath);
-      // 如果新旧值都是对象，则递归下去，尝试补充插入。
-      if (_.isPlainObject(valOld) && _.isPlainObject(valNew)) {
-        applyInsertAtLevel(rootVars, fullPath, valNew, editLog, localTpl, logger);
-      } else {
-        // 否则，路径已存在且无法递归，记录失败并跳过。
-        logger.warn('applyInsertAtLevel', `VariableInsert 失败：路径已存在 -> ${fullPath}`);
-      }
-    } else {
-      // 在已存在的对象下，发现了一个全新的子路径，执行原子插入。
-      let composed = valNew;
-      if (_.isPlainObject(valNew) && _.isPlainObject(localTpl)) {
-        composed = mergeReplaceArray(localTpl, valNew);
-      }
-      composed = sanitizeArrays(composed);
-      _.set(rootVars, fullPath, composed);
-      editLog.push({ op: 'insert', path: fullPath, value_new: _.cloneDeep(composed) });
+  // **策略二：递归补充 (Recursive Supplement)**
+  // 如果当前路径已存在，并且补丁和当前值都是对象，则深入递归，尝试补充插入子属性。
+  // 这是 insert 实现“非破坏性”更新的关键。
+  if (_.isPlainObject(currentNodeInVars) && _.isPlainObject(patchObj)) {
+    for (const key of Object.keys(patchObj)) {
+      // if (key === '$meta') continue; // 允许插入 $meta，用于初始化等场景。
+      const subPath = basePath ? `${basePath}.${key}` : key;
+      const subPatch = patchObj[key];
+      // 递归调用，将当前层级最终确定的模板 (localTpl) 作为继承模板传递下去。
+      applyInsertAtLevel(rootVars, subPath, subPatch, editLog, localTpl, logger);
     }
+  } else if (basePath) {
+    // **插入失败**
+    // 如果路径已存在，但不是可递归补充的对象结构（例如，一个是对象，另一个是字符串），
+    // 则记录警告。insert 不会覆盖已存在的值。
+    logger.warn('applyInsertAtLevel', `VariableInsert 失败：路径已存在且无法递归补充 -> ${basePath}`);
   }
+  // 如果 basePath 为空（在根级别）且 patch 不是对象，则不执行任何操作，因为根不能被非对象替换。
 }
 
 /**
@@ -113,12 +111,8 @@ export async function processInsertBlocks(allInserts: any[], editLog: any[], log
       try {
         await updateVariablesWith(v => {
           logger.debug('processInsertBlocks', `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
-          for (const topKey of Object.keys(insertRoot)) {
-            const topPatch = (insertRoot as any)[topKey];
-            if (topPatch == null) continue;
-            // 调用递归函数，实际执行插入并填充 editLog。
-            applyInsertAtLevel(v, topKey, topPatch, editLog, null, logger);
-          }
+          // 从根路径 '' 开始统一递归入口，这使得逻辑与 delete/update 保持一致。
+          applyInsertAtLevel(v, '', insertRoot, editLog, null, logger);
           return v;
         }, CHAT_SCOPE);
       } catch (e: any) {

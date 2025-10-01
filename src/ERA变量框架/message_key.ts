@@ -196,20 +196,22 @@ export async function ensureMessageKey(msg: any): Promise<string> {
  * 这是一个便捷函数，专门用于确保当前聊天记录中的最后一条消息拥有 MK。
  * 它通常在监听到新消息生成等事件时被调用，以确保新消息能被 ERA 系统正确追踪。
  */
-export const ensureMkForLatestMessage = async () => {
+export const ensureMkForLatestMessage = async (): Promise<string> => {
   try {
     const msg = getChatMessages(-1, { include_swipes: true })?.[0];
 
     if (!msg || typeof msg.message_id !== 'number') {
       logger.warn('ensureMkForLatestMessage', '无法读取最新消息或其ID，退出');
-      return;
+      return '';
     }
 
-    // ensureMessageKey 内部会处理所有检查和注入逻辑
-    await ensureMessageKey(msg);
+    // ensureMessageKey 会返回最终的 MK，我们直接将其返回
+    const mk = await ensureMessageKey(msg);
     logger.log('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。`);
+    return mk;
   } catch (err: any) {
     logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, err);
+    return '';
   }
 };
 

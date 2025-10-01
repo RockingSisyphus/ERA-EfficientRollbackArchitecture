@@ -24,6 +24,14 @@ import _ from 'lodash';
  * 3. **控制台输出**: 日志会根据级别使用不同颜色和样式的 `console` 方法输出，便于在浏览器中实时调试。
  * 4. **纯粹的控制台日志**: 日志系统不再向酒馆聊天变量中写入任何数据，避免了性能问题和数据污染。
  */
+/**
+ * @type {{mk: string}}
+ * @description 一个用于在事件处理期间临时存储日志上下文（如 Message Key）的对象。
+ */
+export const logContext = {
+  mk: '',
+};
+
 export class Logger {
   private moduleName: string;
 
@@ -42,7 +50,8 @@ export class Logger {
    * @returns {string} 格式化后的日志字符串。
    */
   private formatMessage(funcName: string, message: any): string {
-    return `《ERA》「${this.moduleName}」【${funcName}】${String(message)}`;
+    const mkString = logContext.mk ? `（${logContext.mk}）` : '';
+    return `《ERA》${mkString}「${this.moduleName}」【${funcName}】${String(message)}`;
   }
 
   /**
