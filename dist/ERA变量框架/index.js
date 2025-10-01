@@ -483,7 +483,7 @@ function applyDeleteAtLevel(rootVars, basePath, patchObj, editLog, logger) {
   const isBypassingProtection = _.isPlainObject(metaPatch) && _.isEmpty(metaPatch) || _.has(patchObj, [ "$meta", "necessary" ]);
   if (_.isPlainObject(patchObj) && !_.isEmpty(patchObj)) {
     if (necessary === "all" && !isBypassingProtection) {
-      logger.error("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`);
+      logger.warn("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`);
       return;
     }
     for (const key of Object.keys(patchObj)) {
@@ -494,7 +494,7 @@ function applyDeleteAtLevel(rootVars, basePath, patchObj, editLog, logger) {
     return;
   }
   if (necessary === "self" || necessary === "all") {
-    logger.error("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`);
+    logger.warn("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`);
     return;
   }
   if (basePath === "") {
@@ -530,10 +530,11 @@ async function processDeleteBlocks(allDeletes, editLog, logger) {
 }
 
 function applyInsertAtLevel(rootVars, basePath, patchObj, editLog, inheritedTpl, logger) {
-  const tplFromPatch = _.get(patchObj, [ "$meta", "template" ]);
   const tplFromVars = basePath ? _.get(rootVars, `${basePath}.$meta.template`) : _.get(rootVars, `$meta.template`);
-  const localTpl = _.isPlainObject(tplFromPatch) ? tplFromPatch : _.isPlainObject(tplFromVars) ? tplFromVars : inheritedTpl;
-  if (basePath && !_.has(rootVars, basePath)) {
+  const tplFromPatch = _.get(patchObj, [ "$meta", "template" ]);
+  const localTpl = _.isPlainObject(tplFromVars) ? tplFromVars : _.isPlainObject(inheritedTpl) ? inheritedTpl : tplFromPatch;
+  const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
+  if (basePath && currentNodeInVars === undefined) {
     let composed = patchObj;
     if (_.isPlainObject(patchObj) && _.isPlainObject(localTpl)) {
       composed = mergeReplaceArray(localTpl, patchObj);
@@ -545,31 +546,17 @@ function applyInsertAtLevel(rootVars, basePath, patchObj, editLog, inheritedTpl,
       path: basePath,
       value_new: _.cloneDeep(composed)
     });
+    logger.debug("applyInsertAtLevel", `原子性插入到新路径: ${basePath}`);
     return;
   }
-  for (const key of Object.keys(patchObj)) {
-    const fullPath = basePath ? `${basePath}.${key}` : key;
-    const valNew = patchObj[key];
-    if (_.has(rootVars, fullPath)) {
-      const valOld = _.get(rootVars, fullPath);
-      if (_.isPlainObject(valOld) && _.isPlainObject(valNew)) {
-        applyInsertAtLevel(rootVars, fullPath, valNew, editLog, localTpl, logger);
-      } else {
-        logger.warn("applyInsertAtLevel", `VariableInsert 失败：路径已存在 -> ${fullPath}`);
-      }
-    } else {
-      let composed = valNew;
-      if (_.isPlainObject(valNew) && _.isPlainObject(localTpl)) {
-        composed = mergeReplaceArray(localTpl, valNew);
-      }
-      composed = sanitizeArrays(composed);
-      _.set(rootVars, fullPath, composed);
-      editLog.push({
-        op: "insert",
-        path: fullPath,
-        value_new: _.cloneDeep(composed)
-      });
+  if (_.isPlainObject(currentNodeInVars) && _.isPlainObject(patchObj)) {
+    for (const key of Object.keys(patchObj)) {
+      const subPath = basePath ? `${basePath}.${key}` : key;
+      const subPatch = patchObj[key];
+      applyInsertAtLevel(rootVars, subPath, subPatch, editLog, localTpl, logger);
     }
+  } else if (basePath) {
+    logger.warn("applyInsertAtLevel", `VariableInsert 失败：路径已存在且无法递归补充 -> ${basePath}`);
   }
 }
 
@@ -580,11 +567,7 @@ async function processInsertBlocks(allInserts, editLog, logger) {
       try {
         await updateVariablesWith(v => {
           logger.debug("processInsertBlocks", `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
-          for (const topKey of Object.keys(insertRoot)) {
-            const topPatch = insertRoot[topKey];
-            if (topPatch == null) continue;
-            applyInsertAtLevel(v, topKey, topPatch, editLog, null, logger);
-          }
+          applyInsertAtLevel(v, "", insertRoot, editLog, null, logger);
           return v;
         }, CHAT_SCOPE);
       } catch (e) {
@@ -596,38 +579,41 @@ async function processInsertBlocks(allInserts, editLog, logger) {
 }
 
 async function applyEditAtLevel(rootVars, basePath, patchObj, editLog, logger, messageId, intraMessageState) {
+  const currentNodeInVars = basePath ? _.get(rootVars, basePath) : rootVars;
+  if (currentNodeInVars === undefined) {
+    logger.warn("applyEditAtLevel", `VariableEdit 跳过：路径不存在 -> ${basePath || "(root)"}`);
+    return;
+  }
+  const isUpdatable = _.get(currentNodeInVars, [ "$meta", "updatable" ], true);
+  const isBypassingProtection = isUpdatable === false && _.get(patchObj, [ "$meta", "updatable" ]) === true;
+  if (isUpdatable === false && !isBypassingProtection) {
+    logger.warn("applyEditAtLevel", `VariableEdit 失败：路径 <${basePath}> 受 "$meta.updatable: false" 保护，无法被修改。`);
+    return;
+  }
   for (const key of Object.keys(patchObj)) {
-    const fullPath = basePath ? `${basePath}.${key}` : key;
+    const subPath = basePath ? `${basePath}.${key}` : key;
     const valNew = patchObj[key];
     if (_.isPlainObject(valNew)) {
-      if (!_.has(rootVars, fullPath)) {
-        logger.warn("applyEditAtLevel", `VariableEdit 跳过：父路径不存在 -> ${fullPath}`);
-        continue;
-      }
-      await applyEditAtLevel(rootVars, fullPath, valNew, editLog, logger, messageId, intraMessageState);
+      await applyEditAtLevel(rootVars, subPath, valNew, editLog, logger, messageId, intraMessageState);
       continue;
     }
-    if (!_.has(rootVars, fullPath)) {
-      logger.warn("applyEditAtLevel", `VariableEdit 失败：路径非法，无法写入 -> ${fullPath}`);
+    if (!_.has(rootVars, subPath)) {
+      logger.warn("applyEditAtLevel", `VariableEdit 失败：路径非法，无法写入 -> ${subPath}`);
       continue;
     }
-    let valOld = await findLatestNewValue(fullPath, messageId, logger);
+    let valOld = await findLatestNewValue(subPath, messageId, logger);
     if (valOld === null) {
-      logger.debug("applyEditAtLevel", `历史追溯未找到 <${fullPath}>，从楼内初始状态获取...`);
-      valOld = _.get(rootVars, fullPath);
-      logger.debug("applyEditAtLevel", `成功从楼内初始状态获取 <${fullPath}> 的值为: ${JSON.stringify(valOld)}`);
+      valOld = _.get(rootVars, subPath);
     }
     const cleaned = sanitizeArrays(valNew);
-    if (!_.isEqual(valOld, cleaned)) {
-      _.set(rootVars, fullPath, cleaned);
-      editLog.push({
-        op: "update",
-        path: fullPath,
-        value_old: _.cloneDeep(valOld),
-        value_new: _.cloneDeep(cleaned)
-      });
-      intraMessageState.set(fullPath, _.cloneDeep(cleaned));
-    }
+    _.set(rootVars, subPath, cleaned);
+    editLog.push({
+      op: "update",
+      path: subPath,
+      value_old: _.cloneDeep(valOld),
+      value_new: _.cloneDeep(cleaned)
+    });
+    intraMessageState.set(subPath, _.cloneDeep(cleaned));
   }
 }
 
@@ -639,11 +625,7 @@ async function processEditBlocks(allEdits, editLog, messageId, logger) {
       try {
         await updateVariablesWith(async v => {
           logger.debug("processEditBlocks", `处理 editRoot: ${JSON.stringify(editRoot)}`);
-          for (const topKey of Object.keys(editRoot)) {
-            const topPatch = editRoot[topKey];
-            if (topPatch == null) continue;
-            await applyEditAtLevel(v, topKey, topPatch, editLog, logger, messageId, intraMessageState);
-          }
+          await applyEditAtLevel(v, "", editRoot, editLog, logger, messageId, intraMessageState);
           return v;
         }, CHAT_SCOPE);
       } catch (e) {
