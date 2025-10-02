@@ -32,7 +32,14 @@ import {
   updateByObject,
   updateByPath,
 } from './api';
-import { ERA_API_EVENTS, LOGS_PATH, SEL_PATH } from './constants';
+import {
+  ERA_API_EVENTS,
+  EVENT_COLLISION_MAP,
+  EVENT_GROUPS,
+  LOGS_PATH,
+  RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION,
+  SEL_PATH,
+} from './constants';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from './message_key';
 import { rollbackByMk } from './rollback';
 import { resyncStateOnHistoryChange } from './sync';
@@ -48,6 +55,7 @@ const logger = new Logger('event_queue');
 interface EventJob {
   type: string;
   detail?: any;
+  timestamp: number;
 }
 
 /**
@@ -70,8 +78,23 @@ let isProcessing = false;
  */
 export function pushToQueue(type: string, detail?: any) {
   logger.debug('pushToQueue', `接收到事件: ${type}，已推入队列。`);
-  eventQueue.push({ type, detail });
+  eventQueue.push({ type, detail, timestamp: Date.now() });
   processQueue(); // 尝试启动处理器
+}
+
+/**
+ * 根据事件类型，查找它属于哪个预定义的组。
+ * @param {string} eventType - 要检查的事件类型。
+ * @returns {string} 事件所属的组名 ('WRITE', 'SYNC', 'API', 'UPDATE_MK_ONLY', 'UNKNOWN')。
+ */
+function getEventGroup(eventType: string): string {
+  // 使用 as string[] 来解决 TypeScript 因 'as const' 推断出的过于严格的类型问题
+  if ((EVENT_GROUPS.WRITE as string[]).includes(eventType)) return 'WRITE';
+  if ((EVENT_GROUPS.SYNC as string[]).includes(eventType)) return 'SYNC';
+  if ((EVENT_GROUPS.API as string[]).includes(eventType)) return 'API';
+  if ((EVENT_GROUPS.UPDATE_MK_ONLY as string[]).includes(eventType)) return 'UPDATE_MK_ONLY';
+  if ((EVENT_GROUPS.COLLISION_DETECTORS as string[]).includes(eventType)) return 'COLLISION_DETECTORS';
+  return 'UNKNOWN';
 }
 
 /**
@@ -85,118 +108,159 @@ async function processQueue() {
 
   logger.log('processQueue', '处理器启动...');
 
+  // 用于存储由 ensureMkForLatestMessage 新注入的 MK，以忽略其触发的渲染事件。
+  // 它定义在 while 循环外部，以在不同批次的事件处理之间保持状态。
+  let mkToIgnore: { mk: string; ignoreCount: number } | null = null;
+
   while (eventQueue.length > 0) {
-    // 在每轮批处理开始时，初始化操作记录器
-    const actionsTaken = {
-      rollback: false,
-      apply: false,
-      resync: false,
-    };
+    // 【事件收集窗口】
+    // 查看队列中的下一个事件，以决定是否需要防抖。
+    const nextJob = eventQueue[0];
+    const nextGroup = getEventGroup(nextJob.type);
+
+    // 如果下一个事件不是需要立即响应的 API 事件，则进行防抖等待。
+    // 这允许在第一个事件触发后、处理器实际开始工作前的瞬间，让任何紧随其后的、
+    // 快速连续的事件（如多次 swipe）有机会进入队列，从而被纳入同一个批次进行合并。
+    if (nextGroup !== 'API') {
+      logger.log('processQueue', `下一个事件 (${nextJob.type}) 需要防抖，等待300毫秒...`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
 
     // --- 1. 事件批处理与合并 ---
-    let currentBatch = eventQueue.splice(0, eventQueue.length);
-    logger.debug(
-      'processQueue',
-      `取出批次，包含 ${currentBatch.length} 个事件: ${currentBatch.map(e => e.type).join(', ')}`,
-    );
+    // 等待结束后，一次性取出队列中的所有事件进行批处理。
+    const batchToProcess = eventQueue.splice(0, eventQueue.length);
+    const originalEvents = _.cloneDeep(batchToProcess);
 
-    // a. 合并可覆盖的事件，只保留最后一个。
-    // 例如，短时间内多次触发 `CHARACTER_MESSAGE_RENDERED`，实际上我们只关心最后一次渲染完成时的状态。
-    const lastRenderIndex = _.findLastIndex(currentBatch, { type: tavern_events.CHARACTER_MESSAGE_RENDERED });
-    if (lastRenderIndex > -1) {
-      currentBatch = currentBatch.filter(
-        (job, index) => job.type !== tavern_events.CHARACTER_MESSAGE_RENDERED || index === lastRenderIndex,
-      );
-    }
-
-    // b. 合并连续的同类型事件，如 MESSAGE_RECEIVED, MESSAGE_SWIPED。
+    // a. 合并相邻的同组事件
     const finalJobs: EventJob[] = [];
-    if (currentBatch.length > 0) {
-      finalJobs.push(currentBatch[0]);
-      for (let i = 1; i < currentBatch.length; i++) {
-        const prevJob = finalJobs[finalJobs.length - 1];
-        const currentJob = currentBatch[i];
-        // 如果当前事件和前一个事件类型相同，并且是可合并的类型，则用当前事件替换掉前一个。
-        if (
-          currentJob.type === prevJob.type &&
-          (currentJob.type === tavern_events.MESSAGE_RECEIVED || currentJob.type === tavern_events.MESSAGE_SWIPED)
-        ) {
-          finalJobs[finalJobs.length - 1] = currentJob;
-        } else {
-          finalJobs.push(currentJob);
-        }
+    // 使用 for...of 循环，让逻辑更清晰
+    for (const currentJob of batchToProcess) {
+      // 如果是第一个事件，直接放入结果中
+      if (finalJobs.length === 0) {
+        finalJobs.push(currentJob);
+        continue; // 继续处理下一个事件
+      }
+
+      const prevJob = finalJobs[finalJobs.length - 1];
+
+      // 1. 检查事件对冲
+      const expectedNextEvent = EVENT_COLLISION_MAP.get(prevJob.type);
+      const timeDifference = currentJob.timestamp - prevJob.timestamp;
+      if (expectedNextEvent && currentJob.type === expectedNextEvent && timeDifference <= 300) {
+        logger.log(
+          'processQueue',
+          `检测到相邻事件对冲: ${prevJob.type} 和 ${currentJob.type} (时间差: ${timeDifference}ms)。将忽略这两个事件。`,
+        );
+        finalJobs.pop(); // 移除前一个事件
+        continue; // 跳过当前事件，从而忽略两者
+      }
+
+      // 2. 如果不对冲，则检查同组事件合并
+      const prevGroup = getEventGroup(prevJob.type);
+      const currentGroup = getEventGroup(currentJob.type);
+
+      // 定义合并条件，让 if 判断的意图更清晰
+      const areInSameGroup = prevGroup === currentGroup;
+      const isMergeableGroup = prevGroup === 'WRITE' || prevGroup === 'SYNC';
+
+      // 如果满足合并条件
+      if (areInSameGroup && isMergeableGroup) {
+        // 用当前事件覆盖掉结果数组中的最后一个事件
+        finalJobs[finalJobs.length - 1] = currentJob;
+      } else {
+        // 否则，将当前事件追加到结果数组
+        finalJobs.push(currentJob);
       }
     }
-    logger.debug('processQueue', `合并后，剩余 ${finalJobs.length} 个任务: ${finalJobs.map(e => e.type).join(', ')}`);
+
+    // b. 打印合并日志
+    console.groupCollapsed(`[ERA] 事件队列处理: ${originalEvents.length} -> ${finalJobs.length}`);
+    logger.log(
+      '合并前',
+      originalEvents.map(e => e.type),
+    );
+    logger.log(
+      '合并后',
+      finalJobs.map(e => e.type),
+    );
+    console.groupEnd();
 
     // --- 2. 严格按顺序执行合并后的任务 ---
     for (const job of finalJobs) {
       const { type: eventType, detail } = job;
+      const eventGroup = getEventGroup(eventType);
       let message_id: number | null = null;
+
+      // 在每轮任务开始时，初始化操作记录器
+      const actionsTaken = { rollback: false, apply: false, resync: false };
+
       try {
+        // **前置过滤**: 忽略单独存在的对冲检测器事件
+        if (eventGroup === 'COLLISION_DETECTORS') {
+          // 此类事件仅用于对冲，如果它单独存在（未被对冲掉），则不执行任何操作。
+          logger.log('processQueue', `事件 ${eventType} 是一个对冲检测器，无独立操作，已忽略。`);
+          continue;
+        }
+
         // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
-        const { mk, message_id: msgId } = await ensureMkForLatestMessage();
+        const { mk, message_id: msgId, isNewKey } = await ensureMkForLatestMessage();
         logContext.mk = mk;
         message_id = msgId;
 
-        logger.log('processQueue', `执行任务: ${eventType}`);
+        // 如果 ensureMkForLatestMessage 刚刚注入了一个新的 MK，就设置忽略规则。
+        if (isNewKey && mk) {
+          mkToIgnore = {
+            mk: mk,
+            ignoreCount: RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION,
+          };
+        }
+
+        // **核心优化**: 忽略由 MK 注入自身触发的渲染事件
+        if (mkToIgnore && eventType === tavern_events.CHARACTER_MESSAGE_RENDERED && mk === mkToIgnore.mk) {
+          logger.log(
+            'processQueue',
+            `忽略由 MK (${mkToIgnore.mk}) 注入触发的冗余渲染事件。剩余忽略次数: ${mkToIgnore.ignoreCount - 1}`,
+          );
+          mkToIgnore.ignoreCount--;
+          if (mkToIgnore.ignoreCount <= 0) {
+            mkToIgnore = null; // 忽略次数用完，重置
+            logger.log('processQueue', `忽略次数用完`);
+          }
+          continue; // 跳过此事件的处理
+        }
+
+        logger.log('processQueue', `执行任务: ${eventType} (分组: ${eventGroup})`);
 
         // **任务分发**
-        switch (eventType) {
-          // --- 写入类事件 ---
-          case 'rollback_done_reapply_var_start': // 内部事件，由同步流程触发
-          case tavern_events.MESSAGE_RECEIVED:
-          case tavern_events.CHARACTER_MESSAGE_RENDERED:
-          case tavern_events.APP_READY:
-          case 'manual_write': {
-            // 关键：写入前先回滚，确保操作的幂等性。
-            // 即使事件被意外触发多次，也只会产生一次有效写入。
-            const msg = getChatMessages(-1, { include_swipes: true })?.[0];
-            if (msg) {
-              const MK = readMessageKey(msg);
-              if (MK) {
-                await rollbackByMk(MK, true);
-                actionsTaken.rollback = true;
-              }
+        if (eventGroup === 'WRITE') {
+          // 关键：写入前先回滚，确保操作的幂等性。
+          // 即使事件被意外触发多次，也只会产生一次有效写入。
+          const msg = getChatMessages(-1, { include_swipes: true })?.[0];
+          if (msg) {
+            const MK = readMessageKey(msg);
+            if (MK) {
+              await rollbackByMk(MK, true);
+              actionsTaken.rollback = true;
             }
-            await ApplyVarChange();
-            actionsTaken.apply = true;
-            break;
           }
-
-          // --- 同步类事件 ---
-          case tavern_events.MESSAGE_DELETED:
-          case tavern_events.MESSAGE_SWIPED:
-          case tavern_events.CHAT_CHANGED:
-          case 'manual_sync':
-            await resyncStateOnHistoryChange();
-            actionsTaken.resync = true;
-            break;
-
-          // --- API 调用事件 ---
-          case ERA_API_EVENTS.INSERT_BY_OBJECT:
-            if (detail && typeof detail === 'object') await insertByObject(detail);
-            break;
-          case ERA_API_EVENTS.UPDATE_BY_OBJECT:
-            if (detail && typeof detail === 'object') await updateByObject(detail);
-            break;
-          case ERA_API_EVENTS.INSERT_BY_PATH:
-            if (detail && typeof detail.path === 'string') await insertByPath(detail.path, detail.value);
-            break;
-          case ERA_API_EVENTS.UPDATE_BY_PATH:
-            if (detail && typeof detail.path === 'string') await updateByPath(detail.path, detail.value);
-            break;
-          case ERA_API_EVENTS.DELETE_BY_OBJECT:
-            if (detail && typeof detail === 'object') await deleteByObject(detail);
-            break;
-          case ERA_API_EVENTS.DELETE_BY_PATH:
-            if (detail && typeof detail.path === 'string') await deleteByPath(detail.path);
-            break;
-
-          // --- 忽略的事件 ---
-          //case tavern_events.MESSAGE_SENT:
-          // 用户发送消息的瞬间，AI 尚未回复，此时无需操作。
-          //break;
+          await ApplyVarChange();
+          actionsTaken.apply = true;
+        } else if (eventGroup === 'SYNC') {
+          logger.log('processQueue', `事件 ${eventType} 触发状态同步流程...`);
+          const isFullSync = eventType === 'manual_full_sync';
+          await resyncStateOnHistoryChange(isFullSync);
+          actionsTaken.resync = true;
+        } else if (eventGroup === 'API') {
+          // API 事件是“即发即忘”的，同步调用处理器将任务推入 api.ts 的队列后立即返回，不阻塞事件队列。
+          if (eventType === ERA_API_EVENTS.INSERT_BY_OBJECT) insertByObject(detail);
+          else if (eventType === ERA_API_EVENTS.UPDATE_BY_OBJECT) updateByObject(detail);
+          else if (eventType === ERA_API_EVENTS.INSERT_BY_PATH) insertByPath(detail.path, detail.value);
+          else if (eventType === ERA_API_EVENTS.UPDATE_BY_PATH) updateByPath(detail.path, detail.value);
+          else if (eventType === ERA_API_EVENTS.DELETE_BY_OBJECT) deleteByObject(detail);
+          else if (eventType === ERA_API_EVENTS.DELETE_BY_PATH) deleteByPath(detail.path);
+        } else if (eventGroup === 'UPDATE_MK_ONLY') {
+          // 监听此事件仅用于为用户消息创建 MK。
+          await updateLatestSelectedMk();
         }
       } catch (error) {
         logger.error('processQueue', `事件 ${eventType} 处理异常: ${error}`, error);

@@ -24,7 +24,7 @@
 import { LOGS_PATH, SEL_PATH } from './constants';
 import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert';
-import { isUserMessage, readMessageKey } from './message_key';
+import { getMessageContent, isUserMessage, readMessageKey } from './message_key';
 import { processEditBlocks } from './update';
 import { extractBlocks, Logger, parseEditLog, parseJsonl, updateEraMetaData } from './utils';
 
@@ -60,13 +60,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
       return MK;
     }
 
-    const rawContent = String(
-      (msg?.message && msg.message.length
-        ? msg.message
-        : Array.isArray(msg?.swipes)
-          ? msg.swipes[Number(msg?.swipe_id ?? 0)]
-          : '') || '',
-    );
+    const rawContent = getMessageContent(msg) || '';
 
     // 1. 从消息内容中解析出所有指令块。
     const insertBlocks = extractBlocks(rawContent, 'VariableInsert');
@@ -120,6 +114,10 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     try {
       await updateEraMetaData(meta => {
         const newArr = Array.isArray(editLog) ? editLog : parseEditLog(editLog);
+        logger.debug(
+          'ApplyVarChangeForMessage',
+          `准备为 MK=${MK} (MsgID=${messageId}) 写入 EditLog:\n${JSON.stringify(newArr, null, 2)}`,
+        );
         // 将本轮生成的日志数组，以当前消息的 MK 为键，存入 `EditLogs` 对象。
         _.set(meta, [LOGS_PATH, MK], JSON.stringify(newArr));
         /*
@@ -129,8 +127,9 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
          */
         return meta;
       });
+      logger.debug('ApplyVarChangeForMessage', `成功为 MK=${MK} 写入 EditLog。`);
     } catch (e: any) {
-      logger.error('ApplyVarChangeForMessage', `写入 EditLogs 失败: ${e?.message || e}`, e);
+      logger.error('ApplyVarChangeForMessage', `为 MK=${MK} 写入 EditLogs 失败: ${e?.message || e}`, e);
     }
 
     return MK;

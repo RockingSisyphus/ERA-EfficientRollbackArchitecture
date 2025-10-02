@@ -28,7 +28,7 @@
 'use strict';
 
 import { SEL_PATH } from './constants';
-import { Logger, rnd, updateEraMetaData } from './utils';
+import { Logger, rnd, updateEraMetaData, updateMessageContent } from './utils';
 
 const logger = new Logger('message_key');
 
@@ -55,20 +55,26 @@ type EraData = {
 // ==================================================================
 
 /**
- * 从酒馆的消息对象中安全地提取当前激活（被选中）的消息内容字符串。
+ * **【获取消息内容】** 从酒馆的消息对象中安全地提取当前激活（被选中）的消息内容字符串。
+ * 这个函数是 ERA 中所有消息内容读取的唯一入口，以确保逻辑统一和健壮性。
  * @param {TavernMessage} msg - 酒馆消息对象。
  * @returns {string | null} 当前激活的消息内容；如果无法获取，则返回 null。
  */
-function getMessageContent(msg: any): string | null {
+export function getMessageContent(msg: any): string | null {
   if (!msg) return null;
-  // 对于没有 swipe 的消息，或 swipe 功能被禁用的情况，内容直接在 .message 属性中。
-  if (typeof msg.message === 'string') {
-    return msg.message;
+
+  // 优先检查 .mes 属性，这是新版酒馆的规范
+  if (typeof msg.mes === 'string') {
+    return msg.mes;
   }
-  // 对于有 swipe 的消息，内容存储在 .swipes 数组中，需要根据 .swipe_id 来获取当前选中的那一条。
+  // 如果没有 .mes，则处理 swipes
   if (Array.isArray(msg.swipes)) {
     const sid = Number(msg.swipe_id ?? 0);
     return msg.swipes[sid] || null;
+  }
+  // 最后，作为兼容，检查旧版的 .message 属性
+  if (typeof msg.message === 'string') {
+    return msg.message;
   }
   return null;
 }
@@ -111,12 +117,56 @@ function parseEraData(messageContent: string | null | undefined): EraData | null
 
 /**
  * **【读取 MK】** 从一个消息对象中只读地提取其消息密钥（MK）。
+ * 这个函数经过特别优化，以应对滑动（swipe）等场景下消息对象结构不一致的问题。
+ * 它会全面检查消息的 `mes`、`message` 以及 `swipes` 数组中的每一个元素，直到找到第一个有效的 MK 为止。
  * @param {TavernMessage} msg - 酒馆消息对象。
  * @returns {string} 找到的 MK；如果不存在，则返回空字符串。
  */
 export function readMessageKey(msg: any): string {
+  if (!msg) return '';
+
+  // 核心逻辑：始终且仅根据 getMessageContent 的结果来解析 MK。
   const content = getMessageContent(msg);
-  return parseEraData(content)?.['era-message-key'] || '';
+
+  const mk = parseEraData(content)?.['era-message-key'] || '';
+
+  // 移除遍历其他 swipes 的错误逻辑。如果当前激活的内容没有 MK，就必须返回空字符串，
+  // 以强制 ensureMessageKey 生成新的 MK。
+  return mk;
+
+  /*
+   * ==================================================================
+   * 【已废弃的兼容逻辑】 - 2025/10/02
+   *
+   * 以下代码块是为了兼容旧版酒馆的一个特性：一个消息的多个 swipe 可能共享同一个底层消息变量，
+   * 因此 MK 可能存在于任何一个 swipe 中。
+   *
+   * **废弃原因**:
+   * 在当前的 ERA 架构中，每个 swipe 都被视为独立的内容。如果当前激活的 swipe 内容中没有 MK，
+   * 就意味着它是一个全新的、需要被赋予新 MK 的消息。此时若继续查找并返回其他 swipe 的旧 MK，
+   * 将会导致 `ensureMessageKey` 错误地认为新消息已有 MK，从而跳过必要的“生成新 MK”流程。
+   * 这正是导致 swipe 新消息时无法正确写入变量的根本原因。
+   *
+   * 因此，该兼容逻辑已被注释掉，以确保 `readMessageKey` 的行为与当前架构的设计意图保持一致。
+   * ==================================================================
+   */
+  // const mkFromCurrent = parseEraData(content)?.['era-message-key'];
+  // if (mkFromCurrent) {
+  //   return mkFromCurrent;
+  // }
+  // if (Array.isArray(msg.swipes)) {
+  //   for (const swipeContent of msg.swipes) {
+  //     const mkFromSwipe = parseEraData(swipeContent)?.['era-message-key'];
+  //     if (mkFromSwipe) {
+  //       return mkFromSwipe;
+  //     }
+  //   }
+  // }
+  // const mkFromMessage = parseEraData(msg.message)?.['era-message-key'];
+  // if (mkFromMessage) {
+  //   return mkFromMessage;
+  // }
+  // return '';
 }
 
 /**
@@ -141,78 +191,61 @@ export function isUserMessage(msg: any): boolean {
  * 这是解决“鸡生蛋/蛋生鸡”问题的关键：在对变量进行任何操作之前，必须先确保有一个可供依附的锚点（MK）。
  *
  * @param {TavernMessage} msg - 目标消息对象 (必须包含 `message_id`, `role`, 以及 `message` 或 `swipes`)。
- * @returns {Promise<string>} 返回该消息最终的 MK。如果操作失败，则返回空字符串。
+ * @returns {Promise<{mk: string, isNew: boolean}>} 返回包含 MK 和一个布尔值的对象，该布尔值指示是否创建了新的 MK。
  */
-export async function ensureMessageKey(msg: any): Promise<string> {
-  if (!msg) {
-    logger.warn('ensureMessageKey', '无效的 null 消息对象，无法确保Key');
-    return '';
-  }
-
-  const messageId = msg.message_id;
-  const role = msg.role;
-  const messageContent = getMessageContent(msg);
-
-  if (typeof messageId !== 'number' || typeof messageContent !== 'string' || !role) {
+export async function ensureMessageKey(msg: any): Promise<{mk: string, isNew: boolean}> {
+  if (!msg || typeof msg.message_id !== 'number' || !msg.role) {
     logger.warn('ensureMessageKey', `无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`);
-    return '';
+    return { mk: '', isNew: false };
   }
 
-  // 1. 检查是否已存在 MK
+  // 1. 使用增强的 readMessageKey 检查是否已存在 MK
   const existingMk = readMessageKey(msg);
   if (existingMk) {
-    return existingMk; // 已存在，直接返回
+    return { mk: existingMk, isNew: false }; // 已存在，直接返回
   }
 
-  // 2. 生成新的 MK 和自定义格式的元数据块
+  // 2. 生成新的 MK 和元数据块
   const newMk = `era_mk_${Date.now()}_${rnd()}`;
-  const messageType = role === 'user' ? 'user' : 'assistant';
+  const messageType = msg.role === 'user' ? 'user' : 'assistant';
   const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
-  // 注入到消息内容的顶部
-  const newContent = dataString + messageContent;
 
-  logger.log('ensureMessageKey', `为消息 (ID: ${messageId}) 注入新的Key: ${newMk}`);
+  logger.log('ensureMessageKey', `为消息 (ID: ${msg.message_id}) 注入新的Key: ${newMk}`);
 
-  // 3. 构造更新负载，并调用酒馆 API 更新消息内容
-  const updatePayload: { message_id: number; message?: string; swipes?: string[] } = { message_id: messageId };
+  // 3. 构造新的消息内容并统一调用更新函数
+  const currentContent = getMessageContent(msg) ?? '';
+  const newContent = dataString + '\n' + currentContent;
 
-  if (Array.isArray(msg.swipes)) {
-    // 如果是 swipe 消息，只更新当前选中的 swipe
-    const sid = Number(msg.swipe_id ?? 0);
-    const newSwipes = [...msg.swipes];
-    newSwipes[sid] = newContent;
-    updatePayload.swipes = newSwipes;
-  } else {
-    // 否则，直接更新 message
-    updatePayload.message = newContent;
-  }
+  // 使用从 utils.ts 导入的通用函数来更新消息，该函数已封装了处理 swipes 的逻辑。
+  await updateMessageContent(msg, newContent);
 
-  await setChatMessages([updatePayload], { refresh: 'none' });
-  return newMk;
+  return { mk: newMk, isNew: true };
 }
 
 /**
  * **【确保最新消息的 MK】**
  * 这是一个便捷函数，专门用于确保当前聊天记录中的最后一条消息拥有 MK。
  * 它通常在监听到新消息生成等事件时被调用，以确保新消息能被 ERA 系统正确追踪。
- * @returns {Promise<{mk: string, message_id: number | null}>} 返回包含 MK 和消息 ID 的对象，失败则 MK 为空字符串，ID 为 null。
+ * @returns {Promise<{mk: string, message_id: number | null, isNewKey: boolean}>} 返回包含 MK、消息 ID 和一个布尔值的对象，该布尔值指示是否创建了新的 MK。
  */
-export const ensureMkForLatestMessage = async (): Promise<{ mk: string; message_id: number | null }> => {
+export const ensureMkForLatestMessage = async (): Promise<{ mk: string; message_id: number | null; isNewKey: boolean }> => {
   try {
     const msg = getChatMessages(-1, { include_swipes: true })?.[0];
+    // 保留此日志，因为它对于调试事件触发时的消息状态至关重要。
+    logger.debug('ensureMkForLatestMessage', `获取到的最新消息对象 (msg): ${JSON.stringify(msg)}`);
 
     if (!msg || typeof msg.message_id !== 'number') {
       logger.warn('ensureMkForLatestMessage', '无法读取最新消息或其ID，退出');
-      return { mk: '', message_id: null };
+      return { mk: '', message_id: null, isNewKey: false };
     }
 
-    // ensureMessageKey 会返回最终的 MK
-    const mk = await ensureMessageKey(msg);
-    logger.log('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。`);
-    return { mk, message_id: msg.message_id };
+    // ensureMessageKey 会返回最终的 MK 和一个布尔值
+    const { mk, isNew } = await ensureMessageKey(msg);
+    logger.log('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。 (是否新建: ${isNew})`);
+    return { mk, message_id: msg.message_id, isNewKey: isNew };
   } catch (err: any) {
     logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, err);
-    return { mk: '', message_id: null };
+    return { mk: '', message_id: null, isNewKey: false };
   }
 };
 
@@ -227,7 +260,7 @@ export const updateLatestSelectedMk = async () => {
   if (!msg || typeof msg.message_id !== 'number') return;
 
   // 确保 MK 存在并获取它
-  const MK = await ensureMessageKey(msg);
+  const { mk: MK } = await ensureMessageKey(msg);
   if (!MK) return;
 
   // 更新 ERAMetaData 中的 SelectedMks 数组

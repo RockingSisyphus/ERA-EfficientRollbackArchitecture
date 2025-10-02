@@ -92,9 +92,13 @@ export async function applyEditAtLevel(
 
     // a. 查找旧值 (`valOld`)
     // 这是确保回滚准确性的核心。
+    logger.debug('applyEditAtLevel', `[旧值查找] 准备为路径 <${subPath}> 从消息 ID <${messageId}> 向上追溯...`);
     let valOld = await findLatestNewValue(subPath, messageId, logger);
     if (valOld === null) {
       valOld = _.get(statData, subPath);
+      logger.debug('applyEditAtLevel', `[旧值查找] 追溯未找到历史值，从当前 stat_data 中获取到旧值: ${JSON.stringify(valOld)}`);
+    } else {
+      logger.debug('applyEditAtLevel', `[旧值查找] 追溯成功，找到历史旧值: ${JSON.stringify(valOld)}`);
     }
 
     const cleaned = sanitizeArrays(valNew); // 清理新值

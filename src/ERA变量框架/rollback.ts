@@ -15,7 +15,7 @@
 'use strict';
 
 import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from './constants';
-import { readMessageKey } from './message_key';
+import { getMessageContent, isUserMessage, readMessageKey } from './message_key';
 import { getEraData, J, Logger, parseEditLog } from './utils';
 
 const logger = new Logger('rollback');
@@ -103,19 +103,32 @@ export async function findLatestNewValue(path: string, startMessageId: number, l
   // 从起始消息的前一条开始，向上（向旧）遍历历史消息。
   for (let i = startIndex - 1; i >= 0; i--) {
     const message = messages[i];
-    // 跳过非 AI 消息或无效消息。
-    if (message?.role !== 'assistant' || typeof message?.message_id !== 'number') {
+    const msgId = message?.message_id;
+    logger?.debug(
+      'findLatestNewValue',
+      `[进度] 正在检查消息 (ID: ${msgId})，内容: "${(getMessageContent(message) || '').substring(0, 100)}..."`,
+    );
+
+    // 使用 isUserMessage 辅助函数，并检查 message_id
+    if (isUserMessage(message) || typeof msgId !== 'number') {
       continue;
     }
 
     const mk = readMessageKey(message);
-    if (!mk) continue; // 跳过没有 MK 的 AI 消息。
+    if (!mk) {
+      logger?.debug('findLatestNewValue', `[进度] 消息 (ID: ${msgId}) 无 MK，跳过。`);
+      continue; // 跳过没有 MK 的 AI 消息。
+    }
 
     const { meta: metaData } = getEraData();
     const editLogRaw = _.get(metaData, [LOGS_PATH, mk]);
     const editLog = parseEditLog(editLogRaw);
 
-    if (!editLog || editLog.length === 0) continue; // 跳过 EditLog 为空的。
+    if (!editLog || editLog.length === 0) {
+      logger?.debug('findLatestNewValue', `[进度] MK ${mk} 的 EditLog 为空，跳过。`);
+      continue; // 跳过 EditLog 为空的。
+    }
+    logger?.debug('findLatestNewValue', `[进度] 正在检查 MK ${mk} 的 EditLog...\n${J(editLog)}`);
 
     // 关键：从后向前遍历该消息的 EditLog，这样找到的第一个匹配项就是最新的。
     for (let j = editLog.length - 1; j >= 0; j--) {

@@ -3,10 +3,11 @@
 本文档旨在为角色卡/世界书作者和相关插件开发者提供 ERA 变量框架中 `<VariableInsert>`、`<VariableEdit>` 和 `<VariableDelete>` 三个核心指令的详细用法和逻辑说明。
 
 ## 目录
-1.  [`<VariableInsert>` (插入)](#variableinsert-插入)
-2.  [`<VariableEdit>` (更新)](#variableedit-更新)
-3.  [`<VariableDelete>` (删除)](#variabledelete-删除)
-4.  [综合示例](#综合示例)
+
+1. [`<VariableInsert>` (插入)](#variableinsert-插入)
+2. [`<VariableEdit>` (更新)](#variableedit-更新)
+3. [`<VariableDelete>` (删除)](#variabledelete-删除)
+4. [综合示例](#综合示例)
 
 ---
 
@@ -21,71 +22,65 @@
 
 ### `template` (模板) 的使用
 
-`insert` 支持使用 `$meta.template` 来为新创建的对象预设一个默认结构。模板本身也可以包含 `$meta` 属性。
+`insert` 支持使用 `$template` 来为新创建的对象预设一个默认结构。模板本身也可以包含 `$meta` 属性。
 
-- **何时使用**: 当 `insert` 创建一个全新的对象时，它会寻找可用的模板，并将模板与指令中的数据合并后存入变量。**`template` 对象本身的内容就是缺省值，没有 `__default__` 之类的特殊键。**
+- **何时使用**: 当 `insert` 创建一个全新的对象时，它会寻找可用的模板，并将模板与指令中的数据合并后存入变量。**`template` 对象本身的内容就是缺省值**
 - **模板的继承与覆盖**:
-    - 如果一个父元素定义了模板，那么在向其 **直接** 子元素插入新数据时，会自动应用父模板。
-    - **如果子元素自身也定义了模板，则子元素的模板会优先于父模板。**
+  - 如果一个父元素定义了模板，那么在向其 **直接** 子元素插入新数据时，会自动应用父模板。
+  - **如果子元素自身也定义了模板，则子元素的模板会优先于父模板。**
 - **模板优先级**: 综合来看，模板的查找遵循以下优先级：
-    1.  **变量中已有的模板**: 如果要插入的路径的父级已经定义了 `$meta.template`，将优先使用它。
-    2.  **继承的模板**: 如果父级没有，则会使用从更上层节点继承下来的模板。
-    3.  **指令中自带的模板**: 仅当以上两者都不存在时，才会使用本次 `insert` 指令中提供的 `$meta.template`。
+    1. **变量中已有的模板**: 如果要插入的路径的父级已经定义了 `$template`，将优先使用它。
+    2. **继承的模板**: 如果父级没有，则会使用从更上层节点继承下来的模板。
+    3. **指令中自带的模板**: 仅当以上两者都不存在时，才会使用本次 `insert` 指令中提供的 `$template`。
 
 ### 示例：复杂的模板继承与覆盖
 
 **第 1 步: 定义一个带模板的结构**
+
 - **指令**:
+
   ```xml
   <VariableInsert>
   {
     "guild": {
-      "$meta": {
-        "template": {
-          "rank": "Rookie",
-          "contribution": 0,
-          "$meta": { "updatable": true }
-        }
+      "$template": {
+        "rank": "Rookie",
+        "contribution": 0,
+        "$meta": { "updatable": true }
       }
     }
   }
   </VariableInsert>
   ```
+
 - **逻辑**: 创建 `guild` 结构，并为其定义一个模板。这个模板将应用于未来直接添加到 `guild` 下的新成员。
 
 **第 2 步: 使用模板插入新成员**
+
 - **指令**:
+
   ```xml
   <VariableInsert>
   {
     "guild": {
       "Alex": { "class": "Warrior" },
-      "Bob": {
-        "$meta": { "template": { "rank": "Veteran" } },
-        "class": "Mage"
-      }
     }
   }
   </VariableInsert>
   ```
+
 - **逻辑**:
-    1.  插入 `Alex` 作为 `guild` 的直接子节点。它继承了父级 `guild` 的模板。
-    2.  插入 `Bob` 作为 `guild` 的直接子节点。`Bob` 提供了自己的模板，该模板会 **覆盖** 从父级继承来的模板中关于 `rank` 的定义。
+    1. 插入 `Alex` 作为 `guild` 的直接子节点。它继承了父级 `guild` 的模板。
 - **最终 `guild` 的值**:
+
   ```json
   {
     "guild": {
-      "$meta": { "...": "..." },
       "Alex": {
         "class": "Warrior",
         "rank": "Rookie",
         "contribution": 0,
         "$meta": { "updatable": true }
-      },
-      "Bob": {
-        "$meta": { "template": { "rank": "Veteran" } },
-        "class": "Mage",
-        "rank": "Veteran"
       }
     }
   }
@@ -107,32 +102,41 @@
 
 - **`updatable: false`**: 在变量的 `$meta` 中将此项设为 `false`，该变量及其所有子孙变量（跨层级）都将受到保护，无法被更新。
 - **默认行为**: 如果不设置 `updatable`，则默认为 `true`（允许更新）。
-- **如何解除保护**: 只要 `edit` 指令中 **包含了** 将 `$meta.updatable` 的值从 `false` 改为 `true` 的部分，保护就会被解除，并且 **同一个指令中的其他有效更新也会被一并执行**。
+- **如何解除保护**: 只要 `edit` 指令中 **包含了** 将 `$meta.updatable` 的值从 `false` 改为 `true` 的部分，保护就会被解除，并且 同一个指令中的其他有效更新也会被一并执行，注意，updatable的保护不包含防删除。
 
 ### 示例
 
 **示例 1: 常规更新**
+
 - **变量**:
+
   ```json
   { "player": { "hp": 100 } }
   ```
+
 - **指令**: `<VariableEdit>{ "player": { "hp": 90 } }</VariableEdit>`
 - **结果**:
+
   ```json
   { "player": { "hp": 90 } }
   ```
 
 **示例 2: 尝试更新受保护的变量 (失败)**
+
 - **变量**:
+
   ```json
   { "player": { "hp": 100, "$meta": { "updatable": false } } }
   ```
+
 - **指令**: `<VariableEdit>{ "player": { "hp": 90 } }</VariableEdit>`
 - **结果**: 无变化，因为 `player` 节点受保护。
 
 **示例 3: 解除保护并同时更新其他属性**
+
 - **变量**: (同上)
 - **指令**:
+
   ```xml
   <VariableEdit>
   {
@@ -143,8 +147,10 @@
   }
   </VariableEdit>
   ```
+
 - **逻辑**: 指令中包含了将 `updatable` 改为 `true` 的部分，满足解除保护的条件。因此，对 `hp` 的更新和对 `$meta` 的更新都会被成功执行。
 - **结果**:
+
   ```json
   { "player": { "hp": 80, "$meta": { "updatable": true } } }
   ```
@@ -169,29 +175,39 @@
 ### 示例
 
 **示例 1: `necessary: "self"` 的区别**
+
 - **变量**:
+
   ```json
   { "user": { "name": "Alex", "stats": { "str": 10 }, "$meta": { "necessary": "self" } } }
   ```
+
 - **指令 1 (删除子节点 - 成功)**: `<VariableDelete>{ "user": { "stats": {} } }</VariableDelete>`
   - **结果**:
+
     ```json
     { "user": { "name": "Alex", "$meta": { "necessary": "self" } } }
     ```
+
 - **指令 2 (删除自身 - 失败)**: `<VariableDelete>{ "user": {} }</VariableDelete>`
   - **结果**: 无变化。
 
 **示例 2: `necessary: "all"` 的保护**
+
 - **变量**:
+
   ```json
   { "user": { "name": "Alex", "stats": { "str": 10 }, "$meta": { "necessary": "all" } } }
   ```
+
 - **指令 (删除子节点 - 失败)**: `<VariableDelete>{ "user": { "stats": {} } }</VariableDelete>`
   - **结果**: 无变化。
 
 **示例 3: 解除保护并同时删除其他属性**
+
 - **变量**: (同上)
 - **指令**:
+
   ```xml
   <VariableDelete>
   {
@@ -202,8 +218,10 @@
   }
   </VariableDelete>
   ```
+
 - **逻辑**: 指令中包含了删除 `necessary` 属性的逻辑，满足解除保护的条件。因此，对 `stats` 的删除和对 `$meta.necessary` 的删除都会被成功执行。
 - **结果**:
+
   ```json
   { "user": { "name": "Alex", "$meta": {} } }
   ```
@@ -219,6 +237,7 @@
 首先，我们使用一个复杂的 `<VariableInsert>` 指令来初始化整个世界的变量结构。
 
 - **指令**:
+
   ```xml
   <VariableInsert>
   {
@@ -233,20 +252,19 @@
         }
       },
       "characters": {
-        "$meta": {
-          "template": {
+        "$template": {
             "level": 1,
             "hp": 10,
             "inventory": [],
             "$meta": { "necessary": "self" }
           }
-        }
       },
       "game_version": "1.0.0"
     }
   }
   </VariableInsert>
   ```
+
 - **逻辑**: 创建了一个 `world_state` 对象。`capital` 被 `meta` 保护。`characters` 定义了一个模板，用于之后创建的新角色。
 
 ### 2. 后续操作：`<VariableInsert>`
@@ -255,6 +273,7 @@
   - **指令**: `<VariableInsert>{ "world_state": { "characters": { "player": { "hp": 15 } } } }</VariableInsert>`
   - **逻辑**: `player` 是新角色，应用了 `characters` 下的模板。指令中的 `hp: 15` 覆盖了模板中的 `hp: 10`。
   - **结果**: `player` 对象被创建为:
+
     ```json
     {
       "level": 1,
@@ -264,19 +283,51 @@
     }
     ```
 
-- **场景 B: 成功 - 子节点模板优先**
+- **场景 B: 半失败 - $template已存在，无法插入，也自然无法使用**
   - **指令**:
+
     ```xml
     <VariableInsert>
     {
       "world_state": {
         "characters": {
-          "final_boss": {
-            "$meta": {
-              "template": {
-                "level": 99,
-                "hp": 9999,
-                "$meta": { "necessary": "all" }
+          "$template": { 
+            "level": 99, "hp": 9999, "$meta": { "necessary": "all" }
+          },
+          "final_boss": { "hp": 8888 }
+        }
+      }
+    }
+    </VariableInsert>
+    ```
+
+  - **逻辑**: insert无法插入已存在的值。
+  - **结果**: `final_boss` 对象被创建为:
+
+    ```json
+    {
+      "level": 1,
+      "hp": 8888,
+      "inventory": [],
+      "$meta": { "necessary": "all" }
+    }
+    ```
+
+- **场景 C: 成功 - 模板的嵌套使用**
+  - **前置操作**: 首先，我们通过 `edit` 在 `characters` 的 `$template` 中，同时定义一个“原型模板”（直接包含 `level` 等属性）和一个针对 `npc_guard` 的“特异性模板”。
+
+    ```xml
+    <VariableInsert>
+    {
+      "world_state": {
+        "characters": {
+          "$template": {
+            "follower": {
+              "$template":{
+                "level":10,
+                "hp":200,
+                "faction":"None",
+                "sex":"female"
               }
             }
           }
@@ -285,17 +336,60 @@
     }
     </VariableInsert>
     ```
-  - **逻辑**: `final_boss` 指令中自带的模板优先于从 `characters` 继承的模板。
-  - **结果**: `final_boss` 对象被创建为:
+
+  - **指令**:
+
+    ```xml
+    <VariableInsert>
+    {
+      "world_state": {
+        "characters": {
+          "player": {
+            "follower":{
+            }
+          }
+        }
+      }
+    }
+    {
+      "world_state": {
+        "characters": {
+          "player": {
+            "follower":{
+              "lili":{
+                "level":1
+              },
+              "cityGuard":{}
+            }
+          }
+        }
+      }
+    }
+    </VariableInsert>
+
+  - **逻辑**:
+    1. 在 `follower` 层级，其模板定义了,但是系统检测到playwer无follower（因为plawer的插入在follower模板的构造之前）。所以直接试图使用follwer内部的模板是无效的。必须先为player插入follwer，而后再为follower插入值，即可应用模板。
+    2. 当插入 `lili` 时用指令中的 `level: 1` 覆盖原型中的默认值。
+  - **结果**: `player.follower` 的数据最终变为：
+
     ```json
     {
-      "level": 99,
-      "hp": 9999,
-      "$meta": { "necessary": "all" }
+      "lili": {
+        "level": 1,
+        "hp": 200,
+        "faction": "None",
+        "sex": "female"
+      },
+      "cityGuard": {
+        "level": 5,
+        "hp": 50,
+        "faction": "None",
+        "sex": "female"
+      }
     }
     ```
 
-- **场景 C: 失败 - 路径已存在**
+- **场景 D: 失败 - 路径已存在**
   - **指令**: `<VariableInsert>{ "world_state": { "game_version": "1.0.1" } }</VariableInsert>`
   - **逻辑**: `game_version` 路径已存在，`insert` 不会覆盖它。
   - **结果**: 无变化。

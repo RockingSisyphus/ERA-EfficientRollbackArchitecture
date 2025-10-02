@@ -12,7 +12,8 @@
  */
 'use strict';
 
-import { Logger, mergeReplaceArray, sanitizeArrays, updateEraStatData } from './utils';
+import { applyTemplateToPatch, getInheritedTemplateContent, resolveTemplate } from './template';
+import { Logger, sanitizeArrays, updateEraStatData } from './utils';
 
 /**
  * **【递归插入】**
@@ -23,13 +24,14 @@ import { Logger, mergeReplaceArray, sanitizeArrays, updateEraStatData } from './
  * 2. **原子性插入**。如果一个基础路径（如 `player.inventory`）不存在，它会将整个 `inventory`
  *    对象作为一整个单元一次性插入，并只记录一条 `insert` 日志。
  * 3. **递归补充**。如果基础路径已存在，它会递归地深入，尝试在其下补充插入新的子路径。
- * 4. **模板支持**。支持从 `$meta.template` 中继承模板，实现数据结构的复用。
+ * 4. **模板支持**。支持从 `$template` 中继承模板，实现数据结构的复用。
  *
  * @param {any} statData - 状态数据对象 (即 `stat_data`)。
  * @param {string} basePath - 当前递归层级的基础路径。
  * @param {any} patchObj - 从指令中解析出的、要应用于当前层级的补丁对象。
  * @param {any[]} editLog - 用于收集变更记录的日志数组（引用传递）。
- * @param {any} inheritedTpl - 从上层继承的模板对象。
+ * @param {any} inheritedContent - 从上层继承的、纯粹的模板“内容”对象。
+ * @param {any} parentData - 当前节点的父节点在 `statData` 中的数据。
  * @param {Logger} logger - 日志记录器实例。
  */
 export function applyInsertAtLevel(
@@ -37,49 +39,59 @@ export function applyInsertAtLevel(
   basePath: string,
   patchObj: any,
   editLog: any[],
-  inheritedTpl: any,
+  inheritedContent: any,
+  parentData: any, // 新增参数，直接传递父节点数据
   logger: Logger,
 ) {
-  // --- 1. 确定当前层级的模板 ---
-  // 优先级: 变量中已有的 > 继承的 > 指令中提供的。
-  // 这种优先级符合 insert 的“非破坏性”原则：已存在的结构定义（变量中的模板）不应被新指令轻易覆盖。
-  const tplFromVars = basePath ? _.get(statData, `${basePath}.$meta.template`) : _.get(statData, `$meta.template`);
-  const tplFromPatch = _.get(patchObj, ['$meta', 'template']);
-  const localTpl = _.isPlainObject(tplFromVars)
-    ? tplFromVars
-    : _.isPlainObject(inheritedTpl)
-      ? tplFromPatch
-      : inheritedTpl;
+  // --- 1. 确定当前层级的模板内容 ---
+  // 调用 resolveTemplate，它现在直接使用传入的 parentData
+  const localTplContent = resolveTemplate(inheritedContent, parentData, logger);
+  logger.debug('applyInsertAtLevel', `[入口] basePath: "${basePath || 'root'}"`, {
+    statData: _.cloneDeep(statData),
+  });
 
   // --- 2. 检查路径存在性，决定执行策略 ---
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
+  logger.debug(
+    'applyInsertAtLevel',
+    `[路径检查] at path: "${basePath || 'root'}". currentNodeInVars 的值:`,
+    currentNodeInVars,
+  );
 
   // **策略一：原子性插入 (Atomic Insert)**
-  // 如果当前路径在变量中不存在，则将整个补丁对象作为新值一次性插入，并停止此分支的递归。
-  // 这是 insert 操作的核心，确保了新数据块的完整性。
+  // 如果当前路径在变量中不存在，则将整个补丁对象作为新值一次性插入。
   if (basePath && currentNodeInVars === undefined) {
-    let composed = patchObj;
-    // 如果模板有效，则先将补丁与模板合并，确保新插入的数据符合预设结构。
-    if (_.isPlainObject(patchObj) && _.isPlainObject(localTpl)) {
-      composed = mergeReplaceArray(localTpl, patchObj);
-    }
-    composed = sanitizeArrays(composed); // 清理数组中的 null 等无效值。
-    _.set(statData, basePath, composed); // 执行插入。
-    editLog.push({ op: 'insert', path: basePath, value_new: _.cloneDeep(composed) });
+    // 调用 applyTemplateToPatch 函数，将合并后的模板内容应用到补丁上
+    const composed = applyTemplateToPatch(localTplContent, patchObj, logger);
+
+    const finalValue = sanitizeArrays(composed); // 清理数组中的 null 等无效值。
+    logger.debug('applyInsertAtLevel', `最终插入数据 at ${basePath}:\n${JSON.stringify(finalValue, null, 2)}`);
+    _.set(statData, basePath, finalValue); // 执行插入。
+    editLog.push({ op: 'insert', path: basePath, value_new: _.cloneDeep(finalValue) });
     logger.debug('applyInsertAtLevel', `原子性插入到新路径: ${basePath}`);
     return; // 插入完成，终止递归。
   }
 
   // **策略二：递归补充 (Recursive Supplement)**
-  // 如果当前路径已存在，并且补丁和当前值都是对象，则深入递归，尝试补充插入子属性。
-  // 这是 insert 实现“非破坏性”更新的关键。
+  // 如果当前路径已存在，并且补丁和当前值都是对象，则深入递归。
   if (_.isPlainObject(currentNodeInVars) && _.isPlainObject(patchObj)) {
+    logger.debug(
+      'applyInsertAtLevel',
+      `[递归补充] at path: "${basePath || 'root'}"
+      - 当前层级模板 (localTplContent): ${JSON.stringify(localTplContent)}`,
+    );
     for (const key of Object.keys(patchObj)) {
-      // if (key === '$meta') continue; // 允许插入 $meta，用于初始化等场景。
       const subPath = basePath ? `${basePath}.${key}` : key;
       const subPatch = patchObj[key];
-      // 递归调用，将当前层级最终确定的模板 (localTpl) 作为继承模板传递下去。
-      applyInsertAtLevel(statData, subPath, subPatch, editLog, localTpl, logger);
+      // 调用 getInheritedTemplateContent，从当前模板内容中为子节点查找其应继承的内容
+      const subInheritedContent = getInheritedTemplateContent(localTplContent, key, logger);
+      logger.debug(
+        'applyInsertAtLevel',
+        `  - 准备递归子节点: "${key}"
+      - 将传递给子节点的模板 (subInheritedContent): ${JSON.stringify(subInheritedContent)}`,
+      );
+      // 将当前节点数据 currentNodeInVars 作为下一层的 parentData 传递下去
+      applyInsertAtLevel(statData, subPath, subPatch, editLog, subInheritedContent, currentNodeInVars, logger);
     }
   } else if (basePath) {
     // **插入失败**
@@ -99,6 +111,10 @@ export function applyInsertAtLevel(
  */
 export async function processInsertBlocks(allInserts: any[], editLog: any[], logger: Logger) {
   if (allInserts.length > 0) {
+    await updateEraStatData(async stat => {
+      logger.debug('processInsertBlocks', '[初始状态] 进入 processInsertBlocks 时的 statData:', _.cloneDeep(stat));
+      return stat;
+    });
     /*
      * N.B. 必须对每个 insertRoot 单独调用 updateVariablesWith，而不是将所有操作合并到一次调用中。
      * 这是为了确保在同一条消息内，前一个 <VariableInsert> 块中插入的模板或数据，
@@ -110,8 +126,8 @@ export async function processInsertBlocks(allInserts: any[], editLog: any[], log
       try {
         await updateEraStatData(stat => {
           logger.debug('processInsertBlocks', `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
-          // 从根路径 '' 开始统一递归入口，这使得逻辑与 delete/update 保持一致。
-          applyInsertAtLevel(stat, '', insertRoot, editLog, null, logger);
+          // 从根路径 '' 开始统一递归入口，顶层调用时，父节点为 null
+          applyInsertAtLevel(stat, '', insertRoot, editLog, null, null, logger);
           return stat;
         });
       } catch (e: any) {

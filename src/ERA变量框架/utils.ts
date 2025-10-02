@@ -9,7 +9,7 @@
 'use strict';
 
 import _ from 'lodash';
-import { CHAT_SCOPE, META_DATA_PATH, STAT_DATA_PATH } from './constants';
+import { CHAT_SCOPE, LOG_CONFIG, META_DATA_PATH, STAT_DATA_PATH } from './constants';
 
 // ==================================================================
 // 日志记录
@@ -59,27 +59,56 @@ export class Logger {
    * 记录一条 debug 级别的日志。
    * @param {string} funcName - 函数名。
    * @param {any} message - 日志内容。
+   * @param {any} [obj] - 可选的、附加到日志中的对象。
    */
-  debug(funcName: string, message: any) {
-    console.debug(this.formatMessage(funcName, message));
+  debug(funcName: string, message: any, obj?: any) {
+    // 1. 全局级别检查
+    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.debug) return;
+    // 2. 白名单检查 (仅对 debug 生效)
+    if (LOG_CONFIG.currentLevel === LOG_CONFIG.levels.debug && !LOG_CONFIG.debugWhitelist.includes(this.moduleName)) {
+      return;
+    }
+
+    const formattedMessage = this.formatMessage(funcName, message);
+    if (obj) {
+      console.debug(formattedMessage, obj);
+    } else {
+      console.debug(formattedMessage);
+    }
   }
 
   /**
    * 记录一条 log 级别的日志。
    * @param {string} funcName - 函数名。
    * @param {any} message - 日志内容。
+   * @param {any} [obj] - 可选的、附加到日志中的对象。
    */
-  log(funcName: string, message: any) {
-    console.log(`%c${this.formatMessage(funcName, message)}`, 'color: #3498db;');
+  log(funcName: string, message: any, obj?: any) {
+    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.log) return;
+
+    const formattedMessage = this.formatMessage(funcName, message);
+    if (obj) {
+      console.log(`%c${formattedMessage}`, 'color: #3498db;', obj);
+    } else {
+      console.log(`%c${formattedMessage}`, 'color: #3498db;');
+    }
   }
 
   /**
    * 记录一条 warn 级别的日志。
    * @param {string} funcName - 函数名。
    * @param {any} message - 日志内容。
+   * @param {any} [obj] - 可选的、附加到日志中的对象。
    */
-  warn(funcName: string, message: any) {
-    console.warn(`%c${this.formatMessage(funcName, message)}`, 'color: #f39c12;');
+  warn(funcName: string, message: any, obj?: any) {
+    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.warn) return;
+
+    const formattedMessage = this.formatMessage(funcName, message);
+    if (obj) {
+      console.warn(`%c${formattedMessage}`, 'color: #f39c12;', obj);
+    } else {
+      console.warn(`%c${formattedMessage}`, 'color: #f39c12;');
+    }
   }
 
   /**
@@ -89,6 +118,8 @@ export class Logger {
    * @param {any} [errorObj] - 可选的、附加到日志中的错误对象。
    */
   error(funcName: string, message: any, errorObj?: any) {
+    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.error) return;
+
     const formattedMessage = this.formatMessage(funcName, message);
     if (errorObj) {
       console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;', errorObj);
@@ -306,10 +337,10 @@ export function parseJsonl(str: string, logger?: Logger): any[] {
 // ==================================================================
 
 /**
- * 递归地从对象中移除所有名为 `$meta` 的字段。
+ * 递归地从对象中移除所有以 `$` 开头的字段（如 `$meta`, `$template`）。
  * 此函数会创建一个对象的深拷贝，因此不会修改原始对象。
  * @param {any} obj - 待处理的对象或值。
- * @returns {any} 一个不包含 `$meta` 字段的新对象或原始值。
+ * @returns {any} 一个不包含 `$` 前缀字段的新对象或原始值。
  */
 export function removeMetaFields(obj: any): any {
   // 对于非对象类型，直接返回原始值
@@ -325,10 +356,15 @@ export function removeMetaFields(obj: any): any {
       // 如果是数组，则递归处理数组中的每个元素
       current.forEach(item => recurse(item));
     } else if (isPO(current)) {
-      // 如果是纯粹的对象，则删除 $meta 字段并递归处理其他属性
-      delete current.$meta;
+      // 如果是纯粹的对象，遍历其所有键
       for (const key in current) {
-        recurse(current[key]);
+        // 如果键以 '$' 开头，则删除该属性
+        if (key.startsWith('$')) {
+          delete current[key];
+        } else {
+          // 否则，递归处理该属性的值
+          recurse(current[key]);
+        }
       }
     }
   }
@@ -372,4 +408,27 @@ export async function updateEraMetaData(updater: (currentMetaData: any) => any |
     _.set(v, META_DATA_PATH, newMeta);
     return v;
   }, CHAT_SCOPE);
+}
+
+/**
+ * **【通用】** 更新指定消息的内容。
+ * 这个辅助函数封装了处理 `swipes` 和普通 `message` 的逻辑，提供一个统一的写入接口。
+ * @param {any} message - 要更新的消息对象。
+ * @param {string} newContent - 全新的消息内容。
+ */
+export async function updateMessageContent(message: any, newContent: string) {
+  const updatePayload: { message_id: number; message?: string; swipes?: string[] } = {
+    message_id: message.message_id,
+  };
+
+  if (Array.isArray(message.swipes)) {
+    const sid = Number(message.swipe_id ?? 0);
+    const newSwipes = [...message.swipes];
+    newSwipes[sid] = newContent;
+    updatePayload.swipes = newSwipes;
+  } else {
+    updatePayload.message = newContent;
+  }
+
+  await setChatMessages([updatePayload]);
 }

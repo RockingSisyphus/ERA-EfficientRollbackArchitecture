@@ -6,7 +6,7 @@
 
 *   **当前游戏版本**: `{{ERA:world_state.game_version}}`
     {{// 用法说明 (方法一：ERA 宏): //}}
-    {{// 这是最基础的 ERA 宏用法。`{{ERA:path.to.variable}}` 会被自动替换为 chat 变量中对应路径的值。 //}}
+    {{// 这是最基础的 ERA 宏用法。`ERA:path.to.variable` 会被自动替换为 chat 变量中对应路径的值。 //}}
     {{// 此处，它会显示 `world_state.game_version` 的值。 //}}
     {{// 这种方式最简单直观，适用于直接展示变量。 //}}
 
@@ -23,17 +23,17 @@
 {{// 下面的宏将展示 `world_state.characters.$meta.template` 这个对象的内容。 //}}
 在这个世界中，所有新角色都遵循以下基础模板：
 ```json
-{{ERA:world_state.characters.$meta.template}}
+{{ERA:world_state.characters.$template}}
 ```
 
-## 四、动态情报（EJS 模板示例）
+## 四、动态情报
 {{// 用法说明 (方法二：EJS 模板): //}}
 {{// 当需要更复杂的逻辑时，可以使用 EJS 模板。下面的示例将所有逻辑包裹在一个立即调用的异步函数中。//}}
 {{// 这种模式 `<%= await (async () => { ... })() %>` 可以创建局部作用域，避免变量污染，是编写复杂 EJS 逻辑的最佳实践。//}}
 <%= await (async () => {
   try {
     let output = '<capital_dynamic_report>\n  capital_status:\n';
-    const population = getvar('world_state.capital.population', { scope: 'local' });
+    const population = getvar('stat_data.world_state.capital.population', { scope: 'local' });
 
     if (typeof population === 'number') {
       if (population >= 1000) {
@@ -54,14 +54,13 @@
   }
 })() %>
 
-## 五、完整的世界状态数据（调试用）
+## 五、完整的世界状态数据
 
 ### 5.1 使用 EJS 模板获取
 {{// 用法说明 (EJS 模板输出完整对象): //}}
-{{// 同样使用立即调用的异步函数模式，在函数内部处理逻辑并返回最终的字符串。//}}
 <%= await (async () => {
   try {
-    const worldState = getvar('world_state', { scope: 'local', clone: true });
+    const worldState = getvar('stat_data.world_state', { scope: 'local', clone: true });
     if (worldState) {
       return JSON.stringify(worldState, null, 2);
     } else {
@@ -76,12 +75,12 @@
 {{// 用法说明 (ERA 宏获取完整数据): //}}
 {{// 这是获取完整数据的推荐方式，因为它更简洁且由 ERA 框架原生支持。//}}
 
-#### 纯净数据 (不含 $meta)
+#### 纯净数据 (不含 $)
 ```json
 {{ERA:$ALLDATA}}
 ```
 
-#### 原始数据 (包含 $meta)
+#### 原始数据 (包含 $)
 ```json
 {{ERA-withmeta:$ALLDATA}}
 ```

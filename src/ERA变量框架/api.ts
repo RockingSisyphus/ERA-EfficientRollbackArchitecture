@@ -17,10 +17,27 @@
  */
 
 import _ from 'lodash';
-import { ERA_API_EVENTS } from './constants';
-import { J, Logger } from './utils';
+import { ERA_EVENT_EMITTER } from './constants';
+import { getMessageContent } from './message_key';
+import { J, Logger, updateMessageContent } from './utils';
 
 const logger = new Logger('api');
+
+// API 写入任务的接口定义
+interface ApiWriteJob {
+  blockTag: 'VariableInsert' | 'VariableEdit' | 'VariableDelete';
+  blockContent: object;
+}
+
+// 使用 lodash.debounce 创建一个防抖函数来发送 API 写入事件
+const debouncedEmitApiWrite = _.debounce(
+  () => {
+    eventEmit(ERA_EVENT_EMITTER.API_WRITE);
+    logger.log('debouncedEmitApiWrite', `已触发合并后的 ${ERA_EVENT_EMITTER.API_WRITE} 事件。`);
+  },
+  700,
+  { leading: false, trailing: true },
+);
 
 // ==================================================================
 // API 事件参考
@@ -109,7 +126,7 @@ const logger = new Logger('api');
  * @returns {Promise<any | null>} 返回找到的消息对象，如果不存在 AI 消息则返回 null。
  */
 async function findLastAiMessage(): Promise<any | null> {
-  const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+  const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: true });
   if (!messages || messages.length === 0) {
     return null;
   }
@@ -122,29 +139,32 @@ async function findLastAiMessage(): Promise<any | null> {
 }
 
 /**
- * 执行变量更新的核心逻辑。
- * 它找到最后一条 AI 消息，将指定的变量修改块追加到其内容末尾，然后通过酒馆 API 更新该消息。
- *
- * @param {object} blockContent - 要注入的变量修改内容，一个可被序列化为 JSON 的对象。
- * @param {'VariableInsert' | 'VariableEdit' | 'VariableDelete'} blockTag - 变量修改块的标签类型。
+ * 执行一次 API 写入操作。
+ * 它将指定的变量修改块追加到最后一条 AI 消息的末尾，然后调度一个 'era:apiWrite' 事件。
+ * @param {ApiWriteJob} job - 要执行的写入任务。
  */
-async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 'VariableEdit' | 'VariableDelete') {
+async function performApiWrite(job: ApiWriteJob) {
+  // 1. 生成指令块
+  const contentString = J(job.blockContent);
+  const block = `\n<${job.blockTag}>\n${contentString}\n</${job.blockTag}>`;
+
+  // 2. 查找目标消息并追加内容
   const lastAiMessage = await findLastAiMessage();
   if (!lastAiMessage) {
-    logger.warn('performUpdate', '找不到任何 AI 消息，无法执行变量更新。');
+    logger.warn('performApiWrite', '找不到任何 AI 消息，无法执行 API 写入。');
     return;
   }
 
-  const originalMessage = lastAiMessage.message;
-  const contentString = J(blockContent);
-  const variableBlock = `\n<${blockTag}>\n${contentString}\n</${blockTag}>`;
-  const newMessage = originalMessage + variableBlock;
+  const originalContent = getMessageContent(lastAiMessage) ?? '';
+  const newContent = originalContent + block;
 
-  logger.log('performUpdate', `准备向消息 ID ${lastAiMessage.message_id} 注入 ${blockTag} 块...`);
-  logger.debug('performUpdate', `注入内容: ${contentString}`);
+  logger.log('performApiWrite', `实时写入 API 任务 (${job.blockTag}) 到消息 ID ${lastAiMessage.message_id}...`);
 
-  await setChatMessages([{ message_id: lastAiMessage.message_id, message: newMessage }]);
-  logger.log('performUpdate', `已调用 setChatMessages，等待 ERA 框架自动处理...`);
+  // 3. 实时更新消息内容
+  await updateMessageContent(lastAiMessage, newContent);
+
+  // 4. 调用防抖函数来调度写入事件的发送
+  debouncedEmitApiWrite();
 }
 
 // ==================================================================
@@ -155,16 +175,16 @@ async function performUpdate(blockContent: object, blockTag: 'VariableInsert' | 
  * **【处理器】** 处理 `era:insertByObject` 事件。
  * @param {object} data - 从事件的 `detail` 中获取的变量对象。
  */
-export async function insertByObject(data: object) {
-  await performUpdate(data, 'VariableInsert');
+export function insertByObject(data: object) {
+  performApiWrite({ blockTag: 'VariableInsert', blockContent: data });
 }
 
 /**
  * **【处理器】** 处理 `era:updateByObject` 事件。
  * @param {object} data - 从事件的 `detail` 中获取的变量对象。
  */
-export async function updateByObject(data: object) {
-  await performUpdate(data, 'VariableEdit');
+export function updateByObject(data: object) {
+  performApiWrite({ blockTag: 'VariableEdit', blockContent: data });
 }
 
 /**
@@ -172,9 +192,9 @@ export async function updateByObject(data: object) {
  * @param {string} path - 从事件 `detail` 的 `path` 属性获取。
  * @param {*} value - 从事件 `detail` 的 `value` 属性获取。
  */
-export async function insertByPath(path: string, value: any) {
+export function insertByPath(path: string, value: any) {
   const block = _.set({}, path, value);
-  await performUpdate(block, 'VariableInsert');
+  performApiWrite({ blockTag: 'VariableInsert', blockContent: block });
 }
 
 /**
@@ -182,27 +202,27 @@ export async function insertByPath(path: string, value: any) {
  * @param {string} path - 从事件 `detail` 的 `path` 属性获取。
  * @param {*} value - 从事件 `detail` 的 `value` 属性获取。
  */
-export async function updateByPath(path: string, value: any) {
+export function updateByPath(path: string, value: any) {
   const block = _.set({}, path, value);
-  await performUpdate(block, 'VariableEdit');
+  performApiWrite({ blockTag: 'VariableEdit', blockContent: block });
 }
 
 /**
  * **【处理器】** 处理 `era:deleteByObject` 事件。
  * @param {object} data - 从事件的 `detail` 中获取的变量结构。
  */
-export async function deleteByObject(data: object) {
-  await performUpdate(data, 'VariableDelete');
+export function deleteByObject(data: object) {
+  performApiWrite({ blockTag: 'VariableDelete', blockContent: data });
 }
 
 /**
  * **【处理器】** 处理 `era:deleteByPath` 事件。
  * @param {string} path - 从事件 `detail` 的 `path` 属性获取。
  */
-export async function deleteByPath(path: string) {
+export function deleteByPath(path: string) {
   // 对于删除操作，我们用一个空对象作为值来表示删除该路径的意图
   const block = _.set({}, path, {});
-  await performUpdate(block, 'VariableDelete');
+  performApiWrite({ blockTag: 'VariableDelete', blockContent: block });
 }
 
 // ==================================================================
@@ -277,10 +297,10 @@ export interface WriteDonePayload {
  * });
  */
 export function emitWriteDoneEvent(payload: WriteDonePayload) {
-  eventEmit(ERA_API_EVENTS.WRITE_DONE, payload);
+  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, payload);
   logger.log(
     'emitWriteDoneEvent',
-    `已触发 ${ERA_API_EVENTS.WRITE_DONE} 事件。操作: ${JSON.stringify(
+    `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(
       payload.actions,
     )}, MK: ${payload.mk}, MsgID: ${payload.message_id}`,
   );

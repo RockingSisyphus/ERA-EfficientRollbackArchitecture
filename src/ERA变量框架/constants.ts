@@ -94,7 +94,100 @@ export const ERA_API_EVENTS = {
   UPDATE_BY_PATH: 'era:updateByPath',
   DELETE_BY_OBJECT: 'era:deleteByObject',
   DELETE_BY_PATH: 'era:deleteByPath',
+} as const;
 
+/**
+ * @constant {object} ERA_EVENT_EMITTER
+ * @description 定义了所有由 ERA 框架**向外发出**的事件。
+ */
+export const ERA_EVENT_EMITTER = {
   /** 当变量写入完成时触发 */
   WRITE_DONE: 'era:writeDone',
+  /** 当API执行写入时触发 */
+  API_WRITE: 'era:apiWrite',
 } as const;
+
+/**
+ * @description 定义需要监听的事件的分组
+ */
+export const EVENT_GROUPS = {
+  WRITE: [
+    //tavern_events.CHARACTER_MESSAGE_RENDERED,
+    tavern_events.APP_READY,
+    'manual_write',
+    ERA_EVENT_EMITTER.API_WRITE,
+  ],
+  SYNC: [
+    tavern_events.MESSAGE_RECEIVED,
+    tavern_events.MESSAGE_DELETED,
+    tavern_events.MESSAGE_SWIPED,
+    tavern_events.CHAT_CHANGED,
+    'manual_sync',
+    'manual_full_sync',
+  ],
+  API: Object.values(ERA_API_EVENTS),
+  /** 仅更新MK的事件 */
+  UPDATE_MK_ONLY: [tavern_events.MESSAGE_SENT],
+  /** 仅用于对冲检测的事件，本身不触发逻辑 */
+  COLLISION_DETECTORS: [tavern_events.GENERATION_STARTED],
+};
+
+/**
+ * @constant {Map<string, string>} EVENT_COLLISION_MAP
+ * @description
+ * 定义了事件对冲规则。
+ * 如果在事件队列的同一次批处理中，同时出现了 key 事件和 value 事件，
+ * 则这两个事件都将被忽略。
+ *
+ * @example
+ * // 当用户快速左滑然后点击生成时，会依次触发 `MESSAGE_SWIPED` 和 `GENERATION_STARTED`。
+ * // 这条规则会捕获这种模式并同时忽略这两个事件，避免不必要的同步。
+ * new Map([
+ *   [tavern_events.MESSAGE_SWIPED, tavern_events.GENERATION_STARTED]
+ * ])
+ */
+export const EVENT_COLLISION_MAP = new Map<string, string>([
+  [tavern_events.MESSAGE_SWIPED, tavern_events.GENERATION_STARTED],
+]);
+
+/**
+ * @constant {number} RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION
+ * @description 当 `ensureMessageKey` 注入一个新的 MK 后，需要忽略的由该操作触发的 `character_message_rendered` 事件的数量。
+ * 通常设置为 1，因为一次消息内容更新通常只会触发一次渲染事件。
+ */
+export const RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION = 1;
+
+/**
+ * @constant {object} LOG_CONFIG
+ * @description
+ * 用于控制日志输出的配置对象。
+ */
+export const LOG_CONFIG = {
+  // 定义所有可用的日志级别及其权重。数字越小，级别越低。
+  levels: {
+    debug: 0,
+    log: 1,
+    warn: 2,
+    error: 3,
+  },
+
+  // 设置当前全局日志级别。只有权重等于或高于此级别的日志才会被输出。
+  currentLevel: 0, // 默认为 'debug'
+
+  // 'debug' 级别的白名单。只有当 currentLevel 为 debug 时，此列表才生效。
+  // 只有在此列表中的模块才会输出 debug 日志。
+  debugWhitelist: [
+    //'sync',
+    //'rollback',
+    //'update',
+    'event_queue',
+    'message_key',
+    //'write',
+    //'insert',
+    // 'delete',
+    // 'query',
+    //'template',
+  ] as string[],
+};
+// 初始化时将 currentLevel 设置为 debug 级别
+LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;

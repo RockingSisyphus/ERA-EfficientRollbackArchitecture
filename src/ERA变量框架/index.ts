@@ -14,7 +14,7 @@
 
 'use strict';
 
-import { ERA_API_EVENTS } from './constants';
+import { EVENT_GROUPS } from './constants';
 import { pushToQueue } from './event_queue';
 
 // 导入查询模块, 以注册 {{ERA:...}} 宏
@@ -29,20 +29,11 @@ import './query';
  * @description 定义了所有需要被 ERA 框架监听的事件。
  */
 const eventsToListen = [
-  // 内部逻辑事件: 用于模块间的协调。
-  'rollback_done_reapply_var_start',
-
-  // 酒馆原生事件: 框架响应用户操作和 AI 输出的基础。
-  tavern_events.MESSAGE_RECEIVED, // AI 消息流式输出完成
-  tavern_events.MESSAGE_DELETED, // 消息被删除
-  tavern_events.MESSAGE_SWIPED, // 消息被切换 (swipe)
-  tavern_events.CHAT_CHANGED, // 切换到不同的聊天会话
-  tavern_events.APP_READY,
-  //tavern_events.MESSAGE_SENT, // 用户发送消息
-  tavern_events.CHARACTER_MESSAGE_RENDERED, // 每次消息渲染/重绘时触发，频率极高
-
-  // 外部 API 事件: 允许其他脚本通过 `eventEmit` 与 ERA 交互。
-  ...Object.values(ERA_API_EVENTS),
+  ...EVENT_GROUPS.WRITE,
+  ...EVENT_GROUPS.SYNC,
+  ...EVENT_GROUPS.API,
+  ...EVENT_GROUPS.UPDATE_MK_ONLY,
+  ...EVENT_GROUPS.COLLISION_DETECTORS,
 ];
 
 // 遍历事件列表，为每个事件注册一个回调函数。
@@ -57,3 +48,4 @@ eventsToListen.forEach(ev => {
 // 点击按钮时，同样是向队列中推入一个特定类型的事件。
 eventOn(getButtonEvent('写入变量修改'), () => pushToQueue('manual_write'));
 eventOn(getButtonEvent('手动同步状态'), () => pushToQueue('manual_sync'));
+eventOn(getButtonEvent('强制完全重算'), () => pushToQueue('manual_full_sync'));
