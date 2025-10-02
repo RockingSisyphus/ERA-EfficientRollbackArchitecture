@@ -193,7 +193,7 @@ export function isUserMessage(msg: any): boolean {
  * @param {TavernMessage} msg - 目标消息对象 (必须包含 `message_id`, `role`, 以及 `message` 或 `swipes`)。
  * @returns {Promise<{mk: string, isNew: boolean}>} 返回包含 MK 和一个布尔值的对象，该布尔值指示是否创建了新的 MK。
  */
-export async function ensureMessageKey(msg: any): Promise<{mk: string, isNew: boolean}> {
+export async function ensureMessageKey(msg: any): Promise<{ mk: string; isNew: boolean }> {
   if (!msg || typeof msg.message_id !== 'number' || !msg.role) {
     logger.warn('ensureMessageKey', `无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`);
     return { mk: '', isNew: false };
@@ -228,7 +228,11 @@ export async function ensureMessageKey(msg: any): Promise<{mk: string, isNew: bo
  * 它通常在监听到新消息生成等事件时被调用，以确保新消息能被 ERA 系统正确追踪。
  * @returns {Promise<{mk: string, message_id: number | null, isNewKey: boolean}>} 返回包含 MK、消息 ID 和一个布尔值的对象，该布尔值指示是否创建了新的 MK。
  */
-export const ensureMkForLatestMessage = async (): Promise<{ mk: string; message_id: number | null; isNewKey: boolean }> => {
+export const ensureMkForLatestMessage = async (): Promise<{
+  mk: string;
+  message_id: number | null;
+  isNewKey: boolean;
+}> => {
   try {
     const msg = getChatMessages(-1, { include_swipes: true })?.[0];
     // 保留此日志，因为它对于调试事件触发时的消息状态至关重要。
