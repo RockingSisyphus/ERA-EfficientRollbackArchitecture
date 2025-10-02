@@ -84,9 +84,12 @@ importers:
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.6)
+<<<<<<< HEAD
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+=======
+>>>>>>> 0603dcbcec1e6596d397ac2f51711bb7475e04c6
       css-loader:
         specifier: ^7.1.2
         version: 7.1.2(webpack@5.102.0)
@@ -1356,11 +1359,14 @@ packages:
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
 
+<<<<<<< HEAD
   cross-env@7.0.3:
     resolution: {integrity: sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw==}
     engines: {node: '>=10.14', npm: '>=6', yarn: '>=1'}
     hasBin: true
 
+=======
+>>>>>>> 0603dcbcec1e6596d397ac2f51711bb7475e04c6
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -4880,10 +4886,13 @@ snapshots:
 
   create-require@1.1.1: {}
 
+<<<<<<< HEAD
   cross-env@7.0.3:
     dependencies:
       cross-spawn: 7.0.6
 
+=======
+>>>>>>> 0603dcbcec1e6596d397ac2f51711bb7475e04c6
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
