@@ -49,6 +49,7 @@ function common_path(lhs: string, rhs: string) {
 }
 
 function glob_script_files() {
+<<<<<<< HEAD
   if (process.env.BUILD_TARGET) {
     const target_path = `src/${process.env.BUILD_TARGET}/index.ts`;
     if (fs.existsSync(target_path)) {
@@ -57,6 +58,8 @@ function glob_script_files() {
       throw new Error(`Build target not found: ${target_path}`);
     }
   }
+=======
+>>>>>>> 330d6cbc9cfe1ddada8661e1ae1b5f80a2870451
   const files: string[] = fs
     .globSync(`src/**/index.{ts,js}`)
     .filter(file => process.env.CI !== 'true' || !fs.readFileSync(path.join(__dirname, file)).includes('@no-ci'));
@@ -82,7 +85,11 @@ function glob_script_files() {
 }
 
 const config: Config = {
+<<<<<<< HEAD
   port: 6622,
+=======
+  port: 6621,
+>>>>>>> 330d6cbc9cfe1ddada8661e1ae1b5f80a2870451
   entries: glob_script_files().map(parse_entry),
 };
 
@@ -135,10 +142,15 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
 
         return `${is_direct === true ? 'src' : 'webpack'}://${info.namespace}/${resource_path}${is_direct || is_vue_script ? '' : '?' + info.hash}`;
       },
+<<<<<<< HEAD
       filename: process.env.BUILD_TARGET ? 'bundle.js' : `${script_filepath.name}.js`,
       path: process.env.BUILD_TARGET
         ? path.join(__dirname, 'artifact')
         : path.join(__dirname, 'dist', path.relative(path.join(__dirname, 'src'), script_filepath.dir)),
+=======
+      filename: `${script_filepath.name}.js`,
+      path: path.join(__dirname, 'dist', path.relative(path.join(__dirname, 'src'), script_filepath.dir)),
+>>>>>>> 330d6cbc9cfe1ddada8661e1ae1b5f80a2870451
       chunkFilename: `${script_filepath.name}.[contenthash].chunk.js`,
       asyncChunks: true,
       clean: true,
@@ -354,6 +366,14 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
           // globs: ['src/panel/component/*.vue'],
         }),
         new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
+<<<<<<< HEAD
+=======
+        new webpack.DefinePlugin({
+          __VUE_OPTIONS_API__: false,
+          __VUE_PROD_DEVTOOLS__: process.env.CI !== 'true',
+          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+        }),
+>>>>>>> 330d6cbc9cfe1ddada8661e1ae1b5f80a2870451
       )
       .concat(
         should_obfuscate
@@ -371,7 +391,15 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
     optimization: {
       minimize: true,
       minimizer: [
+<<<<<<< HEAD
         new TerserPlugin({
+=======
+        argv.mode === 'production'
+          ? new TerserPlugin({
+              terserOptions: { format: { quote_style: 1 }, mangle: { reserved: ['_', 'toastr', 'YAML', '$', 'z'] } },
+            })
+          : new TerserPlugin({
+>>>>>>> 330d6cbc9cfe1ddada8661e1ae1b5f80a2870451
           extractComments: false,
           terserOptions: {
             format: { beautify: true, indent_level: 2 },
@@ -423,6 +451,12 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       if (builtin.includes(request)) {
         return callback();
       }
+<<<<<<< HEAD
+=======
+      if (argv.mode !== 'production' && ['vue', 'pixi'].some(key => request.includes(key))) {
+        return callback();
+      }
+>>>>>>> 330d6cbc9cfe1ddada8661e1ae1b5f80a2870451
       const global = {
         jquery: '$',
         lodash: '_',
