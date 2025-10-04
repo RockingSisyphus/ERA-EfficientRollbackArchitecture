@@ -2,7 +2,10 @@
   "scripts": {
     "build:dev": "webpack --mode development",
     "build": "webpack --mode production",
+<<<<<<< HEAD
     "build:bundle": "cross-env BUILD_TARGET=ERA变量框架 webpack --mode production",
+=======
+>>>>>>> 77de30304c6d069b0e0135197a237bdfdd044dfc
     "watch": "webpack --mode development --watch --progress",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,scss,html,vue}\"",
     "lint": "eslint",
@@ -21,7 +24,10 @@
     "@types/webpack": "^5.28.5",
     "@typescript-eslint/parser": "^8.45.0",
     "autoprefixer": "^10.4.21",
+<<<<<<< HEAD
     "cross-env": "^7.0.3",
+=======
+>>>>>>> 77de30304c6d069b0e0135197a237bdfdd044dfc
     "css-loader": "^7.1.2",
     "eslint": "^9.37.0",
     "eslint-config-prettier": "^10.1.8",
