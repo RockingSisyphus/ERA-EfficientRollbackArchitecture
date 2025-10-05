@@ -1,28 +1,33 @@
 import { getEraData, Logger, removeMetaFields } from './utils';
 
-const logger = new Logger('宏查询');
+const logger = new Logger('query');
 
-$(() => {
-  /**
-   * 注册 ERA 宏, 用于在发送给 AI 的消息中查询当前聊天的变量数据
-   *
-   * - `{{ERA:path.to.data}}`: 查询并替换为**不含** `$meta` 的纯净数据。
-   *   - `{{ERA:$ALLDATA}}` 将返回整个移除 `$meta` 后的 `stat_data` 对象。
-   * - `{{ERA-withmeta:path.to.data}}`: 查询并替换为**包含** `$meta` 的原始数据。
-   *   - `{{ERA-withmeta:$ALLDATA}}` 将返回完整的 `stat_data` 对象。
-   */
-  registerMacroLike(/{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi, (context, substring, withMeta, path) => {
-    const funcName = 'registerMacroLike';
+/**
+ * 解析字符串中的 ERA 宏, 并将其替换为对应的变量值。
+ * 这是提供给其他模块调用的公共接口。
+ * @param text - 包含宏的输入字符串。
+ * @returns - 替换宏后的字符串。
+ */
+export function parseEraMacros(text: string): string {
+  const macroRegex = /{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi;
+
+  // 如果文本中不包含宏特征字符串, 直接返回以优化性能
+  if (!text.includes('{{ERA')) {
+    return text;
+  }
+
+  // 获取 stat_data
+  const { stat } = getEraData();
+  if (!stat) {
+    logger.warn('parseEraMacros', '无法获取到 stat_data, 宏替换失败.');
+    // 如果没有 stat_data, 任何宏都无法解析, 直接返回原文本
+    return text;
+  }
+
+  return text.replace(macroRegex, (substring, withMeta, path) => {
+    const funcName = 'parseEraMacros';
     const trimmedPath = path.trim();
     const includeMeta = !!withMeta;
-
-    // 获取 stat_data
-    const { stat } = getEraData();
-
-    if (!stat) {
-      logger.warn(funcName, '无法获取到 stat_data, 宏替换失败.');
-      return ''; // 如果没有变量, 返回空字符串
-    }
 
     let data;
     if (trimmedPath === '$ALLDATA') {
@@ -46,5 +51,21 @@ $(() => {
 
     // 如果是原始类型, 直接转换为字符串
     return String(finalData);
+  });
+}
+
+$(() => {
+  /**
+   * 注册 ERA 宏, 用于在发送给 AI 的消息中查询当前聊天的变量数据
+   *
+   * - `{{ERA:path.to.data}}`: 查询并替换为**不含** `$meta` 的纯净数据。
+   *   - `{{ERA:$ALLDATA}}` 将返回整个移除 `$meta` 后的 `stat_data` 对象。
+   * - `{{ERA-withmeta:path.to.data}}`: 查询并替换为**包含** `$meta` 的原始数据。
+   *   - `{{ERA-withmeta:$ALLDATA}}` 将返回完整的 `stat_data` 对象。
+   */
+  registerMacroLike(/{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi, (context, substring, withMeta, path) => {
+    // 直接复用 parseEraMacros 函数的逻辑。
+    // substring 参数是匹配到的完整宏字符串, 如 "{{ERA:path.to.data}}"
+    return parseEraMacros(substring);
   });
 });

@@ -75,7 +75,7 @@ const LOG_CONFIG = {
     error: 3
   },
   currentLevel: 0,
-  debugWhitelist: [ "event_queue", "message_key" ]
+  debugWhitelist: [ "event_queue", "message_macro_processor", "query" ]
 };
 
 LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
@@ -536,6 +536,30 @@ function deleteByPath(path) {
 function emitWriteDoneEvent(payload) {
   eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, payload);
   api_logger.log("emitWriteDoneEvent", `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(payload.actions)}, MK: ${payload.mk}, MsgID: ${payload.message_id}`);
+}
+
+function forceRenderMessage(messageId) {
+  return new Promise(resolve => {
+    const messageSelector = `div.mes[mesid="${messageId}"]`;
+    const $message = $(messageSelector);
+    $message.find(".mes_button.mes_edit").trigger("click");
+    setTimeout(() => {
+      $message.find(".mes_edit_done.menu_button").trigger("click");
+      resolve();
+    }, 50);
+  });
+}
+
+async function forceRenderRecentMessages() {
+  const allMessages = getChatMessages("0-{{lastMessageId}}");
+  if (!allMessages || allMessages.length === 0) {
+    return;
+  }
+  const recentMessages = allMessages.slice(-5);
+  for (const message of recentMessages) {
+    await forceRenderMessage(message.message_id);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
 }
 
 const rollback_logger = new Logger("rollback");
@@ -1172,11 +1196,13 @@ async function processQueue() {
           }
           await ApplyVarChange();
           actionsTaken.apply = true;
+          forceRenderRecentMessages();
         } else if (eventGroup === "SYNC") {
           event_queue_logger.log("processQueue", `事件 ${eventType} 触发状态同步流程...`);
           const isFullSync = eventType === "manual_full_sync";
           await resyncStateOnHistoryChange(isFullSync);
           actionsTaken.resync = true;
+          forceRenderRecentMessages();
         } else if (eventGroup === "API") {
           if (eventType === ERA_API_EVENTS.INSERT_BY_OBJECT) insertByObject(detail); else if (eventType === ERA_API_EVENTS.UPDATE_BY_OBJECT) updateByObject(detail); else if (eventType === ERA_API_EVENTS.INSERT_BY_PATH) insertByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.UPDATE_BY_PATH) updateByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.DELETE_BY_OBJECT) deleteByObject(detail); else if (eventType === ERA_API_EVENTS.DELETE_BY_PATH) deleteByPath(detail.path);
         } else if (eventGroup === "UPDATE_MK_ONLY") {
@@ -1213,18 +1239,22 @@ async function processQueue() {
   event_queue_logger.log("processQueue", "处理器空闲，已释放锁。");
 }
 
-const query_logger = new Logger("宏查询");
+const query_logger = new Logger("query");
 
-$(() => {
-  registerMacroLike(/{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi, (context, substring, withMeta, path) => {
-    const funcName = "registerMacroLike";
+function parseEraMacros(text) {
+  const macroRegex = /{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi;
+  if (!text.includes("{{ERA")) {
+    return text;
+  }
+  const {stat} = getEraData();
+  if (!stat) {
+    query_logger.warn("parseEraMacros", "无法获取到 stat_data, 宏替换失败.");
+    return text;
+  }
+  return text.replace(macroRegex, (substring, withMeta, path) => {
+    const funcName = "parseEraMacros";
     const trimmedPath = path.trim();
     const includeMeta = !!withMeta;
-    const {stat} = getEraData();
-    if (!stat) {
-      query_logger.warn(funcName, "无法获取到 stat_data, 宏替换失败.");
-      return "";
-    }
     let data;
     if (trimmedPath === "$ALLDATA") {
       data = stat;
@@ -1241,6 +1271,10 @@ $(() => {
     }
     return String(finalData);
   });
+}
+
+$(() => {
+  registerMacroLike(/{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi, (context, substring, withMeta, path) => parseEraMacros(substring));
 });
 
 const eventsToListen = [ ...EVENT_GROUPS.WRITE, ...EVENT_GROUPS.SYNC, ...EVENT_GROUPS.API, ...EVENT_GROUPS.UPDATE_MK_ONLY, ...EVENT_GROUPS.COLLISION_DETECTORS ];

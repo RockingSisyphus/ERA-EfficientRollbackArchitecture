@@ -40,6 +40,7 @@ import {
   RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION,
   SEL_PATH,
 } from './constants';
+import { forceRenderRecentMessages } from './force_macro_render';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from './message_key';
 import { rollbackByMk } from './rollback';
 import { resyncStateOnHistoryChange } from './sync';
@@ -245,11 +246,16 @@ async function processQueue() {
           }
           await ApplyVarChange();
           actionsTaken.apply = true;
+
+          // 在变量写入完成后，强制重新渲染消息以触发宏
+          forceRenderRecentMessages();
         } else if (eventGroup === 'SYNC') {
           logger.log('processQueue', `事件 ${eventType} 触发状态同步流程...`);
           const isFullSync = eventType === 'manual_full_sync';
           await resyncStateOnHistoryChange(isFullSync);
           actionsTaken.resync = true;
+          // 在同步完成后，强制重新渲染消息以触发宏
+          forceRenderRecentMessages();
         } else if (eventGroup === 'API') {
           // API 事件是“即发即忘”的，同步调用处理器将任务推入 api.ts 的队列后立即返回，不阻塞事件队列。
           if (eventType === ERA_API_EVENTS.INSERT_BY_OBJECT) insertByObject(detail);
