@@ -71,7 +71,11 @@ export default [
       'vue/multi-word-component-names': 'off',
       yoda: 'error',
       '@typescript-eslint/no-explicit-any': 'off',
+<<<<<<< HEAD
       '@typescript-eslint/no-unused-vars': 'warn',
+=======
+      '@typescript-eslint/no-unused-vars': 'off',
+>>>>>>> a33bed2145f0bf6e26af696e5258746d84a4755d
     },
   },
   eslintConfigPrettier,
