@@ -27,8 +27,6 @@ var __webpack_require__ = {};
   __webpack_require__.o = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
 })();
 
-var __webpack_exports__ = {};
-
 const CHAT_SCOPE = {
   type: "chat"
 };
@@ -551,6 +549,7 @@ function forceRenderMessage(messageId) {
 }
 
 async function forceRenderRecentMessages() {
+  await new Promise(resolve => setTimeout(resolve, 300));
   const allMessages = getChatMessages("0-{{lastMessageId}}");
   if (!allMessages || allMessages.length === 0) {
     return;
