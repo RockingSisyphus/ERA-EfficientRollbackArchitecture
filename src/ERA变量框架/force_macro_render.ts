@@ -30,7 +30,7 @@ function forceRenderMessage(messageId: number): Promise<void> {
  */
 export async function forceRenderRecentMessages() {
   // 等待一小段时间, 确保变量更新已经完成
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   const allMessages = getChatMessages('0-{{lastMessageId}}');
   if (!allMessages || allMessages.length === 0) {
