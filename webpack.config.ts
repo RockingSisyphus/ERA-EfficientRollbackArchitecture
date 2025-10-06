@@ -5,6 +5,10 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import url from 'node:url';
+<<<<<<< HEAD
+=======
+import RemarkHTML from 'remark-html';
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
 import { Server } from 'socket.io';
 import TerserPlugin from 'terser-webpack-plugin';
 import TsconfigPathsPlugin from 'tsconfig-paths-webpack-plugin';
@@ -49,6 +53,7 @@ function common_path(lhs: string, rhs: string) {
 }
 
 function glob_script_files() {
+<<<<<<< HEAD
   if (process.env.BUILD_TARGET) {
     const target_path = `src/${process.env.BUILD_TARGET}/index.ts`;
     if (fs.existsSync(target_path)) {
@@ -57,6 +62,8 @@ function glob_script_files() {
       throw new Error(`Build target not found: ${target_path}`);
     }
   }
+=======
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
   const files: string[] = fs
     .globSync(`src/**/index.{ts,js}`)
     .filter(file => process.env.CI !== 'true' || !fs.readFileSync(path.join(__dirname, file)).includes('@no-ci'));
@@ -82,7 +89,11 @@ function glob_script_files() {
 }
 
 const config: Config = {
+<<<<<<< HEAD
   port: 6622,
+=======
+  port: 6621,
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
   entries: glob_script_files().map(parse_entry),
 };
 
@@ -135,10 +146,15 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
 
         return `${is_direct === true ? 'src' : 'webpack'}://${info.namespace}/${resource_path}${is_direct || is_vue_script ? '' : '?' + info.hash}`;
       },
+<<<<<<< HEAD
       filename: process.env.BUILD_TARGET ? 'bundle.js' : `${script_filepath.name}.js`,
       path: process.env.BUILD_TARGET
         ? path.join(__dirname, 'artifact')
         : path.join(__dirname, 'dist', path.relative(path.join(__dirname, 'src'), script_filepath.dir)),
+=======
+      filename: `${script_filepath.name}.js`,
+      path: path.join(__dirname, 'dist', path.relative(path.join(__dirname, 'src'), script_filepath.dir)),
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
       chunkFilename: `${script_filepath.name}.[contenthash].chunk.js`,
       asyncChunks: true,
       clean: true,
@@ -238,10 +254,33 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
               exclude: /node_modules/,
             },
             {
+<<<<<<< HEAD
               test: /\.html?$/,
               use: 'html-loader',
               exclude: /node_modules/,
             },
+=======
+              test: /\.html$/,
+              use: 'html-loader',
+              exclude: /node_modules/,
+            },
+            {
+              test: /\.md$/,
+              use: [
+                {
+                  loader: 'html-loader',
+                },
+                {
+                  loader: 'remark-loader',
+                  options: {
+                    remarkOptions: {
+                      plugins: [RemarkHTML],
+                    },
+                  },
+                },
+              ],
+            },
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
           ].concat(
             entry.html === undefined
               ? <any[]>[
@@ -354,6 +393,14 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
           // globs: ['src/panel/component/*.vue'],
         }),
         new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
+<<<<<<< HEAD
+=======
+        new webpack.DefinePlugin({
+          __VUE_OPTIONS_API__: false,
+          __VUE_PROD_DEVTOOLS__: process.env.CI !== 'true',
+          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+        }),
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
       )
       .concat(
         should_obfuscate
@@ -371,7 +418,15 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
     optimization: {
       minimize: true,
       minimizer: [
+<<<<<<< HEAD
         new TerserPlugin({
+=======
+        argv.mode === 'production'
+          ? new TerserPlugin({
+              terserOptions: { format: { quote_style: 1 }, mangle: { reserved: ['_', 'toastr', 'YAML', '$', 'z'] } },
+            })
+          : new TerserPlugin({
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
           extractComments: false,
           terserOptions: {
             format: { beautify: true, indent_level: 2 },
@@ -423,6 +478,12 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       if (builtin.includes(request)) {
         return callback();
       }
+<<<<<<< HEAD
+=======
+      if (argv.mode !== 'production' && ['vue', 'pixi'].some(key => request.includes(key))) {
+        return callback();
+      }
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
       const global = {
         jquery: '$',
         lodash: '_',

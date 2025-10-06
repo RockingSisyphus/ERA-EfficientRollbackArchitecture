@@ -61,6 +61,13 @@ import css_content from './style.scss?raw';
 
 除了以 `?raw` 直接导入 HTML 文件内容外, 项目还支持用 `import html from './文件.html'` 来通过 html-loader 将 html 文件内容最小化后作为字符串导入.
 
+<<<<<<< HEAD
+=======
+### 导入 markdown
+
+项目还支持用 `import markdown from './文件.md'` 来通过 remark-loader 将 markdown 文件内容解析为 html 后作为字符串导入.
+
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
 ### 导入 vue
 
 项目直接支持用 `import Component from './文件.vue'` 来导入 vue 组件, 如果要设计界面你应该优先使用 vue 组件 (含 pinia 和 vue-router).
@@ -73,7 +80,15 @@ import css_content from './style.scss?raw';
 
 通用于前端界面和脚本:
 
+<<<<<<< HEAD
 #### 尽量使用项目参考文件中的功能
+=======
+### 使用 typescript 而非 javascript
+
+typescript 更容易写对, 你应该使用 typescript 而非 javascript
+
+### 尽量使用项目参考文件中的功能
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
 
 项目参考文件中的功能往往更为简单正确, 因此你应该尽量使用它们. 例如:
 
@@ -87,14 +102,22 @@ import css_content from './style.scss?raw';
   - 使用 `getIframeName()` 而不是 `(this.frameElement as Element).id`
   - ...
 
+<<<<<<< HEAD
 #### 优先使用酒馆助手提供的接口
+=======
+### 优先使用酒馆助手提供的接口
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
 
 相比于 `@types/iframe/exported.sillytavern.d.ts` 中定义的酒馆内置接口或 STScript 命令, 酒馆助手所提供的接口抽象层次更高, 且更符合 Typescript 的类型系统. 例如:
 
 - 使用 `getChatMessages()` 而不是 `SillyTavern.chat`
 - 使用 `replaceWorldbook()` 而不是 `triggerSlash('/setentryfield')`
 
+<<<<<<< HEAD
 #### 优先使用 vue 编写界面
+=======
+### 优先使用 vue 编写界面
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
 
 vue 相比于 jquery 或 DOM 操作更为简单, 因此你应该尽量使用 vue (可使用 pinia、vue-router 或自己添加其他第三方库) 来编写前端界面, 但要注意 vue-router 的 `createRouter()` 不能写在 `$(() => {})` 中, 必须在全局执行.
 
@@ -108,7 +131,11 @@ watchEffect(() => replaceVariables(_.cloneDeep(settings.value), { type: 'script'
 
 前端界面和脚本都是 iframe, 因此你在使用 vue-router 时, 应该使用 `history: createMemoryHistory()` 来创建路由, 否则将无法正常路由.
 
+<<<<<<< HEAD
 #### 正确在加载、卸载前端界面或脚本时执行功能
+=======
+### 正确在加载、卸载前端界面或脚本时执行功能
+>>>>>>> 14b547cc3825364e7d1de0c2f538bea269ea2a7f
 
 你应该总是在加载时才执行代码, 而不该直接在全局作用域中执行代码.
 
