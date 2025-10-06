@@ -551,7 +551,7 @@ function forceRenderMessage(messageId) {
 }
 
 async function forceRenderRecentMessages() {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 1e3));
   const allMessages = getChatMessages("0-{{lastMessageId}}");
   if (!allMessages || allMessages.length === 0) {
     return;
