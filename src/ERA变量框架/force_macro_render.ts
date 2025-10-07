@@ -3,6 +3,8 @@
  * @description 通过模拟用户UI操作, 强制酒馆重新渲染消息, 以触发完整的宏替换管线。
  */
 
+import _ from 'lodash';
+
 /**
  * 强制重新渲染单条消息。
  * @param messageId 要强制渲染的消息ID。
@@ -25,10 +27,21 @@ function forceRenderMessage(messageId: number): Promise<void> {
 }
 
 /**
- * 强制重新渲染最近的10条消息, 以确保宏被正确替换。
- * 这是通过模拟用户对每条消息进行“编辑-保存”操作来实现的。
+ * 强制重新渲染最近的N条消息, 以确保宏被正确替换。
+ * 是否执行以及渲染的数量由脚本变量控制。
  */
 export async function forceRenderRecentMessages() {
+  const scriptVars = getVariables({ type: 'script', script_id: getScriptId() });
+
+  // 检查是否启用了强制重载功能
+  const forceReload = _.get(scriptVars, '强制重载功能', false);
+  if (!forceReload) {
+    return; // 如果未启用，则不执行任何操作
+  }
+
+  // 获取要重载的消息数量，默认为1
+  const messageCount = _.get(scriptVars, '强制重载消息数', 1);
+
   // 等待一小段时间, 确保变量更新已经完成
   await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -37,7 +50,8 @@ export async function forceRenderRecentMessages() {
     return;
   }
 
-  const recentMessages = allMessages.slice(-5);
+  // 根据脚本变量设置的数量来截取最近的消息
+  const recentMessages = allMessages.slice(-messageCount);
 
   for (const message of recentMessages) {
     await forceRenderMessage(message.message_id);

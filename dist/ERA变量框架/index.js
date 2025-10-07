@@ -27,8 +27,6 @@ var __webpack_require__ = {};
   __webpack_require__.o = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
 })();
 
-var __webpack_exports__ = {};
-
 const CHAT_SCOPE = {
   type: "chat"
 };
@@ -56,7 +54,7 @@ const ERA_EVENT_EMITTER = {
 };
 
 const EVENT_GROUPS = {
-  WRITE: [ tavern_events.APP_READY, "manual_write", ERA_EVENT_EMITTER.API_WRITE ],
+  WRITE: [ tavern_events.APP_READY, "manual_write", ERA_EVENT_EMITTER.API_WRITE, tavern_events.MESSAGE_RECEIVED ],
   SYNC: [ tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, "manual_sync", "manual_full_sync" ],
   API: Object.values(ERA_API_EVENTS),
   UPDATE_MK_ONLY: [ tavern_events.MESSAGE_SENT ],
@@ -551,12 +549,21 @@ function forceRenderMessage(messageId) {
 }
 
 async function forceRenderRecentMessages() {
+  const scriptVars = getVariables({
+    type: "script",
+    script_id: getScriptId()
+  });
+  const forceReload = external_default().get(scriptVars, "强制重载功能", false);
+  if (!forceReload) {
+    return;
+  }
+  const messageCount = external_default().get(scriptVars, "强制重载消息数", 1);
   await new Promise(resolve => setTimeout(resolve, 1e3));
   const allMessages = getChatMessages("0-{{lastMessageId}}");
   if (!allMessages || allMessages.length === 0) {
     return;
   }
-  const recentMessages = allMessages.slice(-5);
+  const recentMessages = allMessages.slice(-messageCount);
   for (const message of recentMessages) {
     await forceRenderMessage(message.message_id);
     await new Promise(resolve => setTimeout(resolve, 100));

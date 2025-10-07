@@ -116,6 +116,7 @@ export const EVENT_GROUPS = {
     tavern_events.APP_READY,
     'manual_write',
     ERA_EVENT_EMITTER.API_WRITE,
+    tavern_events.MESSAGE_RECEIVED,
   ],
   SYNC: [
     tavern_events.MESSAGE_RECEIVED,
