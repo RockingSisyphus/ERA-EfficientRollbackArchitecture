@@ -112,11 +112,11 @@ export const ERA_EVENT_EMITTER = {
  */
 export const EVENT_GROUPS = {
   WRITE: [
-    //tavern_events.CHARACTER_MESSAGE_RENDERED,
+    tavern_events.CHARACTER_MESSAGE_RENDERED,
     tavern_events.APP_READY,
     'manual_write',
     ERA_EVENT_EMITTER.API_WRITE,
-    tavern_events.MESSAGE_RECEIVED,
+    //tavern_events.MESSAGE_RECEIVED,
   ],
   SYNC: [
     tavern_events.MESSAGE_RECEIVED,

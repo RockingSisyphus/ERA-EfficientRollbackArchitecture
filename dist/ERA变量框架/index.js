@@ -56,7 +56,7 @@ const ERA_EVENT_EMITTER = {
 };
 
 const EVENT_GROUPS = {
-  WRITE: [ tavern_events.APP_READY, "manual_write", ERA_EVENT_EMITTER.API_WRITE, tavern_events.MESSAGE_RECEIVED ],
+  WRITE: [ tavern_events.CHARACTER_MESSAGE_RENDERED, tavern_events.APP_READY, "manual_write", ERA_EVENT_EMITTER.API_WRITE ],
   SYNC: [ tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, "manual_sync", "manual_full_sync" ],
   API: Object.values(ERA_API_EVENTS),
   UPDATE_MK_ONLY: [ tavern_events.MESSAGE_SENT ],
