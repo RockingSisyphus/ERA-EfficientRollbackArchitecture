@@ -135,11 +135,13 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
 
         return `${is_direct === true ? 'src' : 'webpack'}://${info.namespace}/${resource_path}${is_direct || is_vue_script ? '' : '?' + info.hash}`;
       },
-      filename: process.env.BUILD_TARGET ? 'bundle.js' : `${script_filepath.name}.js`,
-      path: process.env.BUILD_TARGET
-        ? path.join(__dirname, 'artifact')
-        : path.join(__dirname, 'dist', path.relative(path.join(__dirname, 'src'), script_filepath.dir)),
-      chunkFilename: `${script_filepath.name}.[contenthash].chunk.js`,
+      filename: 'index.js',
+      path: path.join(
+        __dirname,
+        argv.mode === 'production' ? 'artifact' : 'dist',
+        path.relative(path.join(__dirname, 'src'), script_filepath.dir),
+      ),
+      chunkFilename: '[name].[contenthash].chunk.js',
       asyncChunks: true,
       clean: true,
       publicPath: '',
@@ -447,4 +449,24 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
   });
 }
 
-export default config.entries.map(parse_configuration);
+export default (_env: any, argv: any) => {
+  if (argv.mode === 'production') {
+    // Production: build only ERA变量框架 into artifact/bundle.js
+    const eraEntry: Entry = { script: 'src/ERA变量框架/index.ts' };
+    const eraConfigFn = parse_configuration(eraEntry);
+    const eraConfig = eraConfigFn(_env, argv); // Get the base config
+
+    // Override the output settings for this specific case
+    if (eraConfig.output) {
+      eraConfig.output.path = path.join(__dirname, 'artifact');
+      eraConfig.output.filename = 'bundle.js';
+    }
+
+    return eraConfig; // Webpack accepts a single config object
+  } else {
+    // Development: build all entries into dist/
+    const allEntries = glob_script_files().map(parse_entry);
+    // `map` will return an array of config objects
+    return allEntries.map(entry => parse_configuration(entry)(_env, argv));
+  }
+};
