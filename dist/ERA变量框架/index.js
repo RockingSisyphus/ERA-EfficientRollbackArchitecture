@@ -27,8 +27,6 @@ var __webpack_require__ = {};
   __webpack_require__.o = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
 })();
 
-var __webpack_exports__ = {};
-
 const CHAT_SCOPE = {
   type: "chat"
 };
@@ -79,7 +77,7 @@ const LOG_CONFIG = {
     error: 3
   },
   currentLevel: 0,
-  debugWhitelist: [ "sync", "rollback", "update", "event_queue", "write", "insert", "delete", "query" ]
+  debugWhitelist: [ "sync", "rollback", "update", "event_queue", "write", "insert", "delete", "query", "force_macro_render", "message_utils" ]
 };
 
 LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
@@ -87,70 +85,6 @@ LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
 const external_namespaceObject = _;
 
 var external_default = __webpack_require__.n(external_namespaceObject);
-
-function getMessageContent(msg) {
-  if (!msg) return null;
-  if (typeof msg.mes === "string") {
-    return msg.mes;
-  }
-  if (Array.isArray(msg.swipes)) {
-    const sid = Number(msg.swipe_id ?? 0);
-    return msg.swipes[sid] || null;
-  }
-  if (typeof msg.message === "string") {
-    return msg.message;
-  }
-  return null;
-}
-
-function parseEraData(messageContent) {
-  if (typeof messageContent !== "string") {
-    return null;
-  }
-  const match = messageContent.match(ERA_DATA_REGEX);
-  if (!match || !match[1]) {
-    return null;
-  }
-  try {
-    const customFormatBlock = match[1];
-    const keyMatch = customFormatBlock.match(/"era-message-key"\s*=\s*"(.*?)"/);
-    const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
-    if (keyMatch?.[1] && typeMatch?.[1]) {
-      return {
-        "era-message-key": keyMatch[1],
-        "era-message-type": typeMatch[1]
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function isUserMessage(msg) {
-  const content = getMessageContent(msg);
-  const data = parseEraData(content);
-  if (data) {
-    return data["era-message-type"] === "user";
-  }
-  return msg?.role === "user";
-}
-
-function message_utils_findLastAiMessage() {
-  const messages = getChatMessages("0-{{lastMessageId}}", {
-    include_swipes: true
-  });
-  if (!messages || messages.length === 0) {
-    return null;
-  }
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (!isUserMessage(msg)) {
-      return msg;
-    }
-  }
-  return null;
-}
 
 const logContext = {
   mk: ""
@@ -379,6 +313,81 @@ async function updateMessageContent(message, newContent) {
   await setChatMessages([ updatePayload ]);
 }
 
+const log = new Logger("message_utils");
+
+function getMessageContent(msg) {
+  if (!msg) return null;
+  if (typeof msg.mes === "string") {
+    return msg.mes;
+  }
+  if (Array.isArray(msg.swipes)) {
+    const sid = Number(msg.swipe_id ?? 0);
+    return msg.swipes[sid] || null;
+  }
+  if (typeof msg.message === "string") {
+    return msg.message;
+  }
+  return null;
+}
+
+function parseEraData(messageContent) {
+  if (typeof messageContent !== "string") {
+    return null;
+  }
+  const match = messageContent.match(ERA_DATA_REGEX);
+  if (!match || !match[1]) {
+    return null;
+  }
+  try {
+    const customFormatBlock = match[1];
+    const keyMatch = customFormatBlock.match(/"era-message-key"\s*=\s*"(.*?)"/);
+    const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
+    if (keyMatch?.[1] && typeMatch?.[1]) {
+      const eraData = {
+        "era-message-key": keyMatch[1],
+        "era-message-type": typeMatch[1]
+      };
+      log.debug("parseEraData", "成功解析 EraData", eraData);
+      return eraData;
+    }
+    log.debug("parseEraData", "未能在 EraData 块中找到完整的键值对", {
+      customFormatBlock
+    });
+    return null;
+  } catch (e) {
+    log.warn("parseEraData", "解析 EraData 块时发生异常", e);
+    return null;
+  }
+}
+
+function isUserMessage(msg) {
+  const content = getMessageContent(msg);
+  const data = parseEraData(content);
+  if (data) {
+    return data["era-message-type"] === "user";
+  }
+  return msg?.role === "user";
+}
+
+function message_utils_findLastAiMessage() {
+  const messages = getChatMessages("0-{{lastMessageId}}", {
+    include_swipes: true
+  });
+  if (!messages || messages.length === 0) {
+    log.debug("findLastAiMessage", "聊天记录为空, 未找到任何消息。");
+    return null;
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (!isUserMessage(msg)) {
+      log.debug("findLastAiMessage", `找到最后一条 AI 消息, ID: ${msg.message_id}`);
+      return msg;
+    }
+  }
+  log.debug("findLastAiMessage", "未在聊天记录中找到任何 AI 消息。");
+  return null;
+}
+
 const logger = new Logger("api");
 
 const debouncedEmitApiWrite = external_default().debounce(() => {
@@ -454,6 +463,8 @@ function emitWriteDoneEvent(payload) {
   logger.log("emitWriteDoneEvent", `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(payload.actions)}, MK: ${payload.mk}, MsgID: ${payload.message_id}`);
 }
 
+const force_macro_render_log = new Logger("force_macro_render");
+
 function forceRenderMessage(messageId) {
   return new Promise(resolve => {
     const messageSelector = `div.mes[mesid="${messageId}"]`;
@@ -473,19 +484,24 @@ async function forceRenderRecentMessages() {
   });
   const forceReload = external_default().get(scriptVars, "强制重载功能", false);
   if (!forceReload) {
+    force_macro_render_log.debug("forceRenderRecentMessages", "强制重载功能未启用, 跳过。");
     return;
   }
   const messageCount = external_default().get(scriptVars, "强制重载消息数", 1);
+  force_macro_render_log.log("forceRenderRecentMessages", `开始强制重载, 数量: ${messageCount}`);
   await new Promise(resolve => setTimeout(resolve, 1e3));
   const allMessages = getChatMessages("0-{{lastMessageId}}");
   if (!allMessages || allMessages.length === 0) {
+    force_macro_render_log.warn("forceRenderRecentMessages", "无法获取到任何消息, 终止重载。");
     return;
   }
   const recentMessages = allMessages.slice(-messageCount);
   for (const message of recentMessages) {
+    force_macro_render_log.debug("forceRenderRecentMessages", `正在强制渲染消息: ${message.message_id}`);
     await forceRenderMessage(message.message_id);
     await new Promise(resolve => setTimeout(resolve, 100));
   }
+  force_macro_render_log.log("forceRenderRecentMessages", "强制重载完成。");
 }
 
 const message_key_logger = new Logger("message_key");

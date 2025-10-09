@@ -205,6 +205,8 @@ export const LOG_CONFIG = {
     'delete',
     'query',
     //'template',
+    'force_macro_render',
+    'message_utils',
   ] as string[],
 };
 // 初始化时将 currentLevel 设置为 debug 级别

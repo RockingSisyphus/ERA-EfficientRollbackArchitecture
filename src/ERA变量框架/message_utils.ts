@@ -7,6 +7,9 @@
 'use strict';
 
 import { ERA_DATA_REGEX } from './constants';
+import { Logger } from './utils';
+
+const log = new Logger('message_utils');
 
 /**
  * @type {EraData} - 定义了存储在 `<era_data>` 块中的元数据结构。
@@ -62,13 +65,17 @@ function parseEraData(messageContent: string | null | undefined): EraData | null
     const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
 
     if (keyMatch?.[1] && typeMatch?.[1]) {
-      return {
+      const eraData = {
         'era-message-key': keyMatch[1],
         'era-message-type': typeMatch[1] as 'user' | 'assistant',
       };
+      log.debug('parseEraData', '成功解析 EraData', eraData);
+      return eraData;
     }
+    log.debug('parseEraData', '未能在 EraData 块中找到完整的键值对', { customFormatBlock });
     return null;
-  } catch {
+  } catch (e) {
+    log.warn('parseEraData', '解析 EraData 块时发生异常', e);
     return null;
   }
 }
@@ -96,15 +103,18 @@ export function isUserMessage(msg: any): boolean {
 export function findLastAiMessage(): any | null {
   const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: true });
   if (!messages || messages.length === 0) {
+    log.debug('findLastAiMessage', '聊天记录为空, 未找到任何消息。');
     return null;
   }
 
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (!isUserMessage(msg)) {
+      log.debug('findLastAiMessage', `找到最后一条 AI 消息, ID: ${msg.message_id}`);
       return msg;
     }
   }
 
+  log.debug('findLastAiMessage', '未在聊天记录中找到任何 AI 消息。');
   return null;
 }

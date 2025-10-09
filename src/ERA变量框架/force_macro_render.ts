@@ -4,6 +4,9 @@
  */
 
 import _ from 'lodash';
+import { Logger } from './utils';
+
+const log = new Logger('force_macro_render');
 
 /**
  * 强制重新渲染单条消息。
@@ -36,17 +39,20 @@ export async function forceRenderRecentMessages() {
   // 检查是否启用了强制重载功能
   const forceReload = _.get(scriptVars, '强制重载功能', false);
   if (!forceReload) {
+    log.debug('forceRenderRecentMessages', '强制重载功能未启用, 跳过。');
     return; // 如果未启用，则不执行任何操作
   }
 
   // 获取要重载的消息数量，默认为1
   const messageCount = _.get(scriptVars, '强制重载消息数', 1);
+  log.log('forceRenderRecentMessages', `开始强制重载, 数量: ${messageCount}`);
 
   // 等待一小段时间, 确保变量更新已经完成
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   const allMessages = getChatMessages('0-{{lastMessageId}}');
   if (!allMessages || allMessages.length === 0) {
+    log.warn('forceRenderRecentMessages', '无法获取到任何消息, 终止重载。');
     return;
   }
 
@@ -54,8 +60,10 @@ export async function forceRenderRecentMessages() {
   const recentMessages = allMessages.slice(-messageCount);
 
   for (const message of recentMessages) {
+    log.debug('forceRenderRecentMessages', `正在强制渲染消息: ${message.message_id}`);
     await forceRenderMessage(message.message_id);
     // 在每次操作之间短暂暂停, 避免操作过快导致UI问题。
     await new Promise(resolve => setTimeout(resolve, 100));
   }
+  log.log('forceRenderRecentMessages', '强制重载完成。');
 }
