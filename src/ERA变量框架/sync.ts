@@ -178,10 +178,12 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
   // Case 3: 消息被添加 (新列表比旧列表长)
   else {
     logger.log('resyncStateOnHistoryChange', '检测到消息添加。');
-    // 只需处理新增部分，但为了逻辑统一，我们让 ApplyVarChange 自己处理
-    // 这里我们认为不需要re-sync，直接返回
-    logger.log('resyncStateOnHistoryChange', '新增消息由其他事件处理，本次同步终止。');
-    return;
+    // 将重算起点设置为新消息的起始索引，让同步流程统一处理
+    firstRecalcId = oldSelectedMks.length;
+    logger.log(
+      'resyncStateOnHistoryChange',
+      `新增消息的写入逻辑已由同步流程接管。将从新增消息 (ID: ${firstRecalcId}) 开始处理。`,
+    );
   }
 
   // 3. 收集需要回滚的 MK 列表，并执行逆序回滚
