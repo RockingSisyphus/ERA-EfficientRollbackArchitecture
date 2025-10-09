@@ -27,20 +27,11 @@
 
 'use strict';
 
-import { SEL_PATH } from './constants';
+import { ERA_DATA_REGEX, ERA_DATA_TAG, SEL_PATH } from './constants';
+import { getMessageContent } from './message_utils';
 import { Logger, rnd, updateEraMetaData, updateMessageContent } from './utils';
 
 const logger = new Logger('message_key');
-
-/**
- * @constant {string} ERA_DATA_TAG - 用于包裹 MK 元数据的 XML 风格标签名。
- */
-const ERA_DATA_TAG = 'era_data';
-
-/**
- * @constant {RegExp} ERA_DATA_REGEX - 用于从消息内容中匹配和提取 `<era_data>` 块的正则表达式。
- */
-const ERA_DATA_REGEX = new RegExp(`<${ERA_DATA_TAG}>({.*?})<\\/${ERA_DATA_TAG}>`);
 
 /**
  * @type {EraData} - 定义了存储在 `<era_data>` 块中的元数据结构。
@@ -53,31 +44,6 @@ type EraData = {
 // ==================================================================
 // 内部辅助函数
 // ==================================================================
-
-/**
- * **【获取消息内容】** 从酒馆的消息对象中安全地提取当前激活（被选中）的消息内容字符串。
- * 这个函数是 ERA 中所有消息内容读取的唯一入口，以确保逻辑统一和健壮性。
- * @param {TavernMessage} msg - 酒馆消息对象。
- * @returns {string | null} 当前激活的消息内容；如果无法获取，则返回 null。
- */
-export function getMessageContent(msg: any): string | null {
-  if (!msg) return null;
-
-  // 优先检查 .mes 属性，这是新版酒馆的规范
-  if (typeof msg.mes === 'string') {
-    return msg.mes;
-  }
-  // 如果没有 .mes，则处理 swipes
-  if (Array.isArray(msg.swipes)) {
-    const sid = Number(msg.swipe_id ?? 0);
-    return msg.swipes[sid] || null;
-  }
-  // 最后，作为兼容，检查旧版的 .message 属性
-  if (typeof msg.message === 'string') {
-    return msg.message;
-  }
-  return null;
-}
 
 /**
  * 从消息内容字符串中解析出 `EraData` 对象。这是一个只读操作。
@@ -167,22 +133,6 @@ export function readMessageKey(msg: any): string {
   //   return mkFromMessage;
   // }
   // return '';
-}
-
-/**
- * **【判断消息类型】** 根据消息内容中的 `era-message-type` 元数据或 `role` 属性判断是否为用户消息。
- * 优先信任注入的元数据。
- * @param {TavernMessage} msg - 酒馆消息对象。
- * @returns {boolean} 如果是用户消息，则返回 true。
- */
-export function isUserMessage(msg: any): boolean {
-  const content = getMessageContent(msg);
-  const data = parseEraData(content);
-  if (data) {
-    return data['era-message-type'] === 'user';
-  }
-  // 回退到检查 role 属性
-  return msg?.role === 'user';
 }
 
 /**

@@ -15,7 +15,8 @@
 'use strict';
 
 import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from './constants';
-import { getMessageContent, isUserMessage, readMessageKey } from './message_key';
+import { readMessageKey } from './message_key';
+import { getMessageContent, isUserMessage } from './message_utils';
 import { getEraData, J, Logger, parseEditLog } from './utils';
 
 const logger = new Logger('rollback');

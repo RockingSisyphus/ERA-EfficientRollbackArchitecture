@@ -24,7 +24,8 @@
 import { LOGS_PATH, SEL_PATH } from './constants';
 import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert';
-import { getMessageContent, isUserMessage, readMessageKey } from './message_key';
+import { readMessageKey } from './message_key';
+import { findLastAiMessage, getMessageContent, isUserMessage } from './message_utils';
 import { processEditBlocks } from './update';
 import { extractBlocks, Logger, parseEditLog, parseJsonl, updateEraMetaData } from './utils';
 
@@ -141,25 +142,30 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
 
 /**
  * **【标准事件处理入口】**
- * 这是一个上层封装，用于处理最新消息的变量写入，并负责更新 `SelectedMks` 数组。
- * 它通常被绑定到“新消息生成”等事件上。
+ * 这是一个上层封装，用于处理最新 AI 消息的变量写入，并负责更新 `SelectedMks` 数组。
+ * 它会自动寻找最后一条 AI 消息进行操作，通常被绑定到“新消息生成”等事件上。
  */
 export const ApplyVarChange = async () => {
-  const msg = getChatMessages(-1, { include_swipes: true })?.[0];
-  if (!msg || typeof msg.message_id !== 'number') return;
+  // 1. 智能查找最后一条 AI 消息
+  const msg = findLastAiMessage();
+  if (!msg || typeof msg.message_id !== 'number') {
+    logger.log('ApplyVarChange', '未找到可处理的 AI 消息，退出。');
+    return;
+  }
 
   const messageId = msg.message_id;
+  logger.log('ApplyVarChange', `找到目标 AI 消息 (ID: ${messageId})，开始处理变量写入...`);
 
-  // 调用核心实现来处理变量和 EditLog 的写入。
+  // 2. 调用核心实现来处理变量和 EditLog 的写入。
+  // EditLog 会被自动关联到从该消息中读取到的 MK 上。
   const MK = await ApplyVarChangeForMessage(msg);
 
-  // 在核心流程执行完毕后，在此处统一更新 SelectedMks，确保状态一致。
+  // 3. 在核心流程执行完毕后，在此处统一更新 SelectedMks，确保状态一致。
   try {
     await updateEraMetaData(meta => {
       const selectedMks = _.get(meta, SEL_PATH, []);
-      // 将当前消息的 MK 记录在 SelectedMks 数组的相应位置。
-      // 注意：如果 MK 为 null（例如，因为上游处理失败），这里可能会写入 null。
-      // 这可能是您提到的 `SelectedMks` 中出现 null 的潜在原因之一。
+      // 关键：必须使用我们正在处理的 AI 消息的 messageId 作为索引，
+      // 来更新 SelectedMks 数组中对应的 MK 记录。
       selectedMks[messageId] = MK;
       _.set(meta, SEL_PATH, selectedMks);
       return meta;

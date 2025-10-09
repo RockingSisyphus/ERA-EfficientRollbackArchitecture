@@ -82,6 +82,22 @@ export const LOGS_PATH = 'EditLogs';
 export const SEL_PATH = 'SelectedMks';
 
 /**
+ * @constant {string} ERA_DATA_TAG
+ * @description
+ * 用于在消息内容中包裹 ERA 元数据（如消息密钥 MK）的 XML 风格标签名。
+ * e.g., `<era_data>{...}</era_data>`
+ */
+export const ERA_DATA_TAG = 'era_data';
+
+/**
+ * @constant {RegExp} ERA_DATA_REGEX
+ * @description
+ * 用于从消息内容字符串中匹配和提取 `<era_data>` 块的正则表达式。
+ * 这个常量被定义在这里，以避免 `message_key.ts` 和 `message_utils.ts` 之间的循环依赖。
+ */
+export const ERA_DATA_REGEX = new RegExp(`<${ERA_DATA_TAG}>({.*?})<\\/${ERA_DATA_TAG}>`);
+
+/**
  * @constant {object} ERA_API_EVENTS
  * @description
  * 定义了所有供外部脚本通过 `eventEmit` 调用的自定义 API 事件名称。

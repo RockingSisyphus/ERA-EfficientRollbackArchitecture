@@ -18,7 +18,7 @@
 
 import _ from 'lodash';
 import { ERA_EVENT_EMITTER } from './constants';
-import { getMessageContent } from './message_key';
+import { findLastAiMessage, getMessageContent } from './message_utils';
 import { J, Logger, updateMessageContent } from './utils';
 
 const logger = new Logger('api');
@@ -125,18 +125,6 @@ const debouncedEmitApiWrite = _.debounce(
  * 这是注入变量修改指令的目标消息。
  * @returns {Promise<any | null>} 返回找到的消息对象，如果不存在 AI 消息则返回 null。
  */
-async function findLastAiMessage(): Promise<any | null> {
-  const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: true });
-  if (!messages || messages.length === 0) {
-    return null;
-  }
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'assistant') {
-      return messages[i];
-    }
-  }
-  return null;
-}
 
 /**
  * 执行一次 API 写入操作。

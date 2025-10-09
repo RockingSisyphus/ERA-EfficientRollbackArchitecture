@@ -27,6 +27,7 @@
 
 import { LOGS_PATH, SEL_PATH } from './constants';
 import { readMessageKey } from './message_key';
+import { findLastAiMessage } from './message_utils';
 import { rollbackByMk } from './rollback';
 import { getEraData, Logger, parseEditLog, updateEraMetaData } from './utils';
 import { ApplyVarChangeForMessage } from './variable_change_processor';
@@ -250,4 +251,67 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
   // } else {
   //   logger.log('resyncStateOnHistoryChange', '未找到任何可供回滚的旧MK，跳过保险机制。');
   // }
+};
+
+/**
+ * **【强制同步最后一条AI消息】**
+ * 这是一个用于特定场景的函数，例如由外部 API 触发，需要强制重算最后一条 AI 消息的变量。
+ * 它解决了在消息内容被外部修改（但 MK 未变）时，状态无法自动更新的问题。
+ *
+ * **执行逻辑**:
+ * 1. **定位**: 找到最后一条 AI 消息。
+ * 2. **回滚**: 如果该消息存在且有 MK，则无条件回滚此 MK 引入的所有变量修改。
+ * 3. **重算**: 立即根据该消息的**当前内容**重新计算变量，并生成新的 `EditLog`。
+ * 4. **更新**: 将新的 MK 更新到 `SelectedMks` 数组的正确位置。
+ *
+ * **安全性**:
+ * 此函数操作目标明确（最后一条 AI 消息），且回滚和重算在同一调用链中完成，
+ * 避免了旧“保险机制”中因目标不明确而破坏 `resync` 状态的风险。
+ */
+export const forceSyncLastAiMessage = async () => {
+  logger.log('forceSyncLastAiMessage', '启动强制同步最后一条 AI 消息...');
+
+  // 1. 定位
+  const msg = findLastAiMessage();
+  if (!msg || typeof msg.message_id !== 'number') {
+    logger.warn('forceSyncLastAiMessage', '未找到可供强制同步的 AI 消息。');
+    return;
+  }
+
+  const messageId = msg.message_id;
+  const MK = readMessageKey(msg);
+
+  if (!MK) {
+    logger.warn('forceSyncLastAiMessage', `消息 (ID: ${messageId}) 不含 MK，无法执行强制同步。将转为执行常规写入...`);
+    // 如果没有 MK，说明是新消息，直接走标准写入流程即可
+    await ApplyVarChangeForMessage(msg);
+    return;
+  }
+
+  logger.log('forceSyncLastAiMessage', `目标消息 (ID: ${messageId}, MK: ${MK})。`);
+
+  // 2. 回滚
+  logger.debug('forceSyncLastAiMessage', `正在回滚 MK: ${MK}...`);
+  await rollbackByMk(MK, true); // silent=true，避免不必要的日志刷新
+
+  // 3. 重算
+  logger.debug('forceSyncLastAiMessage', `回滚完成，正在根据当前内容重算 MK: ${MK}...`);
+  const newMK = await ApplyVarChangeForMessage(msg);
+
+  // 4. 更新 SelectedMks
+  if (newMK) {
+    try {
+      await updateEraMetaData(meta => {
+        const selectedMks = _.get(meta, SEL_PATH, []);
+        selectedMks[messageId] = newMK;
+        _.set(meta, SEL_PATH, selectedMks);
+        return meta;
+      });
+      logger.log('forceSyncLastAiMessage', `强制同步完成，已更新 SelectedMks[${messageId}] = ${newMK}`);
+    } catch (e: any) {
+      logger.error('forceSyncLastAiMessage', `强制同步后更新 SelectedMks 失败: ${e?.message || e}`, e);
+    }
+  } else {
+    logger.error('forceSyncLastAiMessage', `重算后未能获取新的 MK，SelectedMks 可能未更新。`);
+  }
 };
