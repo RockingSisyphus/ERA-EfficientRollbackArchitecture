@@ -73,7 +73,7 @@ const LOG_CONFIG = {
     error: 3
   },
   currentLevel: 0,
-  debugWhitelist: [ "event_queue", "message_macro_processor", "query" ]
+  debugWhitelist: [ "sync", "rollback", "update", "event_queue", "write", "insert", "delete", "query" ]
 };
 
 LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
