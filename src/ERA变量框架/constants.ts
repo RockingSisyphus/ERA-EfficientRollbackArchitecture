@@ -112,7 +112,7 @@ export const ERA_EVENT_EMITTER = {
  */
 export const EVENT_GROUPS = {
   WRITE: [
-    tavern_events.CHARACTER_MESSAGE_RENDERED,
+    //tavern_events.CHARACTER_MESSAGE_RENDERED,
     tavern_events.APP_READY,
     'manual_write',
     ERA_EVENT_EMITTER.API_WRITE,
@@ -178,15 +178,15 @@ export const LOG_CONFIG = {
   // 'debug' 级别的白名单。只有当 currentLevel 为 debug 时，此列表才生效。
   // 只有在此列表中的模块才会输出 debug 日志。
   debugWhitelist: [
-    //'sync',
-    //'rollback',
-    //'update',
+    'sync',
+    'rollback',
+    'update',
     'event_queue',
     //'message_key',
-    'message_macro_processor',
-    //'write',
-    //'insert',
-    // 'delete',
+    //'message_macro_processor',
+    'write',
+    'insert',
+    'delete',
     'query',
     //'template',
   ] as string[],

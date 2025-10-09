@@ -27,8 +27,6 @@ var __webpack_require__ = {};
   __webpack_require__.o = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
 })();
 
-var __webpack_exports__ = {};
-
 const CHAT_SCOPE = {
   type: "chat"
 };
@@ -56,7 +54,7 @@ const ERA_EVENT_EMITTER = {
 };
 
 const EVENT_GROUPS = {
-  WRITE: [ tavern_events.CHARACTER_MESSAGE_RENDERED, tavern_events.APP_READY, "manual_write", ERA_EVENT_EMITTER.API_WRITE ],
+  WRITE: [ tavern_events.APP_READY, "manual_write", ERA_EVENT_EMITTER.API_WRITE ],
   SYNC: [ tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, "manual_sync", "manual_full_sync" ],
   API: Object.values(ERA_API_EVENTS),
   UPDATE_MK_ONLY: [ tavern_events.MESSAGE_SENT ],
@@ -1063,8 +1061,8 @@ const resyncStateOnHistoryChange = async (forceFullResync = false) => {
     }
   } else {
     sync_logger.log("resyncStateOnHistoryChange", "检测到消息添加。");
-    sync_logger.log("resyncStateOnHistoryChange", "新增消息由其他事件处理，本次同步终止。");
-    return;
+    firstRecalcId = oldSelectedMks.length;
+    sync_logger.log("resyncStateOnHistoryChange", `新增消息的写入逻辑已由同步流程接管。将从新增消息 (ID: ${firstRecalcId}) 开始处理。`);
   }
   if (firstRecalcId > -1) {
     const mksToRollback = oldSelectedMks.slice(firstRecalcId).filter(mk => mk);
