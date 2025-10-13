@@ -78,7 +78,7 @@ let isProcessing = false;
  * @param {any} [detail] - 事件附带的数据。
  */
 export function pushToQueue(type: string, detail?: any) {
-  logger.debug('pushToQueue', `接收到事件: ${type}，已推入队列。`);
+  logger.debug('pushToQueue', `接收到事件: ${type}，已推入队列。`, { detail });
   eventQueue.push({ type, detail, timestamp: Date.now() });
   processQueue(); // 尝试启动处理器
 }
@@ -233,6 +233,7 @@ async function processQueue() {
         logger.log('processQueue', `执行任务: ${eventType} (分组: ${eventGroup})`);
 
         // **任务分发**
+        logger.debug('processQueue - task dispatch', `分发事件: ${eventType}`, { detail, eventGroup });
         if (eventGroup === 'WRITE') {
           // 关键：写入前先回滚，确保操作的幂等性。
           // 即使事件被意外触发多次，也只会产生一次有效写入。
@@ -250,7 +251,7 @@ async function processQueue() {
           // 在变量写入完成后，强制重新渲染消息以触发宏
           forceRenderRecentMessages();
         } else if (eventGroup === 'SYNC') {
-          logger.log('processQueue', `事件 ${eventType} 触发状态同步流程...`);
+          logger.debug('processQueue - task dispatch', `事件 ${eventType} 触发状态同步流程...`);
           const isFullSync = eventType === 'manual_full_sync';
           await resyncStateOnHistoryChange(isFullSync);
           actionsTaken.resync = true;

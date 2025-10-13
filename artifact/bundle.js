@@ -79,7 +79,7 @@ const LOG_CONFIG = {
     error: 3
   },
   currentLevel: 0,
-  debugWhitelist: [ "sync", "rollback", "update", "event_queue", "write", "insert", "delete", "query", "force_macro_render", "message_utils" ]
+  debugWhitelist: [ "api", "delete", "event_queue", "force_macro_render", "insert", "message_key", "message_utils", "query", "rollback", "sync", "template", "update", "variable_change_processor" ]
 };
 
 LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
@@ -140,6 +140,58 @@ class Logger {
       console.error(`%c${formattedMessage}`, "color: #e74c3c; font-weight: bold;");
     }
   }
+}
+
+const ESCAPE_MAP = {
+  ".": "__DOT__",
+  '"': "__DQUOTE__",
+  "'": "__SQUOTE__"
+};
+
+const UNESCAPE_MAP = external_default().invert(ESCAPE_MAP);
+
+const escapeRegex = new RegExp(Object.keys(ESCAPE_MAP).map(external_default().escapeRegExp).join("|"), "g");
+
+const unescapeRegex = new RegExp(Object.values(ESCAPE_MAP).map(external_default().escapeRegExp).join("|"), "g");
+
+function escapeEraData(data) {
+  if (Array.isArray(data)) {
+    return data.map(item => escapeEraData(item));
+  }
+  if (external_default().isPlainObject(data)) {
+    const newObj = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const escapedKey = key.replace(escapeRegex, match => ESCAPE_MAP[match]);
+        newObj[escapedKey] = escapeEraData(data[key]);
+      }
+    }
+    return newObj;
+  }
+  if (typeof data === "string") {
+    return data.replace(escapeRegex, match => ESCAPE_MAP[match]);
+  }
+  return data;
+}
+
+function unescapeEraData(data) {
+  if (Array.isArray(data)) {
+    return data.map(item => unescapeEraData(item));
+  }
+  if (external_default().isPlainObject(data)) {
+    const newObj = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const unescapedKey = key.replace(unescapeRegex, match => UNESCAPE_MAP[match]);
+        newObj[unescapedKey] = unescapeEraData(data[key]);
+      }
+    }
+    return newObj;
+  }
+  if (typeof data === "string") {
+    return data.replace(unescapeRegex, match => UNESCAPE_MAP[match]);
+  }
+  return data;
 }
 
 function rnd() {
@@ -461,7 +513,22 @@ function deleteByPath(path) {
 }
 
 function emitWriteDoneEvent(payload) {
-  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, payload);
+  const unescapedPayload = {
+    ...payload,
+    stat: unescapeEraData(payload.stat),
+    statWithoutMeta: unescapeEraData(payload.statWithoutMeta)
+  };
+  logger.debug("emitWriteDoneEvent", "writeDone事件广播数据反转义", {
+    before: {
+      stat: payload.stat,
+      statWithoutMeta: payload.statWithoutMeta
+    },
+    after: {
+      stat: unescapedPayload.stat,
+      statWithoutMeta: unescapedPayload.statWithoutMeta
+    }
+  });
+  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, unescapedPayload);
   logger.log("emitWriteDoneEvent", `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(payload.actions)}, MK: ${payload.mk}, MsgID: ${payload.message_id}`);
 }
 
@@ -715,10 +782,12 @@ async function findLatestNewValue(path, startMessageId, logger) {
   return null;
 }
 
-function applyDeleteAtLevel(statData, basePath, patchObj, editLog, logger) {
+const delete_logger = new Logger("delete");
+
+function applyDeleteAtLevel(statData, basePath, patchObj, editLog) {
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
   if (currentNodeInVars === undefined) {
-    logger.warn("applyDeleteAtLevel", `VariableDelete 跳过：路径不存在 -> ${basePath || "(root)"}`);
+    delete_logger.warn("applyDeleteAtLevel", `VariableDelete 跳过：路径不存在 -> ${basePath || "(root)"}`);
     return;
   }
   const necessary = _.get(currentNodeInVars, [ "$meta", "necessary" ]);
@@ -726,22 +795,22 @@ function applyDeleteAtLevel(statData, basePath, patchObj, editLog, logger) {
   const isBypassingProtection = _.isPlainObject(metaPatch) && _.isEmpty(metaPatch) || _.has(patchObj, [ "$meta", "necessary" ]);
   if (_.isPlainObject(patchObj) && !_.isEmpty(patchObj)) {
     if (necessary === "all" && !isBypassingProtection) {
-      logger.warn("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`);
+      delete_logger.warn("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`);
       return;
     }
     for (const key of Object.keys(patchObj)) {
       const fullPath = basePath ? `${basePath}.${key}` : key;
       const subPatchObj = patchObj[key];
-      applyDeleteAtLevel(statData, fullPath, subPatchObj, editLog, logger);
+      applyDeleteAtLevel(statData, fullPath, subPatchObj, editLog);
     }
     return;
   }
   if (necessary === "self" || necessary === "all") {
-    logger.warn("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`);
+    delete_logger.warn("applyDeleteAtLevel", `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`);
     return;
   }
   if (basePath === "") {
-    logger.error("applyDeleteAtLevel", "VariableDelete 失败：不允许删除根对象。");
+    delete_logger.error("applyDeleteAtLevel", "VariableDelete 失败：不允许删除根对象。");
     return;
   }
   const valOld = _.cloneDeep(currentNodeInVars);
@@ -751,165 +820,171 @@ function applyDeleteAtLevel(statData, basePath, patchObj, editLog, logger) {
     path: basePath,
     value_old: valOld
   });
-  logger.debug("applyDeleteAtLevel", `成功删除节点: ${basePath}`);
+  delete_logger.debug("applyDeleteAtLevel", `成功删除节点: ${basePath}`);
 }
 
-async function processDeleteBlocks(allDeletes, editLog, logger) {
+async function processDeleteBlocks(allDeletes, editLog) {
   if (allDeletes.length > 0) {
     for (const deleteRoot of allDeletes) {
       if (!_.isPlainObject(deleteRoot) || _.isEmpty(deleteRoot)) continue;
       try {
         await updateEraStatData(stat => {
-          logger.debug("processDeleteBlocks", `处理 deleteRoot: ${JSON.stringify(deleteRoot)}`);
-          applyDeleteAtLevel(stat, "", deleteRoot, editLog, logger);
+          delete_logger.debug("processDeleteBlocks", `处理 deleteRoot: ${JSON.stringify(deleteRoot)}`);
+          applyDeleteAtLevel(stat, "", deleteRoot, editLog);
           return stat;
         });
       } catch (e) {
-        logger.error("processDeleteBlocks", `处理 deleteRoot 失败: ${e?.message || e}`, e);
+        delete_logger.error("processDeleteBlocks", `处理 deleteRoot 失败: ${e?.message || e}`, e);
       }
     }
-    logger.log("processDeleteBlocks", "所有 VariableDelete 操作完成");
+    delete_logger.log("processDeleteBlocks", "所有 VariableDelete 操作完成");
   }
 }
 
-function resolveTemplate(inheritedContent, parentNodeData, logger) {
+const template_logger = new Logger("template");
+
+function resolveTemplate(inheritedContent, parentNodeData) {
   const varsContent = _.get(parentNodeData, "$template");
-  logger.debug("resolveTemplate", `解析出的模板内容:\n    - 继承: ${JSON.stringify(inheritedContent)}\n    - 父节点变量: ${JSON.stringify(varsContent)}`);
+  template_logger.debug("resolveTemplate", `解析出的模板内容:\n    - 继承: ${JSON.stringify(inheritedContent)}\n    - 父节点变量: ${JSON.stringify(varsContent)}`);
   let mergedContent = {};
   mergedContent = mergeReplaceArray(mergedContent, inheritedContent);
   mergedContent = mergeReplaceArray(mergedContent, varsContent);
-  logger.debug("resolveTemplate", `合并后的最终模板内容: ${JSON.stringify(mergedContent)}`);
+  template_logger.debug("resolveTemplate", `合并后的最终模板内容: ${JSON.stringify(mergedContent)}`);
   if (_.isEmpty(mergedContent)) {
     return null;
   }
   return mergedContent;
 }
 
-function getInheritedTemplateContent(parentTplContent, key, logger) {
+function getInheritedTemplateContent(parentTplContent, key) {
   if (!parentTplContent) return undefined;
   const prototypeContent = _.get(parentTplContent, "$template");
   const specificContent = _.get(parentTplContent, key);
   if (_.isPlainObject(prototypeContent) && _.isPlainObject(specificContent)) {
-    logger.debug("getInheritedTemplateContent", `为子节点 "${key}" 同时找到原型和特异性内容。\n      - 原型: ${JSON.stringify(prototypeContent)}\n      - 特异性: ${JSON.stringify(specificContent)}`);
+    template_logger.debug("getInheritedTemplateContent", `为子节点 "${key}" 同时找到原型和特异性内容。\n      - 原型: ${JSON.stringify(prototypeContent)}\n      - 特异性: ${JSON.stringify(specificContent)}`);
     const merged = mergeReplaceArray(_.cloneDeep(prototypeContent), specificContent);
-    logger.debug("getInheritedTemplateContent", `  - 合并后: ${JSON.stringify(merged)}`);
+    template_logger.debug("getInheritedTemplateContent", `  - 合并后: ${JSON.stringify(merged)}`);
     return merged;
   } else if (_.isPlainObject(specificContent)) {
-    logger.debug("getInheritedTemplateContent", `为子节点 "${key}" 只找到特异性内容: ${JSON.stringify(specificContent)}`);
+    template_logger.debug("getInheritedTemplateContent", `为子节点 "${key}" 只找到特异性内容: ${JSON.stringify(specificContent)}`);
     return specificContent;
   } else if (_.isPlainObject(prototypeContent)) {
-    logger.debug("getInheritedTemplateContent", `为子节点 "${key}" 只找到原型内容: ${JSON.stringify(prototypeContent)}`);
+    template_logger.debug("getInheritedTemplateContent", `为子节点 "${key}" 只找到原型内容: ${JSON.stringify(prototypeContent)}`);
     return prototypeContent;
   }
-  logger.debug("getInheritedTemplateContent", `在父级模板内容中未为子节点 "${key}" 找到任何可继承的规则。`);
+  template_logger.debug("getInheritedTemplateContent", `在父级模板内容中未为子节点 "${key}" 找到任何可继承的规则。`);
   return undefined;
 }
 
-function applyTemplateToPatch(tplContent, patchObj, logger) {
-  logger.debug("applyTemplateToPatch", `[进入] 模板内容: ${JSON.stringify(tplContent)}, 补丁: ${JSON.stringify(patchObj)}`);
+function applyTemplateToPatch(tplContent, patchObj) {
+  template_logger.debug("applyTemplateToPatch", `[进入] 模板内容: ${JSON.stringify(tplContent)}, 补丁: ${JSON.stringify(patchObj)}`);
   if (!_.isPlainObject(patchObj)) {
-    logger.debug("applyTemplateToPatch", `[退出] 补丁不是一个普通对象，直接返回。`);
+    template_logger.debug("applyTemplateToPatch", `[退出] 补丁不是一个普通对象，直接返回。`);
     return patchObj;
   }
   if (!tplContent) {
-    logger.debug("applyTemplateToPatch", `[退出] 模板内容无效，直接返回补丁。`);
+    template_logger.debug("applyTemplateToPatch", `[退出] 模板内容无效，直接返回补丁。`);
     return patchObj;
   }
   if (_.isEmpty(patchObj)) {
-    logger.debug("applyTemplateToPatch", `补丁为空对象，完全使用模板内容。`);
+    template_logger.debug("applyTemplateToPatch", `补丁为空对象，完全使用模板内容。`);
     return _.cloneDeep(tplContent);
   }
   const composed = mergeReplaceArray(_.cloneDeep(tplContent), patchObj);
-  logger.debug("applyTemplateToPatch", `合并模板与补丁后的结果: ${JSON.stringify(composed)}`);
+  template_logger.debug("applyTemplateToPatch", `合并模板与补丁后的结果: ${JSON.stringify(composed)}`);
   return composed;
 }
 
-function applyInsertAtLevel(statData, basePath, patchObj, editLog, inheritedContent, parentData, logger) {
-  const localTplContent = resolveTemplate(inheritedContent, parentData, logger);
-  logger.debug("applyInsertAtLevel", `[入口] basePath: "${basePath || "root"}"`, {
+const insert_logger = new Logger("insert");
+
+function applyInsertAtLevel(statData, basePath, patchObj, editLog, inheritedContent, parentData) {
+  const localTplContent = resolveTemplate(inheritedContent, parentData);
+  insert_logger.debug("applyInsertAtLevel", `[入口] basePath: "${basePath || "root"}"`, {
     statData: _.cloneDeep(statData)
   });
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
-  logger.debug("applyInsertAtLevel", `[路径检查] at path: "${basePath || "root"}". currentNodeInVars 的值:`, currentNodeInVars);
+  insert_logger.debug("applyInsertAtLevel", `[路径检查] at path: "${basePath || "root"}". currentNodeInVars 的值:`, currentNodeInVars);
   if (basePath && currentNodeInVars === undefined) {
-    const composed = applyTemplateToPatch(localTplContent, patchObj, logger);
+    const composed = applyTemplateToPatch(localTplContent, patchObj);
     const finalValue = sanitizeArrays(composed);
-    logger.debug("applyInsertAtLevel", `最终插入数据 at ${basePath}:\n${JSON.stringify(finalValue, null, 2)}`);
+    insert_logger.debug("applyInsertAtLevel", `最终插入数据 at ${basePath}:\n${JSON.stringify(finalValue, null, 2)}`);
     _.set(statData, basePath, finalValue);
     editLog.push({
       op: "insert",
       path: basePath,
       value_new: _.cloneDeep(finalValue)
     });
-    logger.debug("applyInsertAtLevel", `原子性插入到新路径: ${basePath}`);
+    insert_logger.debug("applyInsertAtLevel", `原子性插入到新路径: ${basePath}`);
     return;
   }
   if (_.isPlainObject(currentNodeInVars) && _.isPlainObject(patchObj)) {
-    logger.debug("applyInsertAtLevel", `[递归补充] at path: "${basePath || "root"}"\n      - 当前层级模板 (localTplContent): ${JSON.stringify(localTplContent)}`);
+    insert_logger.debug("applyInsertAtLevel", `[递归补充] at path: "${basePath || "root"}"\n      - 当前层级模板 (localTplContent): ${JSON.stringify(localTplContent)}`);
     for (const key of Object.keys(patchObj)) {
       const subPath = basePath ? `${basePath}.${key}` : key;
       const subPatch = patchObj[key];
-      const subInheritedContent = getInheritedTemplateContent(localTplContent, key, logger);
-      logger.debug("applyInsertAtLevel", `  - 准备递归子节点: "${key}"\n      - 将传递给子节点的模板 (subInheritedContent): ${JSON.stringify(subInheritedContent)}`);
-      applyInsertAtLevel(statData, subPath, subPatch, editLog, subInheritedContent, currentNodeInVars, logger);
+      const subInheritedContent = getInheritedTemplateContent(localTplContent, key);
+      insert_logger.debug("applyInsertAtLevel", `  - 准备递归子节点: "${key}"\n      - 将传递给子节点的模板 (subInheritedContent): ${JSON.stringify(subInheritedContent)}`);
+      applyInsertAtLevel(statData, subPath, subPatch, editLog, subInheritedContent, currentNodeInVars);
     }
   } else if (basePath) {
-    logger.warn("applyInsertAtLevel", `VariableInsert 失败：路径已存在且无法递归补充 -> ${basePath}`);
+    insert_logger.warn("applyInsertAtLevel", `VariableInsert 失败：路径已存在且无法递归补充 -> ${basePath}`);
   }
 }
 
-async function processInsertBlocks(allInserts, editLog, logger) {
+async function processInsertBlocks(allInserts, editLog) {
   if (allInserts.length > 0) {
     await updateEraStatData(async stat => {
-      logger.debug("processInsertBlocks", "[初始状态] 进入 processInsertBlocks 时的 statData:", _.cloneDeep(stat));
+      insert_logger.debug("processInsertBlocks", "[初始状态] 进入 processInsertBlocks 时的 statData:", _.cloneDeep(stat));
       return stat;
     });
     for (const insertRoot of allInserts) {
       if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
       try {
         await updateEraStatData(stat => {
-          logger.debug("processInsertBlocks", `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
-          applyInsertAtLevel(stat, "", insertRoot, editLog, null, null, logger);
+          insert_logger.debug("processInsertBlocks", `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
+          applyInsertAtLevel(stat, "", insertRoot, editLog, null, null);
           return stat;
         });
       } catch (e) {
-        logger.error("processInsertBlocks", `处理 insertRoot 失败: ${e?.message || e}`, e);
+        insert_logger.error("processInsertBlocks", `处理 insertRoot 失败: ${e?.message || e}`, e);
       }
     }
-    logger.log("processInsertBlocks", "所有 VariableInsert 操作完成");
+    insert_logger.log("processInsertBlocks", "所有 VariableInsert 操作完成");
   }
 }
 
-async function applyEditAtLevel(statData, basePath, patchObj, editLog, logger, messageId, intraMessageState) {
+const update_logger = new Logger("update");
+
+async function applyEditAtLevel(statData, basePath, patchObj, editLog, messageId, intraMessageState) {
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
   if (currentNodeInVars === undefined) {
-    logger.warn("applyEditAtLevel", `VariableEdit 跳过：路径不存在 -> ${basePath || "(root)"}`);
+    update_logger.warn("applyEditAtLevel", `VariableEdit 跳过：路径不存在 -> ${basePath || "(root)"}`);
     return;
   }
   const isUpdatable = _.get(currentNodeInVars, [ "$meta", "updatable" ], true);
   const isBypassingProtection = isUpdatable === false && _.get(patchObj, [ "$meta", "updatable" ]) === true;
   if (isUpdatable === false && !isBypassingProtection) {
-    logger.warn("applyEditAtLevel", `VariableEdit 失败：路径 <${basePath}> 受 "$meta.updatable: false" 保护，无法被修改。`);
+    update_logger.warn("applyEditAtLevel", `VariableEdit 失败：路径 <${basePath}> 受 "$meta.updatable: false" 保护，无法被修改。`);
     return;
   }
   for (const key of Object.keys(patchObj)) {
     const subPath = basePath ? `${basePath}.${key}` : key;
     const valNew = patchObj[key];
     if (_.isPlainObject(valNew)) {
-      await applyEditAtLevel(statData, subPath, valNew, editLog, logger, messageId, intraMessageState);
+      await applyEditAtLevel(statData, subPath, valNew, editLog, messageId, intraMessageState);
       continue;
     }
     if (!_.has(statData, subPath)) {
-      logger.warn("applyEditAtLevel", `VariableEdit 失败：路径非法，无法写入 -> ${subPath}`);
+      update_logger.warn("applyEditAtLevel", `VariableEdit 失败：路径非法，无法写入 -> ${subPath}`);
       continue;
     }
-    logger.debug("applyEditAtLevel", `[旧值查找] 准备为路径 <${subPath}> 从消息 ID <${messageId}> 向上追溯...`);
-    let valOld = await findLatestNewValue(subPath, messageId, logger);
+    update_logger.debug("applyEditAtLevel", `[旧值查找] 准备为路径 <${subPath}> 从消息 ID <${messageId}> 向上追溯...`);
+    let valOld = await findLatestNewValue(subPath, messageId, update_logger);
     if (valOld === null) {
       valOld = _.get(statData, subPath);
-      logger.debug("applyEditAtLevel", `[旧值查找] 追溯未找到历史值，从当前 stat_data 中获取到旧值: ${JSON.stringify(valOld)}`);
+      update_logger.debug("applyEditAtLevel", `[旧值查找] 追溯未找到历史值，从当前 stat_data 中获取到旧值: ${JSON.stringify(valOld)}`);
     } else {
-      logger.debug("applyEditAtLevel", `[旧值查找] 追溯成功，找到历史旧值: ${JSON.stringify(valOld)}`);
+      update_logger.debug("applyEditAtLevel", `[旧值查找] 追溯成功，找到历史旧值: ${JSON.stringify(valOld)}`);
     }
     const cleaned = sanitizeArrays(valNew);
     _.set(statData, subPath, cleaned);
@@ -923,28 +998,31 @@ async function applyEditAtLevel(statData, basePath, patchObj, editLog, logger, m
   }
 }
 
-async function processEditBlocks(allEdits, editLog, messageId, logger) {
+async function processEditBlocks(allEdits, editLog, messageId) {
   if (allEdits.length > 0) {
     const intraMessageState = new Map;
     for (const editRoot of allEdits) {
       if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
       try {
         await updateEraStatData(async stat => {
-          logger.debug("processEditBlocks", `处理 editRoot: ${JSON.stringify(editRoot)}`);
-          await applyEditAtLevel(stat, "", editRoot, editLog, logger, messageId, intraMessageState);
+          update_logger.debug("processEditBlocks", `处理 editRoot: ${JSON.stringify(editRoot)}`);
+          await applyEditAtLevel(stat, "", editRoot, editLog, messageId, intraMessageState);
           return stat;
         });
       } catch (e) {
-        logger.error("processEditBlocks", `处理 editRoot 失败: ${e?.message || e}`, e);
+        update_logger.error("processEditBlocks", `处理 editRoot 失败: ${e?.message || e}`, e);
       }
     }
-    logger.log("processEditBlocks", "所有 VariableEdit 操作完成");
+    update_logger.log("processEditBlocks", "所有 VariableEdit 操作完成");
   }
 }
 
-const variable_change_processor_logger = new Logger("write");
+const variable_change_processor_logger = new Logger("variable_change_processor");
 
 const variable_change_processor_ApplyVarChangeForMessage = async msg => {
+  variable_change_processor_logger.debug("ApplyVarChangeForMessage", `开始处理消息...`, {
+    msg
+  });
   try {
     if (!msg || typeof msg.message_id !== "number") {
       variable_change_processor_logger.warn("ApplyVarChangeForMessage", "无效消息对象或缺少 message_id，退出");
@@ -967,13 +1045,28 @@ const variable_change_processor_ApplyVarChangeForMessage = async msg => {
     if (!insertBlocks.length && !editBlocks.length && !deleteBlocks.length) {
       variable_change_processor_logger.debug("ApplyVarChangeForMessage", `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
-    const allInserts = insertBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
-    const allEdits = editBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
-    const allDeletes = deleteBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
+    const rawInserts = insertBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
+    const rawEdits = editBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
+    const rawDeletes = deleteBlocks.flatMap(s => parseJsonl(s, variable_change_processor_logger));
+    const allInserts = escapeEraData(rawInserts);
+    const allEdits = escapeEraData(rawEdits);
+    const allDeletes = escapeEraData(rawDeletes);
+    variable_change_processor_logger.debug("ApplyVarChangeForMessage", "数据转义完成", {
+      before: {
+        inserts: rawInserts,
+        edits: rawEdits,
+        deletes: rawDeletes
+      },
+      after: {
+        inserts: allInserts,
+        edits: allEdits,
+        deletes: allDeletes
+      }
+    });
     const editLog = [];
-    await processInsertBlocks(allInserts, editLog, variable_change_processor_logger);
-    await processEditBlocks(allEdits, editLog, messageId, variable_change_processor_logger);
-    await processDeleteBlocks(allDeletes, editLog, variable_change_processor_logger);
+    await processInsertBlocks(allInserts, editLog);
+    await processEditBlocks(allEdits, editLog, messageId);
+    await processDeleteBlocks(allDeletes, editLog);
     try {
       await utils_updateEraMetaData(meta => {
         const newArr = Array.isArray(editLog) ? editLog : parseEditLog(editLog);
@@ -993,6 +1086,7 @@ const variable_change_processor_ApplyVarChangeForMessage = async msg => {
 };
 
 const ApplyVarChange = async () => {
+  variable_change_processor_logger.debug("ApplyVarChange", `函数被调用...`);
   const msg = message_utils_findLastAiMessage();
   if (!msg || typeof msg.message_id !== "number") {
     variable_change_processor_logger.log("ApplyVarChange", "未找到可处理的 AI 消息，退出。");
@@ -1181,7 +1275,9 @@ const eventQueue = [];
 let isProcessing = false;
 
 function pushToQueue(type, detail) {
-  event_queue_logger.debug("pushToQueue", `接收到事件: ${type}，已推入队列。`);
+  event_queue_logger.debug("pushToQueue", `接收到事件: ${type}，已推入队列。`, {
+    detail
+  });
   eventQueue.push({
     type,
     detail,
@@ -1274,6 +1370,10 @@ async function processQueue() {
           continue;
         }
         event_queue_logger.log("processQueue", `执行任务: ${eventType} (分组: ${eventGroup})`);
+        event_queue_logger.debug("processQueue - task dispatch", `分发事件: ${eventType}`, {
+          detail,
+          eventGroup
+        });
         if (eventGroup === "WRITE") {
           const msg = getChatMessages(-1, {
             include_swipes: true
@@ -1289,7 +1389,7 @@ async function processQueue() {
           actionsTaken.apply = true;
           forceRenderRecentMessages();
         } else if (eventGroup === "SYNC") {
-          event_queue_logger.log("processQueue", `事件 ${eventType} 触发状态同步流程...`);
+          event_queue_logger.debug("processQueue - task dispatch", `事件 ${eventType} 触发状态同步流程...`);
           const isFullSync = eventType === "manual_full_sync";
           await resyncStateOnHistoryChange(isFullSync);
           actionsTaken.resync = true;
@@ -1356,7 +1456,12 @@ function parseEraMacros(text) {
       query_logger.warn(funcName, `在 stat_data 中未找到路径 "${trimmedPath}", 宏将替换为空字符串.`);
       return "";
     }
-    const finalData = includeMeta ? data : removeMetaFields(data);
+    const dataBeforeUnescape = includeMeta ? data : removeMetaFields(data);
+    const finalData = unescapeEraData(dataBeforeUnescape);
+    query_logger.debug("parseEraMacros", `宏替换数据反转义: ${trimmedPath}`, {
+      before: dataBeforeUnescape,
+      after: finalData
+    });
     if (typeof finalData === "object" && finalData !== null) {
       return JSON.stringify(finalData);
     }

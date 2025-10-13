@@ -133,6 +133,67 @@ export class Logger {
 // 字符串与数据处理
 // ==================================================================
 
+const ESCAPE_MAP: { [key: string]: string } = {
+  '.': '__DOT__',
+  '"': '__DQUOTE__',
+  "'": '__SQUOTE__',
+};
+
+const UNESCAPE_MAP: { [key: string]: string } = _.invert(ESCAPE_MAP);
+
+const escapeRegex = new RegExp(Object.keys(ESCAPE_MAP).map(_.escapeRegExp).join('|'), 'g');
+const unescapeRegex = new RegExp(Object.values(ESCAPE_MAP).map(_.escapeRegExp).join('|'), 'g');
+
+/**
+ * 递归地转义对象或数组中所有字符串值和键的特殊字符。
+ * @param data - 要处理的数据。
+ * @returns - 转义后的数据。
+ */
+export function escapeEraData<T>(data: T): T {
+  if (Array.isArray(data)) {
+    return data.map(item => escapeEraData(item)) as any;
+  }
+  if (_.isPlainObject(data)) {
+    const newObj: { [key: string]: any } = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const escapedKey = key.replace(escapeRegex, match => ESCAPE_MAP[match]);
+        newObj[escapedKey] = escapeEraData((data as any)[key]);
+      }
+    }
+    return newObj as any;
+  }
+  if (typeof data === 'string') {
+    return data.replace(escapeRegex, match => ESCAPE_MAP[match]) as any;
+  }
+  return data;
+}
+
+/**
+ * 递归地反转义对象或数组中所有字符串值和键的特殊字符。
+ * @param data - 要处理的数据。
+ * @returns - 反转义后的数据。
+ */
+export function unescapeEraData<T>(data: T): T {
+  if (Array.isArray(data)) {
+    return data.map(item => unescapeEraData(item)) as any;
+  }
+  if (_.isPlainObject(data)) {
+    const newObj: { [key: string]: any } = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const unescapedKey = key.replace(unescapeRegex, match => UNESCAPE_MAP[match]);
+        newObj[unescapedKey] = unescapeEraData((data as any)[key]);
+      }
+    }
+    return newObj as any;
+  }
+  if (typeof data === 'string') {
+    return data.replace(unescapeRegex, match => UNESCAPE_MAP[match]) as any;
+  }
+  return data;
+}
+
 /**
  * 生成一个指定长度的随机字符串，用作唯一标识符。
  * 基于 `Math.random()`，在同一毫秒内也能保证极高的唯一性。

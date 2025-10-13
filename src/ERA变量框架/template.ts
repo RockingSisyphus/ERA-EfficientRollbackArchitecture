@@ -2,6 +2,8 @@
 
 import { Logger, mergeReplaceArray } from './utils';
 
+const logger = new Logger('template');
+
 /**
  * **【解析并合并模板内容】**
  *
@@ -9,10 +11,9 @@ import { Logger, mergeReplaceArray } from './utils';
  *
  * @param inheritedContent - 从上上层继承的模板内容。
  * @param parentNodeData - 当前正在处理的节点的 **父节点** 在变量中的数据。
- * @param logger - 日志记录器实例。
  * @returns {any} - 合并后的单一内容对象，如果所有来源都无效，则返回 `null`。
  */
-export function resolveTemplate(inheritedContent: any, parentNodeData: any, logger: Logger): any {
+export function resolveTemplate(inheritedContent: any, parentNodeData: any): any {
   // 1. 从父节点变量中，找到作为当前节点兄弟的 $template
   const varsContent = _.get(parentNodeData, '$template');
 
@@ -55,10 +56,9 @@ export function resolveTemplate(inheritedContent: any, parentNodeData: any, logg
  *
  * @param parentTplContent - 父级的模板内容，它本身可能包含 `$template` 和 `key` 作为子键。
  * @param key - 正在处理的子节点的键名。
- * @param logger - 日志记录器实例。
  * @returns {any} - 子节点应该继承的、已合并的模板内容，或 `undefined`。
  */
-export function getInheritedTemplateContent(parentTplContent: any, key: string, logger: Logger): any {
+export function getInheritedTemplateContent(parentTplContent: any, key: string): any {
   if (!parentTplContent) return undefined;
 
   // 步骤 1: 在父级模板内容中查找通用的原型规则
@@ -104,10 +104,9 @@ export function getInheritedTemplateContent(parentTplContent: any, key: string, 
  *
  * @param tplContent - 当前层级合并后的模板内容。
  * @param patchObj - 要应用模板的补丁数据。
- * @param logger - 日志记录器实例。
  * @returns {any} - 应用了模板默认值之后，最终合成的数据对象。
  */
-export function applyTemplateToPatch(tplContent: any, patchObj: any, logger: Logger): any {
+export function applyTemplateToPatch(tplContent: any, patchObj: any): any {
   logger.debug(
     'applyTemplateToPatch',
     `[进入] 模板内容: ${JSON.stringify(tplContent)}, 补丁: ${JSON.stringify(patchObj)}`,

@@ -1,4 +1,4 @@
-import { getEraData, Logger, removeMetaFields } from './utils';
+import { getEraData, Logger, removeMetaFields, unescapeEraData } from './utils';
 
 const logger = new Logger('query');
 
@@ -42,7 +42,15 @@ export function parseEraMacros(text: string): string {
     }
 
     // 根据 withMeta 标志决定是否移除 $meta 字段
-    const finalData = includeMeta ? data : removeMetaFields(data);
+    const dataBeforeUnescape = includeMeta ? data : removeMetaFields(data);
+
+    // 在返回数据前进行反转义
+    const finalData = unescapeEraData(dataBeforeUnescape);
+
+    logger.debug('parseEraMacros', `宏替换数据反转义: ${trimmedPath}`, {
+      before: dataBeforeUnescape,
+      after: finalData,
+    });
 
     // 如果是对象或数组, 转换为 JSON 字符串
     if (typeof finalData === 'object' && finalData !== null) {

@@ -27,9 +27,9 @@ import { processInsertBlocks } from './insert';
 import { readMessageKey } from './message_key';
 import { findLastAiMessage, getMessageContent, isUserMessage } from './message_utils';
 import { processEditBlocks } from './update';
-import { extractBlocks, Logger, parseEditLog, parseJsonl, updateEraMetaData } from './utils';
+import { escapeEraData, extractBlocks, Logger, parseEditLog, parseJsonl, updateEraMetaData } from './utils';
 
-const logger = new Logger('write');
+const logger = new Logger('variable_change_processor');
 
 /**
  * **【核心实现】** 对指定的消息应用变量修改。
@@ -39,6 +39,7 @@ const logger = new Logger('write');
  * @returns {Promise<string | null>} 如果成功处理，返回该消息的 MK；如果消息无需处理或处理失败，返回 null。
  */
 export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null> => {
+  logger.debug('ApplyVarChangeForMessage', `开始处理消息...`, { msg });
   try {
     if (!msg || typeof msg.message_id !== 'number') {
       logger.warn('ApplyVarChangeForMessage', '无效消息对象或缺少 message_id，退出');
@@ -72,20 +73,30 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
       logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
 
-    const allInserts = insertBlocks.flatMap(s => parseJsonl(s, logger));
-    const allEdits = editBlocks.flatMap(s => parseJsonl(s, logger));
-    const allDeletes = deleteBlocks.flatMap(s => parseJsonl(s, logger));
+    const rawInserts = insertBlocks.flatMap(s => parseJsonl(s, logger));
+    const rawEdits = editBlocks.flatMap(s => parseJsonl(s, logger));
+    const rawDeletes = deleteBlocks.flatMap(s => parseJsonl(s, logger));
+
+    // 在这里对从消息中解析出的原始数据进行转义，确保所有后续处理都使用转义后的数据。
+    const allInserts = escapeEraData(rawInserts);
+    const allEdits = escapeEraData(rawEdits);
+    const allDeletes = escapeEraData(rawDeletes);
+
+    logger.debug('ApplyVarChangeForMessage', '数据转义完成', {
+      before: { inserts: rawInserts, edits: rawEdits, deletes: rawDeletes },
+      after: { inserts: allInserts, edits: allEdits, deletes: allDeletes },
+    });
 
     const editLog: any[] = []; // 用于收集本轮操作产生的所有变更记录。
 
     // 2. --- 处理所有插入操作 (`<VariableInsert>`) ---
-    await processInsertBlocks(allInserts, editLog, logger);
+    await processInsertBlocks(allInserts, editLog);
 
     // 3. --- 处理所有编辑操作 (`<VariableEdit>`) ---
-    await processEditBlocks(allEdits, editLog, messageId, logger);
+    await processEditBlocks(allEdits, editLog, messageId);
 
     // 4. --- 处理所有删除操作 (`<VariableDelete>`) ---
-    await processDeleteBlocks(allDeletes, editLog, logger);
+    await processDeleteBlocks(allDeletes, editLog);
 
     // 5. --- 覆盖式写入 EditLog ---
     /*
@@ -146,6 +157,7 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
  * 它会自动寻找最后一条 AI 消息进行操作，通常被绑定到“新消息生成”等事件上。
  */
 export const ApplyVarChange = async () => {
+  logger.debug('ApplyVarChange', `函数被调用...`);
   // 1. 智能查找最后一条 AI 消息
   const msg = findLastAiMessage();
   if (!msg || typeof msg.message_id !== 'number') {

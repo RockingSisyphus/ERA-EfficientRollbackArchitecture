@@ -15,6 +15,8 @@
 import { findLatestNewValue } from './rollback';
 import { Logger, sanitizeArrays, updateEraStatData } from './utils';
 
+const logger = new Logger('update');
+
 /**
  * **【递归编辑】**
  * 实现了 `<VariableEdit>` 的核心逻辑：**只修改已存在的路径**。
@@ -30,7 +32,6 @@ import { Logger, sanitizeArrays, updateEraStatData } from './utils';
  * @param {string} basePath - 当前递归层级的基础路径。
  * @param {any} patchObj - 要应用的补丁对象。
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
- * @param {Logger} logger - 日志记录器实例。
  * @param {number} messageId - 当前正在处理的消息的 ID，用于历史追溯。
  * @param {Map<string, any>} intraMessageState - 用于跟踪在**同一条消息内部**对同一变量的连续修改。
  */
@@ -39,7 +40,6 @@ export async function applyEditAtLevel(
   basePath: string,
   patchObj: any,
   editLog: any[],
-  logger: Logger,
   messageId: number,
   intraMessageState: Map<string, any>,
 ) {
@@ -77,7 +77,7 @@ export async function applyEditAtLevel(
     // **策略一：递归深入**
     // 如果指令的值是对象，则继续向内递归。
     if (_.isPlainObject(valNew)) {
-      await applyEditAtLevel(statData, subPath, valNew, editLog, logger, messageId, intraMessageState);
+      await applyEditAtLevel(statData, subPath, valNew, editLog, messageId, intraMessageState);
       continue; // 继续处理下一个键。
     }
 
@@ -127,9 +127,8 @@ export async function applyEditAtLevel(
  * @param {any[]} allEdits - 从消息中解析出的所有 edit 指令对象。
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
  * @param {number} messageId - 当前正在处理的消息的 ID。
- * @param {Logger} logger - 日志记录器实例。
  */
-export async function processEditBlocks(allEdits: any[], editLog: any[], messageId: number, logger: Logger) {
+export async function processEditBlocks(allEdits: any[], editLog: any[], messageId: number) {
   if (allEdits.length > 0) {
     const intraMessageState = new Map<string, any>(); // 用于跟踪在**本消息内部**对变量的连续修改。
     // N.B. 同样，编辑操作也需要独立调用以确保能读取到同一消息中、此前已完成的插入或编辑操作的结果。
@@ -139,7 +138,7 @@ export async function processEditBlocks(allEdits: any[], editLog: any[], message
         await updateEraStatData(async stat => {
           logger.debug('processEditBlocks', `处理 editRoot: ${JSON.stringify(editRoot)}`);
           // 从根路径 '' 开始统一递归入口，保持逻辑一致性。
-          await applyEditAtLevel(stat, '', editRoot, editLog, logger, messageId, intraMessageState);
+          await applyEditAtLevel(stat, '', editRoot, editLog, messageId, intraMessageState);
           return stat;
         });
       } catch (e: any) {

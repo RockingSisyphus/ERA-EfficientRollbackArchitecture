@@ -194,19 +194,19 @@ export const LOG_CONFIG = {
   // 'debug' 级别的白名单。只有当 currentLevel 为 debug 时，此列表才生效。
   // 只有在此列表中的模块才会输出 debug 日志。
   debugWhitelist: [
-    'sync',
-    'rollback',
-    'update',
-    'event_queue',
-    //'message_key',
-    //'message_macro_processor',
-    'write',
-    'insert',
+    'api',
     'delete',
-    'query',
-    //'template',
+    'event_queue',
     'force_macro_render',
+    'insert',
+    'message_key',
     'message_utils',
+    'query',
+    'rollback',
+    'sync',
+    'template',
+    'update',
+    'variable_change_processor',
   ] as string[],
 };
 // 初始化时将 currentLevel 设置为 debug 级别

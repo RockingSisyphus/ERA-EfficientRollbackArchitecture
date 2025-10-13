@@ -1,8 +1,7 @@
 {
   "scripts": {
-    "build:dev": "webpack --mode development",
-    "build": "webpack --mode production",
-    "build:bundle": "cross-env BUILD_TARGET=ERA变量框架 webpack --mode production",
+    "build": "webpack --mode development",
+    "release": "webpack --mode production",
     "watch": "webpack --mode development --watch --progress",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,scss,html,vue}\"",
     "lint": "eslint",

@@ -13,6 +13,8 @@
 
 import { Logger, updateEraStatData } from './utils';
 
+const logger = new Logger('delete');
+
 /**
  * **【递归删除】**
  * 实现了 `<VariableDelete>` 的核心逻辑，其行为由指令 `patchObj` 的结构驱动。
@@ -21,9 +23,8 @@ import { Logger, updateEraStatData } from './utils';
  * @param {string} basePath - 当前递归层级的基础路径。
  * @param {any} patchObj - 从指令中解析出的、与 `basePath` 对应的部分。
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
- * @param {Logger} logger - 日志记录器实例。
  */
-function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, editLog: any[], logger: Logger) {
+function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, editLog: any[]) {
   // --- 1. 入口守卫和状态获取 ---
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
 
@@ -59,7 +60,7 @@ function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, edit
     for (const key of Object.keys(patchObj)) {
       const fullPath = basePath ? `${basePath}.${key}` : key;
       const subPatchObj = patchObj[key];
-      applyDeleteAtLevel(statData, fullPath, subPatchObj, editLog, logger);
+      applyDeleteAtLevel(statData, fullPath, subPatchObj, editLog);
     }
     return; // 子节点处理完毕，返回。
   }
@@ -96,9 +97,8 @@ function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, edit
  *
  * @param {any[]} allDeletes - 从消息中解析出的所有 delete 指令对象。
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
- * @param {Logger} logger - 日志记录器实例。
  */
-export async function processDeleteBlocks(allDeletes: any[], editLog: any[], logger: Logger) {
+export async function processDeleteBlocks(allDeletes: any[], editLog: any[]) {
   if (allDeletes.length > 0) {
     for (const deleteRoot of allDeletes) {
       if (!_.isPlainObject(deleteRoot) || _.isEmpty(deleteRoot)) continue;
@@ -106,7 +106,7 @@ export async function processDeleteBlocks(allDeletes: any[], editLog: any[], log
         await updateEraStatData(stat => {
           logger.debug('processDeleteBlocks', `处理 deleteRoot: ${JSON.stringify(deleteRoot)}`);
           // 从根路径开始递归
-          applyDeleteAtLevel(stat, '', deleteRoot, editLog, logger);
+          applyDeleteAtLevel(stat, '', deleteRoot, editLog);
           return stat;
         });
       } catch (e: any) {

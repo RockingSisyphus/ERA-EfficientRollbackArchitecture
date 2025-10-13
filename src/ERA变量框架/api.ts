@@ -19,7 +19,7 @@
 import _ from 'lodash';
 import { ERA_EVENT_EMITTER } from './constants';
 import { findLastAiMessage, getMessageContent } from './message_utils';
-import { J, Logger, updateMessageContent } from './utils';
+import { J, Logger, unescapeEraData, updateMessageContent } from './utils';
 
 const logger = new Logger('api');
 
@@ -285,7 +285,19 @@ export interface WriteDonePayload {
  * });
  */
 export function emitWriteDoneEvent(payload: WriteDonePayload) {
-  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, payload);
+  // 在广播前，对需要暴露给外部的数据进行反转义
+  const unescapedPayload = {
+    ...payload,
+    stat: unescapeEraData(payload.stat),
+    statWithoutMeta: unescapeEraData(payload.statWithoutMeta),
+  };
+
+  logger.debug('emitWriteDoneEvent', 'writeDone事件广播数据反转义', {
+    before: { stat: payload.stat, statWithoutMeta: payload.statWithoutMeta },
+    after: { stat: unescapedPayload.stat, statWithoutMeta: unescapedPayload.statWithoutMeta },
+  });
+
+  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, unescapedPayload);
   logger.log(
     'emitWriteDoneEvent',
     `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(

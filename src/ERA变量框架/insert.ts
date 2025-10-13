@@ -15,6 +15,8 @@
 import { applyTemplateToPatch, getInheritedTemplateContent, resolveTemplate } from './template';
 import { Logger, sanitizeArrays, updateEraStatData } from './utils';
 
+const logger = new Logger('insert');
+
 /**
  * **【递归插入】**
  * 实现了 `<VariableInsert>` 的核心逻辑：**非破坏性地**递归插入值。
@@ -32,7 +34,6 @@ import { Logger, sanitizeArrays, updateEraStatData } from './utils';
  * @param {any[]} editLog - 用于收集变更记录的日志数组（引用传递）。
  * @param {any} inheritedContent - 从上层继承的、纯粹的模板“内容”对象。
  * @param {any} parentData - 当前节点的父节点在 `statData` 中的数据。
- * @param {Logger} logger - 日志记录器实例。
  */
 export function applyInsertAtLevel(
   statData: any,
@@ -41,11 +42,10 @@ export function applyInsertAtLevel(
   editLog: any[],
   inheritedContent: any,
   parentData: any, // 新增参数，直接传递父节点数据
-  logger: Logger,
 ) {
   // --- 1. 确定当前层级的模板内容 ---
   // 调用 resolveTemplate，它现在直接使用传入的 parentData
-  const localTplContent = resolveTemplate(inheritedContent, parentData, logger);
+  const localTplContent = resolveTemplate(inheritedContent, parentData);
   logger.debug('applyInsertAtLevel', `[入口] basePath: "${basePath || 'root'}"`, {
     statData: _.cloneDeep(statData),
   });
@@ -62,7 +62,7 @@ export function applyInsertAtLevel(
   // 如果当前路径在变量中不存在，则将整个补丁对象作为新值一次性插入。
   if (basePath && currentNodeInVars === undefined) {
     // 调用 applyTemplateToPatch 函数，将合并后的模板内容应用到补丁上
-    const composed = applyTemplateToPatch(localTplContent, patchObj, logger);
+    const composed = applyTemplateToPatch(localTplContent, patchObj);
 
     const finalValue = sanitizeArrays(composed); // 清理数组中的 null 等无效值。
     logger.debug('applyInsertAtLevel', `最终插入数据 at ${basePath}:\n${JSON.stringify(finalValue, null, 2)}`);
@@ -84,14 +84,14 @@ export function applyInsertAtLevel(
       const subPath = basePath ? `${basePath}.${key}` : key;
       const subPatch = patchObj[key];
       // 调用 getInheritedTemplateContent，从当前模板内容中为子节点查找其应继承的内容
-      const subInheritedContent = getInheritedTemplateContent(localTplContent, key, logger);
+      const subInheritedContent = getInheritedTemplateContent(localTplContent, key);
       logger.debug(
         'applyInsertAtLevel',
         `  - 准备递归子节点: "${key}"
       - 将传递给子节点的模板 (subInheritedContent): ${JSON.stringify(subInheritedContent)}`,
       );
       // 将当前节点数据 currentNodeInVars 作为下一层的 parentData 传递下去
-      applyInsertAtLevel(statData, subPath, subPatch, editLog, subInheritedContent, currentNodeInVars, logger);
+      applyInsertAtLevel(statData, subPath, subPatch, editLog, subInheritedContent, currentNodeInVars);
     }
   } else if (basePath) {
     // **插入失败**
@@ -107,9 +107,8 @@ export function applyInsertAtLevel(
  *
  * @param {any[]} allInserts - 从消息中解析出的所有 insert 指令对象。
  * @param {any[]} editLog - 用于收集变更记录的日志数组。
- * @param {Logger} logger - 日志记录器实例。
  */
-export async function processInsertBlocks(allInserts: any[], editLog: any[], logger: Logger) {
+export async function processInsertBlocks(allInserts: any[], editLog: any[]) {
   if (allInserts.length > 0) {
     await updateEraStatData(async stat => {
       logger.debug('processInsertBlocks', '[初始状态] 进入 processInsertBlocks 时的 statData:', _.cloneDeep(stat));
@@ -127,7 +126,7 @@ export async function processInsertBlocks(allInserts: any[], editLog: any[], log
         await updateEraStatData(stat => {
           logger.debug('processInsertBlocks', `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
           // 从根路径 '' 开始统一递归入口，顶层调用时，父节点为 null
-          applyInsertAtLevel(stat, '', insertRoot, editLog, null, null, logger);
+          applyInsertAtLevel(stat, '', insertRoot, editLog, null, null);
           return stat;
         });
       } catch (e: any) {
