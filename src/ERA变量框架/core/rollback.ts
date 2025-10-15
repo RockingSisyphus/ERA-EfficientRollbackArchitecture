@@ -14,10 +14,12 @@
 
 'use strict';
 
-import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from './constants';
-import { readMessageKey } from './message_key';
-import { getMessageContent, isUserMessage } from './message_utils';
-import { getEraData, J, Logger, parseEditLog } from './utils';
+import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from '../utils/constants';
+import { readMessageKey } from './key/message_key';
+import { getMessageContent, isUserMessage } from '../utils/message_utils';
+import { getEraData } from '../utils/era_data';
+import { J, parseEditLog } from '../utils/data';
+import { Logger } from '../utils/log';
 
 const logger = new Logger('rollback');
 

@@ -17,9 +17,11 @@
  */
 
 import _ from 'lodash';
-import { ERA_EVENT_EMITTER } from './constants';
-import { findLastAiMessage, getMessageContent } from './message_utils';
-import { J, Logger, unescapeEraData, updateMessageContent } from './utils';
+import { ERA_EVENT_EMITTER, WriteDonePayload } from '../utils/constants';
+import { findLastAiMessage, getMessageContent } from '../utils/message_utils';
+import { updateMessageContent } from '../utils/message';
+import { J, unescapeEraData } from '../utils/data';
+import { Logger } from '../utils/log';
 
 const logger = new Logger('api');
 
@@ -218,54 +220,6 @@ export function deleteByPath(path: string) {
 // ==================================================================
 
 /**
- * `era:writeDone` 事件的负载对象结构。它提供了关于一次成功写入操作的完整上下文。
- */
-export interface WriteDonePayload {
-  /**
-   * 本轮事件处理循环中，最后操作的消息的**消息密钥 (Message Key)**。
-   * 通常由 `ensureMkForLatestMessage` 在循环开始时确定。
-   */
-  mk: string;
-  /**
-   * 本轮事件处理循环中，最后操作的消息的**消息 ID**。
-   */
-  message_id: number;
-  /**
-   * 描述在本轮事件处理中，执行了哪些核心操作。
-   * 这对于外部脚本理解状态变更的原因至关重要。
-   */
-  actions: {
-    /** 是否执行了 `rollbackByMk` 操作 */
-    rollback: boolean;
-    /** 是否执行了 `ApplyVarChange` 操作 */
-    apply: boolean;
-    /** 是否执行了 `resyncStateOnHistoryChange` 操作 */
-    resync: boolean;
-  };
-  /**
-   * 事件处理完成**之后**，整个聊天会话的**已选择消息密钥链 (Selected Message Keys)** 的最新状态。
-   * 这是一个稀疏数组，其索引约等于消息 ID，值是对应楼层消息的 MK。
-   * 它代表了当前聊天记录的“主干”，是 ERA 判断同步状态的核心数据结构。
-   */
-  selectedMks: (string | null)[];
-  /**
-   * 事件处理完成**之后**，`chat` 变量中存储的**完整的编辑日志对象 (EditLogs)**。
-   * 这是一个以 MK 为键，以变更记录数组为值的对象。
-   */
-  editLogs: { [key: string]: any[] };
-  /**
-   * 事件处理完成**之后**，整个聊天会话的**状态数据 (`stat_data`)** 的最新状态。
-   * 这个版本**包含**所有内部使用的 `$meta` 字段。
-   */
-  stat: any;
-  /**
-   * 事件处理完成**之后**，一个**不包含**任何 `$meta` 字段的 `stat_data` 的深拷贝版本。
-   * 适用于需要纯净数据进行展示或进一步处理的场景。
-   */
-  statWithoutMeta: any;
-}
-
-/**
  * **【广播器】** 触发 `era:writeDone` 事件。
  * 当一次完整的变量写入操作（包括增、删、改）在 `variable_change_processor.ts` 中成功完成后，
  * 应调用此函数。它向外部脚本广播一个事件，通知它们变量状态已发生改变，并提供详细的上下文。
@@ -302,6 +256,6 @@ export function emitWriteDoneEvent(payload: WriteDonePayload) {
     'emitWriteDoneEvent',
     `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(
       payload.actions,
-    )}, MK: ${payload.mk}, MsgID: ${payload.message_id}`,
+    )}, MK: ${payload.mk}, MsgID: ${payload.message_id}, 连续处理次数: ${payload.consecutiveProcessingCount}`,
   );
 }

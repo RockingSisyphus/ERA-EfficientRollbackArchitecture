@@ -21,13 +21,16 @@
 
 'use strict';
 
-import { LOGS_PATH, SEL_PATH } from './constants';
+import { LOGS_PATH, SEL_PATH } from '../../utils/constants';
 import { processDeleteBlocks } from './delete';
-import { processInsertBlocks } from './insert';
-import { readMessageKey } from './message_key';
-import { findLastAiMessage, getMessageContent, isUserMessage } from './message_utils';
+import { processInsertBlocks } from './insert/insert';
+import { readMessageKey } from '../../core/key/message_key';
+import { findLastAiMessage, getMessageContent, isUserMessage } from '../../utils/message_utils';
 import { processEditBlocks } from './update';
-import { escapeEraData, extractBlocks, Logger, parseEditLog, parseJsonl, updateEraMetaData } from './utils';
+import { updateEraMetaData } from '../../utils/era_data';
+import { extractBlocks } from '../../utils/string';
+import { escapeEraData, parseEditLog, parseJsonl } from '../../utils/data';
+import { Logger } from '../../utils/log';
 
 const logger = new Logger('variable_change_processor');
 
@@ -73,9 +76,9 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
       logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
 
-    const rawInserts = insertBlocks.flatMap(s => parseJsonl(s, logger));
-    const rawEdits = editBlocks.flatMap(s => parseJsonl(s, logger));
-    const rawDeletes = deleteBlocks.flatMap(s => parseJsonl(s, logger));
+    const rawInserts = insertBlocks.flatMap(s => parseJsonl(s));
+    const rawEdits = editBlocks.flatMap(s => parseJsonl(s));
+    const rawDeletes = deleteBlocks.flatMap(s => parseJsonl(s));
 
     // 在这里对从消息中解析出的原始数据进行转义，确保所有后续处理都使用转义后的数据。
     const allInserts = escapeEraData(rawInserts);

@@ -1,4 +1,6 @@
-import { getEraData, Logger, removeMetaFields, unescapeEraData } from './utils';
+import { getEraData, removeMetaFields } from '../../utils/era_data';
+import { unescapeEraData } from '../../utils/data';
+import { Logger } from '../../utils/log';
 
 const logger = new Logger('query');
 

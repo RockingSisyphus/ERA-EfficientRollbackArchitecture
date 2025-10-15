@@ -14,11 +14,11 @@
 
 'use strict';
 
-import { EVENT_GROUPS } from './constants';
-import { pushToQueue } from './event_queue';
+import { EVENT_GROUPS } from './events/merger';
+import { pushToQueue } from './events/queue';
 
 // 导入查询模块, 以注册 {{ERA:...}} 宏
-import './query';
+import './api/macro/parser';
 
 // ===============================
 // 事件监听器注册

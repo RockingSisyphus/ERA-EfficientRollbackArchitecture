@@ -1,6 +1,7 @@
 'use strict';
 
-import { Logger, mergeReplaceArray } from './utils';
+import { mergeReplaceArray } from '../../../utils/data';
+import { Logger } from '../../../utils/log';
 
 const logger = new Logger('template');
 

@@ -4,7 +4,7 @@
  */
 
 import _ from 'lodash';
-import { Logger } from './utils';
+import { Logger } from '../../utils/log';
 
 const log = new Logger('force_macro_render');
 

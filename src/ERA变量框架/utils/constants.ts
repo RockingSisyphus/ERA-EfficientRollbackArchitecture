@@ -124,90 +124,57 @@ export const ERA_EVENT_EMITTER = {
 } as const;
 
 /**
- * @description 定义需要监听的事件的分组
+ * `era:writeDone` 事件的负载对象结构。它提供了关于一次成功写入操作的完整上下文。
  */
-export const EVENT_GROUPS = {
-  WRITE: [
-    //tavern_events.CHARACTER_MESSAGE_RENDERED,
-    tavern_events.APP_READY,
-    'manual_write',
-    ERA_EVENT_EMITTER.API_WRITE,
-    //tavern_events.MESSAGE_RECEIVED,
-  ],
-  SYNC: [
-    tavern_events.MESSAGE_RECEIVED,
-    tavern_events.MESSAGE_DELETED,
-    tavern_events.MESSAGE_SWIPED,
-    tavern_events.CHAT_CHANGED,
-    'manual_sync',
-    'manual_full_sync',
-  ],
-  API: Object.values(ERA_API_EVENTS),
-  /** 仅更新MK的事件 */
-  UPDATE_MK_ONLY: [tavern_events.MESSAGE_SENT],
-  /** 仅用于对冲检测的事件，本身不触发逻辑 */
-  COLLISION_DETECTORS: [tavern_events.GENERATION_STARTED],
-};
-
-/**
- * @constant {Map<string, string>} EVENT_COLLISION_MAP
- * @description
- * 定义了事件对冲规则。
- * 如果在事件队列的同一次批处理中，同时出现了 key 事件和 value 事件，
- * 则这两个事件都将被忽略。
- *
- * @example
- * // 当用户快速左滑然后点击生成时，会依次触发 `MESSAGE_SWIPED` 和 `GENERATION_STARTED`。
- * // 这条规则会捕获这种模式并同时忽略这两个事件，避免不必要的同步。
- * new Map([
- *   [tavern_events.MESSAGE_SWIPED, tavern_events.GENERATION_STARTED]
- * ])
- */
-export const EVENT_COLLISION_MAP = new Map<string, string>([
-  [tavern_events.MESSAGE_SWIPED, tavern_events.GENERATION_STARTED],
-]);
-
-/**
- * @constant {number} RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION
- * @description 当 `ensureMessageKey` 注入一个新的 MK 后，需要忽略的由该操作触发的 `character_message_rendered` 事件的数量。
- * 通常设置为 1，因为一次消息内容更新通常只会触发一次渲染事件。
- */
-export const RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION = 1;
-
-/**
- * @constant {object} LOG_CONFIG
- * @description
- * 用于控制日志输出的配置对象。
- */
-export const LOG_CONFIG = {
-  // 定义所有可用的日志级别及其权重。数字越小，级别越低。
-  levels: {
-    debug: 0,
-    log: 1,
-    warn: 2,
-    error: 3,
-  },
-
-  // 设置当前全局日志级别。只有权重等于或高于此级别的日志才会被输出。
-  currentLevel: 0, // 默认为 'debug'
-
-  // 'debug' 级别的白名单。只有当 currentLevel 为 debug 时，此列表才生效。
-  // 只有在此列表中的模块才会输出 debug 日志。
-  debugWhitelist: [
-    'api',
-    'delete',
-    'event_queue',
-    'force_macro_render',
-    'insert',
-    'message_key',
-    'message_utils',
-    'query',
-    'rollback',
-    'sync',
-    'template',
-    'update',
-    'variable_change_processor',
-  ] as string[],
-};
-// 初始化时将 currentLevel 设置为 debug 级别
-LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
+export interface WriteDonePayload {
+  /**
+   * 本轮事件处理循环中，最后操作的消息的**消息密钥 (Message Key)**。
+   * 通常由 `ensureMkForLatestMessage` 在循环开始时确定。
+   */
+  mk: string;
+  /**
+   * 本轮事件处理循环中，最后操作的消息的**消息 ID**。
+   */
+  message_id: number;
+  /**
+   * 描述在本轮事件处理中，执行了哪些核心操作。
+   * 这对于外部脚本理解状态变更的原因至关重要。
+   */
+  actions: {
+    /** 是否执行了 `rollbackByMk` 操作 */
+    rollback: boolean;
+    /** 是否执行了 `ApplyVarChange` 操作 */
+    apply: boolean;
+    /** 是否执行了 `resyncStateOnHistoryChange` 操作 */
+    resync: boolean;
+    /** 是否执行了 API 调用 */
+    api: boolean;
+  };
+  /**
+   * 事件处理完成**之后**，整个聊天会话的**已选择消息密钥链 (Selected Message Keys)** 的最新状态。
+   * 这是一个稀疏数组，其索引约等于消息 ID，值是对应楼层消息的 MK。
+   * 它代表了当前聊天记录的“主干”，是 ERA 判断同步状态的核心数据结构。
+   */
+  selectedMks: (string | null)[];
+  /**
+   * 事件处理完成**之后**，`chat` 变量中存储的**完整的编辑日志对象 (EditLogs)**。
+   * 这是一个以 MK 为键，以变更记录数组为值的对象。
+   */
+  editLogs: { [key: string]: any[] };
+  /**
+   * 事件处理完成**之后**，整个聊天会话的**状态数据 (`stat_data`)** 的最新状态。
+   * 这个版本**包含**所有内部使用的 `$meta` 字段。
+   */
+  stat: any;
+  /**
+   * 事件处理完成**之后**，一个**不包含**任何 `$meta` 字段的 `stat_data` 的深拷贝版本。
+   * 适用于需要纯净数据进行展示或进一步处理的场景。
+   */
+  statWithoutMeta: any;
+  /**
+   * 表示这是对当前 `mk` 的第几次连续处理。
+   * 如果一个新的 `mk` 被处理，这个计数会重置为 1。
+   * 这对于需要感知状态是否在同一消息上连续更新的外部脚本很有用。
+   */
+  consecutiveProcessingCount: number;
+}

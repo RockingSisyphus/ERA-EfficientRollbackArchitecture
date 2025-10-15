@@ -13,7 +13,9 @@
 'use strict';
 
 import { applyTemplateToPatch, getInheritedTemplateContent, resolveTemplate } from './template';
-import { Logger, sanitizeArrays, updateEraStatData } from './utils';
+import { updateEraStatData } from '../../../utils/era_data';
+import { sanitizeArrays } from '../../../utils/data';
+import { Logger } from '../../../utils/log';
 
 const logger = new Logger('insert');
 

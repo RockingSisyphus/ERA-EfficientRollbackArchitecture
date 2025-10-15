@@ -27,9 +27,13 @@
 
 'use strict';
 
-import { ERA_DATA_REGEX, ERA_DATA_TAG, SEL_PATH } from './constants';
-import { getMessageContent } from './message_utils';
-import { Logger, rnd, updateEraMetaData, updateMessageContent } from './utils';
+import _ from 'lodash';
+import { ERA_DATA_REGEX, ERA_DATA_TAG, SEL_PATH } from '../../utils/constants';
+import { getMessageContent } from '../../utils/message_utils';
+import { updateMessageContent } from '../../utils/message';
+import { updateEraMetaData } from '../../utils/era_data';
+import { rnd } from '../../utils/string';
+import { Logger } from '../../utils/log';
 
 const logger = new Logger('message_key');
 

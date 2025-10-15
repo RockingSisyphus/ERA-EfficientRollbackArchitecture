@@ -12,8 +12,10 @@
  */
 'use strict';
 
-import { findLatestNewValue } from './rollback';
-import { Logger, sanitizeArrays, updateEraStatData } from './utils';
+import { findLatestNewValue } from '../rollback';
+import { updateEraStatData } from '../../utils/era_data';
+import { sanitizeArrays } from '../../utils/data';
+import { Logger } from '../../utils/log';
 
 const logger = new Logger('update');
 

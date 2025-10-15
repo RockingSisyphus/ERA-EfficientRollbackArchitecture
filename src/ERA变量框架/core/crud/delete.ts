@@ -11,7 +11,8 @@
  */
 'use strict';
 
-import { Logger, updateEraStatData } from './utils';
+import { updateEraStatData } from '../../utils/era_data';
+import { Logger } from '../../utils/log';
 
 const logger = new Logger('delete');
 

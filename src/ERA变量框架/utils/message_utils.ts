@@ -7,7 +7,7 @@
 'use strict';
 
 import { ERA_DATA_REGEX } from './constants';
-import { Logger } from './utils';
+import { Logger } from './log';
 
 const log = new Logger('message_utils');
 

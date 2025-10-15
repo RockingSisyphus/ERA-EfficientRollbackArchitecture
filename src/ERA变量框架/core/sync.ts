@@ -25,12 +25,14 @@
  * **最终效果**: 无论历史记录发生何种变化，变量状态都能被完美地自动修复，确保数据一致性。
  */
 
-import { LOGS_PATH, SEL_PATH } from './constants';
-import { readMessageKey } from './message_key';
-import { findLastAiMessage } from './message_utils';
+import { LOGS_PATH, SEL_PATH } from '../utils/constants';
+import { readMessageKey } from './key/message_key';
+import { findLastAiMessage } from '../utils/message_utils';
 import { rollbackByMk } from './rollback';
-import { getEraData, Logger, parseEditLog, updateEraMetaData } from './utils';
-import { ApplyVarChangeForMessage } from './variable_change_processor';
+import { getEraData, updateEraMetaData } from '../utils/era_data';
+import { parseEditLog } from '../utils/data';
+import { Logger } from '../utils/log';
+import { ApplyVarChangeForMessage } from './crud/variable_change_processor';
 
 const logger = new Logger('sync');
 
