@@ -48,6 +48,13 @@ export interface ConsecutiveMkState {
 }
 
 /**
+ * @var {ConsecutiveMkState | null} consecutiveMkState
+ * @description 追踪同一个 MK 被连续处理次数的状态。
+ * **作用域**: 跨批次持久化。在整个脚本生命周期内，记录字面意义上的“上一次”执行的 MK。
+ */
+let consecutiveMkState: ConsecutiveMkState | null = null;
+
+/**
  * **【辅助函数】处理由 MK 注入触发的冗余渲染事件**
  * @param eventType - 当前事件的类型。
  * @param currentMk - 当前消息的 MK。
@@ -78,21 +85,13 @@ function handleRedundantRenderEvent(
  * **【任务执行器】**
  * 负责执行单个事件任务，包含所有前置、后置处理和错误捕获。
  * @param {EventJob} job - 要执行的事件任务。
- * @param {IgnoreRule | null} mkToIgnore - 当前的忽略规则。
- * @param {ConsecutiveMkState | null} consecutiveMkState - 当前的连续处理计数状态。
- * @returns {Promise<{
- *   newIgnoreRule: IgnoreRule | null;
- *   newConsecutiveMkState: ConsecutiveMkState | null;
- * }>} - 返回更新后的状态。
+ * @param {IgnoreRule | null} mkToIgnore - 当前的忽略规则。**作用域**: 仅在单次批处理 (event queue processing loop) 中生效。
+ * @returns {Promise<IgnoreRule | null>} - 返回更新后的忽略规则。
  */
 export async function dispatchAndExecuteTask(
   job: EventJob,
   mkToIgnore: IgnoreRule | null,
-  consecutiveMkState: ConsecutiveMkState | null,
-): Promise<{
-  newIgnoreRule: IgnoreRule | null;
-  newConsecutiveMkState: ConsecutiveMkState | null;
-}> {
+): Promise<IgnoreRule | null> {
   const { type: eventType, detail } = job;
   const eventGroup = getEventGroup(eventType);
   let message_id: number | null = null;
@@ -120,16 +119,8 @@ export async function dispatchAndExecuteTask(
     mkToIgnore = newIgnoreRule; // 更新忽略规则的状态
     if (shouldSkip) {
       // 如果事件被忽略，则直接返回，不更新连续处理计数
-      return { newIgnoreRule: mkToIgnore, newConsecutiveMkState: consecutiveMkState };
+      return mkToIgnore;
     }
-
-    // **只有在事件不被忽略时，才更新连续处理计数**
-    if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
-      consecutiveMkState.count++;
-    } else {
-      consecutiveMkState = { mk: mk, count: 1 };
-    }
-    currentConsecutiveCount = consecutiveMkState.count;
 
     logger.log('dispatchAndExecuteTask', `执行任务: ${eventType} (分组: ${eventGroup})`);
 
@@ -179,6 +170,18 @@ export async function dispatchAndExecuteTask(
     if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync) {
       // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
       await updateLatestSelectedMk();
+
+      // **只有在事件实际执行了写入/同步操作时，才更新连续处理计数**
+      const mk = logContext.mk;
+      if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
+        logger.debug('dispatchAndExecuteTask', `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`);
+        consecutiveMkState.count++;
+      } else {
+        logger.debug('dispatchAndExecuteTask', `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`);
+        consecutiveMkState = { mk: mk, count: 1 };
+      }
+      currentConsecutiveCount = consecutiveMkState.count;
+
       // 在所有操作（包括校准）完成后，获取最新状态并广播事件
       if (logContext.mk && message_id !== null) {
         const { meta: metaData, stat: statData } = getEraData();
@@ -207,5 +210,5 @@ export async function dispatchAndExecuteTask(
     //await new Promise(resolve => setTimeout(resolve, 50));
   }
 
-  return { newIgnoreRule: mkToIgnore, newConsecutiveMkState: consecutiveMkState };
+  return mkToIgnore;
 }

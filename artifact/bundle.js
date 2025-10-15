@@ -1319,6 +1319,8 @@ const dispatcher_logger = new Logger("events-dispatcher");
 
 const RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION = 1;
 
+let consecutiveMkState = null;
+
 function handleRedundantRenderEvent(eventType, currentMk, mkToIgnore) {
   if (mkToIgnore && eventType === tavern_events.CHARACTER_MESSAGE_RENDERED && currentMk === mkToIgnore.mk) {
     dispatcher_logger.log("handleRedundantRenderEvent", `忽略由 MK (${mkToIgnore.mk}) 注入触发的冗余渲染事件。剩余忽略次数: ${mkToIgnore.ignoreCount - 1}`);
@@ -1338,7 +1340,7 @@ function handleRedundantRenderEvent(eventType, currentMk, mkToIgnore) {
   };
 }
 
-async function dispatchAndExecuteTask(job, mkToIgnore, consecutiveMkState) {
+async function dispatchAndExecuteTask(job, mkToIgnore) {
   const {type: eventType, detail} = job;
   const eventGroup = getEventGroup(eventType);
   let message_id = null;
@@ -1362,20 +1364,8 @@ async function dispatchAndExecuteTask(job, mkToIgnore, consecutiveMkState) {
     const {shouldSkip, newIgnoreRule} = handleRedundantRenderEvent(eventType, mk, mkToIgnore);
     mkToIgnore = newIgnoreRule;
     if (shouldSkip) {
-      return {
-        newIgnoreRule: mkToIgnore,
-        newConsecutiveMkState: consecutiveMkState
-      };
+      return mkToIgnore;
     }
-    if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
-      consecutiveMkState.count++;
-    } else {
-      consecutiveMkState = {
-        mk,
-        count: 1
-      };
-    }
-    currentConsecutiveCount = consecutiveMkState.count;
     dispatcher_logger.log("dispatchAndExecuteTask", `执行任务: ${eventType} (分组: ${eventGroup})`);
     dispatcher_logger.debug("dispatchAndExecuteTask - task dispatch", `分发事件: ${eventType}`, {
       detail,
@@ -1412,6 +1402,18 @@ async function dispatchAndExecuteTask(job, mkToIgnore, consecutiveMkState) {
   } finally {
     if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync) {
       await updateLatestSelectedMk();
+      const mk = logContext.mk;
+      if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
+        dispatcher_logger.debug("dispatchAndExecuteTask", `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`);
+        consecutiveMkState.count++;
+      } else {
+        dispatcher_logger.debug("dispatchAndExecuteTask", `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`);
+        consecutiveMkState = {
+          mk,
+          count: 1
+        };
+      }
+      currentConsecutiveCount = consecutiveMkState.count;
       if (logContext.mk && message_id !== null) {
         const {meta: metaData, stat: statData} = getEraData();
         const selectedMks = external_default().get(metaData, constants_SEL_PATH, []);
@@ -1431,10 +1433,7 @@ async function dispatchAndExecuteTask(job, mkToIgnore, consecutiveMkState) {
     }
     logContext.mk = "";
   }
-  return {
-    newIgnoreRule: mkToIgnore,
-    newConsecutiveMkState: consecutiveMkState
-  };
+  return mkToIgnore;
 }
 
 const queue_logger = new Logger("events-queue");
@@ -1460,7 +1459,6 @@ async function processQueue() {
   isProcessing = true;
   queue_logger.log("processQueue", "处理器启动...");
   let mkToIgnore = null;
-  let consecutiveMkState = null;
   while (eventQueue.length > 0) {
     const nextJob = eventQueue[0];
     const nextGroup = getEventGroup(nextJob.type);
@@ -1471,9 +1469,8 @@ async function processQueue() {
     const batchToProcess = eventQueue.splice(0, eventQueue.length);
     const finalJobs = mergeEventBatch(batchToProcess);
     for (const job of finalJobs) {
-      const {newIgnoreRule, newConsecutiveMkState} = await dispatchAndExecuteTask(job, mkToIgnore, consecutiveMkState);
+      const newIgnoreRule = await dispatchAndExecuteTask(job, mkToIgnore);
       mkToIgnore = newIgnoreRule;
-      consecutiveMkState = newConsecutiveMkState;
     }
     queue_logger.debug("processQueue", "本轮批次处理完毕。");
   }

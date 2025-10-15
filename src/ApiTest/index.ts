@@ -167,18 +167,19 @@ $(() => {
 
   // 监听 ERA 框架的写入完成事件
   eventOn('era:writeDone', detail => {
-    const { mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta } = detail;
+    const { mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta, consecutiveProcessingCount } = detail;
     const funcName = 'onWriteDone';
 
     logger.log(
       funcName,
-      `接收到 era:writeDone 事件 (MK: ${mk}, MsgID: ${message_id}, Actions: ${JSON.stringify(actions)})`,
+      `接收到 era:writeDone 事件 (MK: ${mk}, MsgID: ${message_id}, Actions: ${JSON.stringify(actions)}, Consecutive: ${consecutiveProcessingCount})`,
     );
 
     // 使用 logger.debug 输出详细信息，避免在常规日志中刷屏
     logger.debug(funcName, '--- Event Payload Details ---');
     logger.debug(funcName, `Message Key (mk): ${mk}`);
     logger.debug(funcName, `Message ID (message_id): ${message_id}`);
+    logger.debug(funcName, `Consecutive Processing Count: ${consecutiveProcessingCount}`);
     logger.debug(funcName, `Actions: ${JSON.stringify(actions, null, 2)}`);
 
     // 对于大型对象，使用 JSON.stringify 配合 logger.debug

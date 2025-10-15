@@ -16,7 +16,7 @@
 'use strict';
 
 import _ from 'lodash';
-import { ConsecutiveMkState, dispatchAndExecuteTask, IgnoreRule } from './dispatcher';
+import { dispatchAndExecuteTask, IgnoreRule } from './dispatcher';
 import { EventJob, getEventGroup, mergeEventBatch } from './merger';
 import { Logger } from '../utils/log';
 
@@ -58,9 +58,8 @@ async function processQueue() {
   logger.log('processQueue', '处理器启动...');
 
   // --- 状态初始化 ---
-  // 这些状态变量定义在 while 循环外部，以在不同批次的事件处理之间保持连续性。
+  // `mkToIgnore` 仅在单次批处理循环中持续存在。
   let mkToIgnore: IgnoreRule | null = null;
-  let consecutiveMkState: ConsecutiveMkState | null = null;
 
   while (eventQueue.length > 0) {
     // 【事件收集窗口与防抖】
@@ -78,16 +77,14 @@ async function processQueue() {
     // --- 2. 严格按顺序执行合并后的任务 ---
     for (const job of finalJobs) {
       // **委托执行**
-      // 将当前任务和上下文状态传递给执行器
-      const { newIgnoreRule, newConsecutiveMkState } = await dispatchAndExecuteTask(
+      // 将当前任务和批处理上下文（mkToIgnore）传递给执行器
+      const newIgnoreRule = await dispatchAndExecuteTask(
         job,
         mkToIgnore,
-        consecutiveMkState,
       );
 
-      // 更新上下文状态，为下一个任务做准备
+      // 更新批处理上下文，为下一个任务做准备
       mkToIgnore = newIgnoreRule;
-      consecutiveMkState = newConsecutiveMkState;
     }
     logger.debug('processQueue', '本轮批次处理完毕。');
   }
