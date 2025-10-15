@@ -1,6 +1,6 @@
 /**
  * @file 强制宏渲染模块
- * @description 通过模拟用户UI操作, 强制酒馆重新渲染消息, 以触发完整的宏替换管线。
+ * @description 通过模拟用户UI操作, 强制酒馆重新渲染消息, 以触发完整的宏替换。
  */
 
 import _ from 'lodash';
