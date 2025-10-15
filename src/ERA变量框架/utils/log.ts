@@ -34,7 +34,7 @@ export const LOG_CONFIG = {
     'core-crud-patcher',
     'core-crud-insert-insert',
     'core-crud-insert-template',
-    'core-key-mk',
+    //'core-key-mk',
     'events-dispatcher',
     'events-queue',
     'events-merger',

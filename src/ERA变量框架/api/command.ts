@@ -18,9 +18,9 @@
 
 import _ from 'lodash';
 import { ERA_EVENT_EMITTER, WriteDonePayload } from '../utils/constants';
-import { findLastAiMessage, getMessageContent, updateMessageContent } from '../utils/message';
 import { J, unescapeEraData } from '../utils/data';
 import { Logger } from '../utils/log';
+import { findLastAiMessage, getMessageContent, updateMessageContent } from '../utils/message';
 
 const logger = new Logger('api-command');
 
@@ -36,7 +36,7 @@ const debouncedEmitApiWrite = _.debounce(
     eventEmit(ERA_EVENT_EMITTER.API_WRITE);
     logger.log('debouncedEmitApiWrite', `已触发合并后的 ${ERA_EVENT_EMITTER.API_WRITE} 事件。`);
   },
-  700,
+  50, //API调用的防抖改成50毫秒，提高即时性
   { leading: false, trailing: true },
 );
 

@@ -10,15 +10,15 @@ import {
   updateByObject,
   updateByPath,
 } from '../api/command';
-import { ERA_API_EVENTS, LOGS_PATH, SEL_PATH } from '../utils/constants';
-import { EventJob, getEventGroup } from './merger';
 import { forceRenderRecentMessages } from '../api/macro/patch';
+import { ApplyVarChange } from '../core/crud/patcher';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from '../core/key/mk';
 import { rollbackByMk } from '../core/rollback';
 import { resyncStateOnHistoryChange } from '../core/sync';
+import { ERA_API_EVENTS, LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { logContext, Logger } from '../utils/log';
-import { ApplyVarChange } from '../core/crud/patcher';
+import { EventJob, getEventGroup } from './merger';
 
 const logger = new Logger('events-dispatcher');
 
@@ -203,7 +203,8 @@ export async function dispatchAndExecuteTask(
     logContext.mk = '';
 
     // **节流**: 在每个独立任务后都进行短暂等待，确保酒馆底层有时间完成其异步操作。
-    await new Promise(resolve => setTimeout(resolve, 50));
+    //暂时取消等待逻辑，提高即时性。
+    //await new Promise(resolve => setTimeout(resolve, 50));
   }
 
   return { newIgnoreRule: mkToIgnore, newConsecutiveMkState: consecutiveMkState };
