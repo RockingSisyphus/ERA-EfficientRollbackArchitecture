@@ -1410,7 +1410,7 @@ async function dispatchAndExecuteTask(job, mkToIgnore, consecutiveMkState) {
   } catch (error) {
     dispatcher_logger.error("dispatchAndExecuteTask", `事件 ${eventType} 处理异常: ${error}`, error);
   } finally {
-    if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync || actionsTaken.api) {
+    if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync) {
       await updateLatestSelectedMk();
       if (logContext.mk && message_id !== null) {
         const {meta: metaData, stat: statData} = getEraData();

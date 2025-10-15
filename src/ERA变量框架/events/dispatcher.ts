@@ -176,7 +176,7 @@ export async function dispatchAndExecuteTask(
   } finally {
     // 仅当本轮处理中实际执行了 ERA 核心操作时，才校准并广播事件
     // --- 3. 触发写入完成事件 ---
-    if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync || actionsTaken.api) {
+    if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync) {
       // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
       await updateLatestSelectedMk();
       // 在所有操作（包括校准）完成后，获取最新状态并广播事件
