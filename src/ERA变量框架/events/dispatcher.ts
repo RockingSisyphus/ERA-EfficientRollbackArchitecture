@@ -13,14 +13,14 @@ import {
 import { ERA_API_EVENTS, LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { EventJob, getEventGroup } from './merger';
 import { forceRenderRecentMessages } from '../api/macro/patch';
-import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from '../core/key/message_key';
+import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from '../core/key/mk';
 import { rollbackByMk } from '../core/rollback';
 import { resyncStateOnHistoryChange } from '../core/sync';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { logContext, Logger } from '../utils/log';
-import { ApplyVarChange } from '../core/crud/variable_change_processor';
+import { ApplyVarChange } from '../core/crud/patcher';
 
-const logger = new Logger('task_dispatcher');
+const logger = new Logger('events-dispatcher');
 
 /**
  * @constant {number} RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION

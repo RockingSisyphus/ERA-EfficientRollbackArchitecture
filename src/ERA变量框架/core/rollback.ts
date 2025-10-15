@@ -15,13 +15,13 @@
 'use strict';
 
 import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from '../utils/constants';
-import { readMessageKey } from './key/message_key';
-import { getMessageContent, isUserMessage } from '../utils/message_utils';
+import { readMessageKey } from './key/mk';
+import { getMessageContent, isUserMessage } from '../utils/message';
 import { getEraData } from '../utils/era_data';
 import { J, parseEditLog } from '../utils/data';
 import { Logger } from '../utils/log';
 
-const logger = new Logger('rollback');
+const logger = new Logger('core-rollback');
 
 /**
  * **【回滚】**

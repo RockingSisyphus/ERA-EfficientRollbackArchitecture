@@ -29,13 +29,12 @@
 
 import _ from 'lodash';
 import { ERA_DATA_REGEX, ERA_DATA_TAG, SEL_PATH } from '../../utils/constants';
-import { getMessageContent } from '../../utils/message_utils';
-import { updateMessageContent } from '../../utils/message';
+import { getMessageContent, updateMessageContent } from '../../utils/message';
 import { updateEraMetaData } from '../../utils/era_data';
 import { rnd } from '../../utils/string';
 import { Logger } from '../../utils/log';
 
-const logger = new Logger('message_key');
+const logger = new Logger('core-key-mk');
 
 /**
  * @type {EraData} - 定义了存储在 `<era_data>` 块中的元数据结构。

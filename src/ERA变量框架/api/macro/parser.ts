@@ -2,7 +2,7 @@ import { getEraData, removeMetaFields } from '../../utils/era_data';
 import { unescapeEraData } from '../../utils/data';
 import { Logger } from '../../utils/log';
 
-const logger = new Logger('query');
+const logger = new Logger('api-macro-parser');
 
 /**
  * 解析字符串中的 ERA 宏, 并将其替换为对应的变量值。

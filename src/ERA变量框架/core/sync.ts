@@ -26,15 +26,15 @@
  */
 
 import { LOGS_PATH, SEL_PATH } from '../utils/constants';
-import { readMessageKey } from './key/message_key';
-import { findLastAiMessage } from '../utils/message_utils';
+import { readMessageKey } from './key/mk';
+import { findLastAiMessage } from '../utils/message';
 import { rollbackByMk } from './rollback';
 import { getEraData, updateEraMetaData } from '../utils/era_data';
 import { parseEditLog } from '../utils/data';
 import { Logger } from '../utils/log';
-import { ApplyVarChangeForMessage } from './crud/variable_change_processor';
+import { ApplyVarChangeForMessage } from './crud/patcher';
 
-const logger = new Logger('sync');
+const logger = new Logger('core-sync');
 
 /**
  * 获取用于变量操作的MK。如果消息是用户消息，则返回null以跳过操作。

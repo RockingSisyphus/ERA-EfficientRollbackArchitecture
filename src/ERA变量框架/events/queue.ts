@@ -20,7 +20,7 @@ import { ConsecutiveMkState, dispatchAndExecuteTask, IgnoreRule } from './dispat
 import { EventJob, getEventGroup, mergeEventBatch } from './merger';
 import { Logger } from '../utils/log';
 
-const logger = new Logger('event_queue');
+const logger = new Logger('events-queue');
 
 /**
  * @const {EventJob[]} eventQueue

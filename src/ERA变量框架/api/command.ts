@@ -18,12 +18,11 @@
 
 import _ from 'lodash';
 import { ERA_EVENT_EMITTER, WriteDonePayload } from '../utils/constants';
-import { findLastAiMessage, getMessageContent } from '../utils/message_utils';
-import { updateMessageContent } from '../utils/message';
+import { findLastAiMessage, getMessageContent, updateMessageContent } from '../utils/message';
 import { J, unescapeEraData } from '../utils/data';
 import { Logger } from '../utils/log';
 
-const logger = new Logger('api');
+const logger = new Logger('api-command');
 
 // API 写入任务的接口定义
 interface ApiWriteJob {

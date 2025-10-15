@@ -17,7 +17,7 @@ import { updateEraStatData } from '../../../utils/era_data';
 import { sanitizeArrays } from '../../../utils/data';
 import { Logger } from '../../../utils/log';
 
-const logger = new Logger('insert');
+const logger = new Logger('core-crud-insert-insert');
 
 /**
  * **【递归插入】**

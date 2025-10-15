@@ -24,15 +24,15 @@
 import { LOGS_PATH, SEL_PATH } from '../../utils/constants';
 import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert/insert';
-import { readMessageKey } from '../../core/key/message_key';
-import { findLastAiMessage, getMessageContent, isUserMessage } from '../../utils/message_utils';
+import { readMessageKey } from '../../core/key/mk';
+import { findLastAiMessage, getMessageContent, isUserMessage } from '../../utils/message';
 import { processEditBlocks } from './update';
 import { updateEraMetaData } from '../../utils/era_data';
 import { extractBlocks } from '../../utils/string';
 import { escapeEraData, parseEditLog, parseJsonl } from '../../utils/data';
 import { Logger } from '../../utils/log';
 
-const logger = new Logger('variable_change_processor');
+const logger = new Logger('core-crud-patcher');
 
 /**
  * **【核心实现】** 对指定的消息应用变量修改。

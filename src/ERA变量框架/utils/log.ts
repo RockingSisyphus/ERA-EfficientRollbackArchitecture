@@ -24,19 +24,21 @@ export const LOG_CONFIG = {
   // 'debug' 级别的白名单。只有当 currentLevel 为 debug 时，此列表才生效。
   // 只有在此列表中的模块才会输出 debug 日志。
   debugWhitelist: [
-    'api',
-    'delete',
-    'event_queue',
-    'force_macro_render',
-    'insert',
-    'message_key',
-    'message_utils',
-    'query',
-    'rollback',
-    'sync',
-    'template',
-    'update',
-    'variable_change_processor',
+    'api-command',
+    'api-macro-parser',
+    'api-macro-patch',
+    'core-rollback',
+    'core-sync',
+    'core-crud-delete',
+    'core-crud-update',
+    'core-crud-patcher',
+    'core-crud-insert-insert',
+    'core-crud-insert-template',
+    'core-key-mk',
+    'events-dispatcher',
+    'events-queue',
+    'events-merger',
+    'utils-message',
   ] as string[],
 };
 // 初始化时将 currentLevel 设置为 debug 级别
@@ -61,6 +63,15 @@ export const logContext = {
 };
 
 export class Logger {
+  /**
+   * @private
+   * @property {string} moduleName - 该 Logger 实例绑定的模块名称。
+   * @description
+   * 命名规则:
+   * 为了方便在日志中快速定位来源，模块名应遵循 `目录-子目录-...-文件名` 的格式。
+   * 例如，位于 `src/ERA变量框架/core/crud/insert/insert.ts` 的文件，
+   * 其模块名应为 `core-crud-insert-insert`。
+   */
   private moduleName: string;
 
   /**

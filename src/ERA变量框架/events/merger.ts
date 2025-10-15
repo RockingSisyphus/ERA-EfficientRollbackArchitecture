@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { ERA_API_EVENTS, ERA_EVENT_EMITTER } from '../utils/constants';
 import { Logger } from '../utils/log';
 
-const logger = new Logger('event_merger');
+const logger = new Logger('events-merger');
 
 /**
  * @description 定义需要监听的事件的分组

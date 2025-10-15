@@ -6,7 +6,7 @@
 import _ from 'lodash';
 import { Logger } from '../../utils/log';
 
-const log = new Logger('force_macro_render');
+const log = new Logger('api-macro-patch');
 
 /**
  * 强制重新渲染单条消息。
