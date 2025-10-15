@@ -78,10 +78,7 @@ async function processQueue() {
     for (const job of finalJobs) {
       // **委托执行**
       // 将当前任务和批处理上下文（mkToIgnore）传递给执行器
-      const newIgnoreRule = await dispatchAndExecuteTask(
-        job,
-        mkToIgnore,
-      );
+      const newIgnoreRule = await dispatchAndExecuteTask(job, mkToIgnore);
 
       // 更新批处理上下文，为下一个任务做准备
       mkToIgnore = newIgnoreRule;

@@ -167,7 +167,8 @@ $(() => {
 
   // 监听 ERA 框架的写入完成事件
   eventOn('era:writeDone', detail => {
-    const { mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta, consecutiveProcessingCount } = detail;
+    const { mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta, consecutiveProcessingCount } =
+      detail;
     const funcName = 'onWriteDone';
 
     logger.log(

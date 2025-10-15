@@ -88,10 +88,7 @@ function handleRedundantRenderEvent(
  * @param {IgnoreRule | null} mkToIgnore - 当前的忽略规则。**作用域**: 仅在单次批处理 (event queue processing loop) 中生效。
  * @returns {Promise<IgnoreRule | null>} - 返回更新后的忽略规则。
  */
-export async function dispatchAndExecuteTask(
-  job: EventJob,
-  mkToIgnore: IgnoreRule | null,
-): Promise<IgnoreRule | null> {
+export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRule | null): Promise<IgnoreRule | null> {
   const { type: eventType, detail } = job;
   const eventGroup = getEventGroup(eventType);
   let message_id: number | null = null;
@@ -174,10 +171,16 @@ export async function dispatchAndExecuteTask(
       // **只有在事件实际执行了写入/同步操作时，才更新连续处理计数**
       const mk = logContext.mk;
       if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
-        logger.debug('dispatchAndExecuteTask', `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`);
+        logger.debug(
+          'dispatchAndExecuteTask',
+          `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`,
+        );
         consecutiveMkState.count++;
       } else {
-        logger.debug('dispatchAndExecuteTask', `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`);
+        logger.debug(
+          'dispatchAndExecuteTask',
+          `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`,
+        );
         consecutiveMkState = { mk: mk, count: 1 };
       }
       currentConsecutiveCount = consecutiveMkState.count;
