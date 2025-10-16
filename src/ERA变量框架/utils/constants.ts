@@ -149,6 +149,8 @@ export interface WriteDonePayload {
     resync: boolean;
     /** 是否执行了 API 调用 */
     api: boolean;
+    /** 是否是由API调用触发的后续逻辑 */
+    apiWrite: boolean;
   };
   /**
    * 事件处理完成**之后**，整个聊天会话的**已选择消息密钥链 (Selected Message Keys)** 的最新状态。

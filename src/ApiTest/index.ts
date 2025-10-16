@@ -171,6 +171,12 @@ $(() => {
       detail;
     const funcName = 'onWriteDone';
 
+    // 如果是由 apiWrite 触发的，则跳过，避免循环
+    if (detail?.actions?.apiWrite === true) {
+      logger.log(funcName, '检测到 apiWrite 触发的事件，已跳过。');
+      return;
+    }
+
     logger.log(
       funcName,
       `接收到 era:writeDone 事件 (MK: ${mk}, MsgID: ${message_id}, Actions: ${JSON.stringify(actions)}, Consecutive: ${consecutiveProcessingCount})`,
