@@ -150,7 +150,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
       await resyncStateOnHistoryChange(isFullSync);
       actionsTaken.resync = true;
       // 在同步完成后，强制重新渲染消息以触发宏
-      forceRenderRecentMessages();
+      if (eventType != 'combo_sync') forceRenderRecentMessages();
     } else if (eventGroup === 'API') {
       actionsTaken.api = true;
       // API 事件是“即发即忘”的，同步调用处理器将任务推入 api.ts 的队列后立即返回，不阻塞事件队列。

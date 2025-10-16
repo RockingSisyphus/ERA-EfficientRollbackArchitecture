@@ -1430,7 +1430,7 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
       const isFullSync = eventType === "manual_full_sync";
       await resyncStateOnHistoryChange(isFullSync);
       actionsTaken.resync = true;
-      forceRenderRecentMessages();
+      if (eventType != "combo_sync") forceRenderRecentMessages();
     } else if (eventGroup === "API") {
       actionsTaken.api = true;
       if (eventType === ERA_API_EVENTS.INSERT_BY_OBJECT) insertByObject(detail); else if (eventType === ERA_API_EVENTS.UPDATE_BY_OBJECT) updateByObject(detail); else if (eventType === ERA_API_EVENTS.INSERT_BY_PATH) insertByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.UPDATE_BY_PATH) updateByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.DELETE_BY_OBJECT) deleteByObject(detail); else if (eventType === ERA_API_EVENTS.DELETE_BY_PATH) deleteByPath(detail.path);
