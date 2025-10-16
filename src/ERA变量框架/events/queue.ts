@@ -91,11 +91,7 @@ async function processQueue() {
   }
 
   // 【调试日志】
-  logger.debug(
-    'processQueue',
-    '事件收集窗口关闭，准备处理的队列内容:',
-    JSON.stringify(eventQueue.map(e => e.type)),
-  );
+  logger.debug('processQueue', '事件收集窗口关闭，准备处理的队列内容:', JSON.stringify(eventQueue.map(e => e.type)));
 
   // 【循环处理】
   // 只要队列不为空，就持续处理。这能确保在防抖期间新到达的事件也被纳入处理范围。
