@@ -132,13 +132,25 @@ const logger = new Logger("events-merger");
 
 const EVENT_GROUPS = {
   WRITE: [ tavern_events.APP_READY, "manual_write", ERA_EVENT_EMITTER.API_WRITE ],
-  SYNC: [ tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, "manual_sync", "manual_full_sync" ],
+  SYNC: [ tavern_events.MESSAGE_RECEIVED, tavern_events.MESSAGE_DELETED, tavern_events.MESSAGE_SWIPED, tavern_events.CHAT_CHANGED, "manual_sync", "manual_full_sync", "combo_sync" ],
   API: Object.values(ERA_API_EVENTS),
   UPDATE_MK_ONLY: [ tavern_events.MESSAGE_SENT ],
-  COLLISION_DETECTORS: [ tavern_events.GENERATION_STARTED ]
+  COLLISION_DETECTORS: [ tavern_events.GENERATION_STARTED ],
+  COMBO_STARTERS: [ tavern_events.MESSAGE_UPDATED ]
 };
 
-const EVENT_COLLISION_MAP = new Map([ [ tavern_events.MESSAGE_SWIPED, tavern_events.GENERATION_STARTED ] ]);
+const EVENT_COLLISION_MAP = new Map([ [ tavern_events.MESSAGE_SWIPED, {
+  next: tavern_events.GENERATION_STARTED,
+  maxInterval: 600
+} ] ]);
+
+const EVENT_COMBO_MAP = new Map([ [ tavern_events.MESSAGE_UPDATED, {
+  next: tavern_events.GENERATION_STARTED,
+  resultType: "combo_sync",
+  maxInterval: 1600
+} ] ]);
+
+const EVENT_DEBOUNCE_MAP = new Map([ [ tavern_events.MESSAGE_SWIPED, 500 ], [ tavern_events.MESSAGE_UPDATED, 1500 ] ]);
 
 function getEventGroup(eventType) {
   if (EVENT_GROUPS.WRITE.includes(eventType)) return "WRITE";
@@ -146,6 +158,7 @@ function getEventGroup(eventType) {
   if (EVENT_GROUPS.API.includes(eventType)) return "API";
   if (EVENT_GROUPS.UPDATE_MK_ONLY.includes(eventType)) return "UPDATE_MK_ONLY";
   if (EVENT_GROUPS.COLLISION_DETECTORS.includes(eventType)) return "COLLISION_DETECTORS";
+  if (EVENT_GROUPS.COMBO_STARTERS.includes(eventType)) return "COMBO_STARTERS";
   return "UNKNOWN";
 }
 
@@ -158,12 +171,31 @@ function mergeEventBatch(batchToProcess) {
       continue;
     }
     const prevJob = finalJobs[finalJobs.length - 1];
-    const expectedNextEvent = EVENT_COLLISION_MAP.get(prevJob.type);
     const timeDifference = currentJob.timestamp - prevJob.timestamp;
-    if (expectedNextEvent && currentJob.type === expectedNextEvent && timeDifference <= 300) {
-      logger.debug("mergeEventBatch", `检测到相邻事件对冲: ${prevJob.type} 和 ${currentJob.type} (时间差: ${timeDifference}ms)。将忽略这两个事件。`);
-      finalJobs.pop();
-      continue;
+    const comboRule = EVENT_COMBO_MAP.get(prevJob.type);
+    if (comboRule && currentJob.type === comboRule.next) {
+      if (timeDifference <= comboRule.maxInterval) {
+        logger.debug("mergeEventBatch", `检测到事件组合: ${prevJob.type} 和 ${currentJob.type} (时间差: ${timeDifference}ms <= ${comboRule.maxInterval}ms)。将合并为 ${comboRule.resultType} 事件。`);
+        finalJobs.pop();
+        finalJobs.push({
+          type: comboRule.resultType,
+          timestamp: currentJob.timestamp,
+          detail: currentJob.detail
+        });
+        continue;
+      } else {
+        logger.debug("mergeEventBatch", `检测到潜在的事件组合，但因超时而失败: ${prevJob.type} 和 ${currentJob.type} (时间差: ${timeDifference}ms > ${comboRule.maxInterval}ms)。`);
+      }
+    }
+    const collisionRule = EVENT_COLLISION_MAP.get(prevJob.type);
+    if (collisionRule && currentJob.type === collisionRule.next) {
+      if (timeDifference <= collisionRule.maxInterval) {
+        logger.debug("mergeEventBatch", `检测到相邻事件对冲: ${prevJob.type} 和 ${currentJob.type} (时间差: ${timeDifference}ms <= ${collisionRule.maxInterval}ms)。将忽略这两个事件。`);
+        finalJobs.pop();
+        continue;
+      } else {
+        logger.debug("mergeEventBatch", `检测到潜在的事件对冲，但因超时而失败: ${prevJob.type} 和 ${currentJob.type} (时间差: ${timeDifference}ms > ${collisionRule.maxInterval}ms)。`);
+      }
     }
     const prevGroup = getEventGroup(prevJob.type);
     const currentGroup = getEventGroup(currentJob.type);
@@ -176,11 +208,13 @@ function mergeEventBatch(batchToProcess) {
     }
   }
   const filteredJobs = finalJobs.filter(job => {
-    const isDetector = getEventGroup(job.type) === "COLLISION_DETECTORS";
-    if (isDetector) {
-      logger.debug("mergeEventBatch", `清理未配对的对冲检测器事件: ${job.type}`);
+    const group = getEventGroup(job.type);
+    const isOrphanedDetector = group === "COLLISION_DETECTORS";
+    const isOrphanedComboStarter = group === "COMBO_STARTERS";
+    if (isOrphanedDetector || isOrphanedComboStarter) {
+      logger.debug("mergeEventBatch", `清理未配对的事件: ${job.type}`);
     }
-    return !isDetector;
+    return !isOrphanedDetector && !isOrphanedComboStarter;
   });
   logger.debug("mergeEventBatch", `事件合并: ${originalEvents.length} -> ${filteredJobs.length}`, {
     before: originalEvents.map(e => e.type),
@@ -1448,6 +1482,10 @@ const eventQueue = [];
 
 let isProcessing = false;
 
+let isWaiting = false;
+
+let unlockSignal = null;
+
 function pushToQueue(type, detail) {
   queue_logger.debug("pushToQueue", `接收到事件: ${type}，已推入队列。`, {
     detail
@@ -1461,19 +1499,38 @@ function pushToQueue(type, detail) {
 }
 
 async function processQueue() {
-  if (isProcessing) return;
+  if (isWaiting) {
+    queue_logger.debug("processQueue", "已有处理函数在排队等待，本次调用忽略。");
+    return;
+  }
+  if (isProcessing) {
+    queue_logger.debug("processQueue", "处理器忙碌，进入排队等待状态...");
+    isWaiting = true;
+    await new Promise(resolve => {
+      unlockSignal = resolve;
+    });
+    isWaiting = false;
+    queue_logger.debug("processQueue", "等待结束，获取到处理权。");
+  }
+  if (eventQueue.length === 0) {
+    queue_logger.debug("processQueue", "队列为空，无需处理。");
+    return;
+  }
   isProcessing = true;
   queue_logger.log("processQueue", "处理器启动");
+  const firstJob = eventQueue[0];
+  const group = getEventGroup(firstJob.type);
+  if (group !== "API") {
+    const debounceTime = EVENT_DEBOUNCE_MAP.get(firstJob.type) ?? 300;
+    queue_logger.log("processQueue", `启动事件收集窗口，等待 ${debounceTime}ms...`);
+    await new Promise(resolve => setTimeout(resolve, debounceTime));
+  }
+  queue_logger.debug("processQueue", "事件收集窗口关闭，准备处理的队列内容:", JSON.stringify(eventQueue.map(e => e.type)));
   let mkToIgnore = null;
   while (eventQueue.length > 0) {
-    const nextJob = eventQueue[0];
-    const nextGroup = getEventGroup(nextJob.type);
-    if (nextGroup !== "API") {
-      queue_logger.log("processQueue", `下一个事件 (${nextJob.type}) 需要防抖，等待300毫秒...`);
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
     const batchToProcess = eventQueue.splice(0, eventQueue.length);
     const finalJobs = mergeEventBatch(batchToProcess);
+    queue_logger.debug("processQueue", `开始处理一个新批次，包含 ${batchToProcess.length} 个原始事件，合并后为 ${finalJobs.length} 个任务。`);
     for (const job of finalJobs) {
       const newIgnoreRule = await dispatchAndExecuteTask(job, mkToIgnore);
       mkToIgnore = newIgnoreRule;
@@ -1482,6 +1539,12 @@ async function processQueue() {
   }
   isProcessing = false;
   queue_logger.log("processQueue", "处理器空闲，已释放锁。");
+  if (unlockSignal) {
+    queue_logger.debug("processQueue", "通知排队的处理器开始工作。");
+    const signal = unlockSignal;
+    unlockSignal = null;
+    signal();
+  }
 }
 
 const parser_logger = new Logger("api-macro-parser");
@@ -1527,7 +1590,7 @@ $(() => {
   registerMacroLike(/{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi, (context, substring, withMeta, path) => parseEraMacros(substring));
 });
 
-const eventsToListen = [ ...EVENT_GROUPS.WRITE, ...EVENT_GROUPS.SYNC, ...EVENT_GROUPS.API, ...EVENT_GROUPS.UPDATE_MK_ONLY, ...EVENT_GROUPS.COLLISION_DETECTORS ];
+const eventsToListen = [ ...EVENT_GROUPS.WRITE, ...EVENT_GROUPS.SYNC, ...EVENT_GROUPS.API, ...EVENT_GROUPS.UPDATE_MK_ONLY, ...EVENT_GROUPS.COLLISION_DETECTORS, ...EVENT_GROUPS.COMBO_STARTERS ];
 
 eventsToListen.forEach(ev => {
   eventOn(ev, detail => pushToQueue(ev, detail));

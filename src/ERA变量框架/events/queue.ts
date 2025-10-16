@@ -17,7 +17,7 @@
 
 import { Logger } from '../utils/log';
 import { dispatchAndExecuteTask, IgnoreRule } from './dispatcher';
-import { EventJob, getEventGroup, mergeEventBatch } from './merger';
+import { EVENT_DEBOUNCE_MAP, EventJob, getEventGroup, mergeEventBatch } from './merger';
 
 const logger = new Logger('events-queue');
 
@@ -32,60 +32,99 @@ const eventQueue: EventJob[] = [];
  * @description 处理器锁。为 true 时表示 `processQueue` 正在运行，防止重入。
  */
 let isProcessing = false;
+let isWaiting = false;
+let unlockSignal: (() => void) | null = null;
 
 /**
  * **【事件入口】**
- * 将一个事件推入队列，并尝试启动处理器。这是所有事件监听器的统一入口点。
+ * 将一个事件推入队列，并尝试启动或排队等待处理器。
  * @param {string} type - 事件类型 (e.g., `tavern_events.MESSAGE_DELETED`)。
  * @param {any} [detail] - 事件附带的数据。
  */
 export function pushToQueue(type: string, detail?: any) {
   logger.debug('pushToQueue', `接收到事件: ${type}，已推入队列。`, { detail });
   eventQueue.push({ type, detail, timestamp: Date.now() });
-  processQueue(); // 尝试启动处理器
+  processQueue();
 }
 
 /**
  * **【核心事件处理器】**
- * 持续从队列中取出事件、合并、并按顺序执行。
- * 这是一个自驱动的异步函数，只要队列不为空就会一直运行，直到处理完所有任务。
+ * 采用“锁-等待-释放-通知”机制，确保事件处理的连续性。
  */
 async function processQueue() {
-  if (isProcessing) return; // 如果已在处理中，则直接返回，等待当前循环完成。
-  isProcessing = true;
+  // 如果已经有一个调用在“排队等待”，则本次调用直接返回，防止多个等待者。
+  if (isWaiting) {
+    logger.debug('processQueue', '已有处理函数在排队等待，本次调用忽略。');
+    return;
+  }
 
+  // 如果处理器正在忙碌，则进入“排队等待”状态。
+  if (isProcessing) {
+    logger.debug('processQueue', '处理器忙碌，进入排队等待状态...');
+    isWaiting = true;
+    // 等待当前处理器释放锁的信号
+    await new Promise<void>(resolve => {
+      unlockSignal = resolve;
+    });
+    isWaiting = false;
+    logger.debug('processQueue', '等待结束，获取到处理权。');
+  }
+
+  // 获得处理权后，如果队列已经被前一个处理器清空，则无需做任何事。
+  if (eventQueue.length === 0) {
+    logger.debug('processQueue', '队列为空，无需处理。');
+    return;
+  }
+
+  // 【加锁】
+  // 正式开始处理，加锁以阻止其他调用进入。
+  isProcessing = true;
   logger.log('processQueue', '处理器启动');
 
-  // --- 状态初始化 ---
-  // `mkToIgnore` 仅在单次批处理循环中持续存在。
+  // 【防抖】
+  const firstJob = eventQueue[0];
+  const group = getEventGroup(firstJob.type);
+  if (group !== 'API') {
+    const debounceTime = EVENT_DEBOUNCE_MAP.get(firstJob.type) ?? 300;
+    logger.log('processQueue', `启动事件收集窗口，等待 ${debounceTime}ms...`);
+    await new Promise(resolve => setTimeout(resolve, debounceTime));
+  }
+
+  // 【调试日志】
+  logger.debug(
+    'processQueue',
+    '事件收集窗口关闭，准备处理的队列内容:',
+    JSON.stringify(eventQueue.map(e => e.type)),
+  );
+
+  // 【循环处理】
+  // 只要队列不为空，就持续处理。这能确保在防抖期间新到达的事件也被纳入处理范围。
   let mkToIgnore: IgnoreRule | null = null;
-
   while (eventQueue.length > 0) {
-    // 【事件收集窗口与防抖】
-    const nextJob = eventQueue[0];
-    const nextGroup = getEventGroup(nextJob.type);
-    if (nextGroup !== 'API') {
-      logger.log('processQueue', `下一个事件 (${nextJob.type}) 需要防抖，等待300毫秒...`);
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    // --- 1. 事件批处理与合并 ---
     const batchToProcess = eventQueue.splice(0, eventQueue.length);
-    const finalJobs = mergeEventBatch(batchToProcess); // **委托合并**
+    const finalJobs = mergeEventBatch(batchToProcess);
 
-    // --- 2. 严格按顺序执行合并后的任务 ---
+    logger.debug(
+      'processQueue',
+      `开始处理一个新批次，包含 ${batchToProcess.length} 个原始事件，合并后为 ${finalJobs.length} 个任务。`,
+    );
+
     for (const job of finalJobs) {
-      // **委托执行**
-      // 将当前任务和批处理上下文（mkToIgnore）传递给执行器
       const newIgnoreRule = await dispatchAndExecuteTask(job, mkToIgnore);
-
-      // 更新批处理上下文，为下一个任务做准备
       mkToIgnore = newIgnoreRule;
     }
     logger.debug('processQueue', '本轮批次处理完毕。');
   }
 
-  // 队列处理完毕，释放锁，等待下一次事件入队。
+  // 【解锁并通知】
   isProcessing = false;
   logger.log('processQueue', '处理器空闲，已释放锁。');
+
+  // 如果有等待者，则发送解锁信号，让它立即开始。
+  if (unlockSignal) {
+    logger.debug('processQueue', '通知排队的处理器开始工作。');
+    const signal = unlockSignal;
+    unlockSignal = null;
+    signal();
+  }
 }
