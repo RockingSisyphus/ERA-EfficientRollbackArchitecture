@@ -1463,7 +1463,7 @@ function pushToQueue(type, detail) {
 async function processQueue() {
   if (isProcessing) return;
   isProcessing = true;
-  queue_logger.log("processQueue", "处理器启动...");
+  queue_logger.log("processQueue", "处理器启动");
   let mkToIgnore = null;
   while (eventQueue.length > 0) {
     const nextJob = eventQueue[0];

@@ -15,10 +15,9 @@
 
 'use strict';
 
-import _ from 'lodash';
+import { Logger } from '../utils/log';
 import { dispatchAndExecuteTask, IgnoreRule } from './dispatcher';
 import { EventJob, getEventGroup, mergeEventBatch } from './merger';
-import { Logger } from '../utils/log';
 
 const logger = new Logger('events-queue');
 
@@ -55,7 +54,7 @@ async function processQueue() {
   if (isProcessing) return; // 如果已在处理中，则直接返回，等待当前循环完成。
   isProcessing = true;
 
-  logger.log('processQueue', '处理器启动...');
+  logger.log('processQueue', '处理器启动');
 
   // --- 状态初始化 ---
   // `mkToIgnore` 仅在单次批处理循环中持续存在。
