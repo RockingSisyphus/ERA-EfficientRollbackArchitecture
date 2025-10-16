@@ -147,5 +147,5 @@ export async function updateMessageContent(message: any, newContent: string) {
     updatePayload.message = newContent;
   }
 
-  await setChatMessages([updatePayload]);
+  await setChatMessages([updatePayload], { refresh: 'none' });
 }

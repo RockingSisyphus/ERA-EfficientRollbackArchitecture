@@ -412,7 +412,9 @@ async function updateMessageContent(message, newContent) {
   } else {
     updatePayload.message = newContent;
   }
-  await setChatMessages([ updatePayload ]);
+  await setChatMessages([ updatePayload ], {
+    refresh: "none"
+  });
 }
 
 const command_logger = new Logger("api-command");
@@ -1349,7 +1351,8 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
     rollback: false,
     apply: false,
     resync: false,
-    api: false
+    api: false,
+    apiWrite: false
   };
   try {
     const {mk, message_id: msgId, isNewKey} = await ensureMkForLatestMessage();
@@ -1384,6 +1387,9 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
       }
       await ApplyVarChange();
       actionsTaken.apply = true;
+      if (eventType === ERA_EVENT_EMITTER.API_WRITE) {
+        actionsTaken.apiWrite = true;
+      }
       forceRenderRecentMessages();
     } else if (eventGroup === "SYNC") {
       dispatcher_logger.debug("dispatchAndExecuteTask - task dispatch", `事件 ${eventType} 触发状态同步流程...`);

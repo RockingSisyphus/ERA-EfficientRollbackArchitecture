@@ -15,7 +15,7 @@ import { ApplyVarChange } from '../core/crud/patcher';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from '../core/key/mk';
 import { rollbackByMk } from '../core/rollback';
 import { resyncStateOnHistoryChange } from '../core/sync';
-import { ERA_API_EVENTS, LOGS_PATH, SEL_PATH } from '../utils/constants';
+import { ERA_API_EVENTS, ERA_EVENT_EMITTER, LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { logContext, Logger } from '../utils/log';
 import { EventJob, getEventGroup } from './merger';
@@ -95,7 +95,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
   let currentConsecutiveCount = 1;
 
   // 在每轮任务开始时，初始化操作记录器
-  const actionsTaken = { rollback: false, apply: false, resync: false, api: false };
+  const actionsTaken = { rollback: false, apply: false, resync: false, api: false, apiWrite: false };
 
   try {
     // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
@@ -136,6 +136,11 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
       }
       await ApplyVarChange();
       actionsTaken.apply = true;
+
+      // 如果是 API 触发的写入，则标记
+      if (eventType === ERA_EVENT_EMITTER.API_WRITE) {
+        actionsTaken.apiWrite = true;
+      }
 
       // 在变量写入完成后，强制重新渲染消息以触发宏
       forceRenderRecentMessages();
