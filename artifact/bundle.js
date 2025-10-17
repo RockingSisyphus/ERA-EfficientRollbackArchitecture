@@ -223,6 +223,8 @@ function mergeEventBatch(batchToProcess) {
   return filteredJobs;
 }
 
+const data_logger = new Logger("utils-data");
+
 const ESCAPE_MAP = {
   ".": "__DOT__",
   '"': "__DQUOTE__",
@@ -349,7 +351,7 @@ function parseJsonl(str) {
             const obj = JSON.parse(jsonString);
             objects.push(obj);
           } catch (e) {
-            console.error(`[ERA/utils/parseJsonl] JSONL 解析失败: ${e?.message || e}. 失败的片段: ${jsonString}`, e);
+            data_logger.error(`JSONL 解析失败: ${e?.message || e}. 失败的片段: ${jsonString}`, e);
           }
           startIndex = -1;
         }

@@ -5,6 +5,9 @@
 'use strict';
 
 import _ from 'lodash';
+import { Logger } from './log';
+
+const logger = new Logger('utils-data');
 
 const ESCAPE_MAP: { [key: string]: string } = {
   '.': '__DOT__',
@@ -200,8 +203,8 @@ export function parseJsonl(str: string): any[] {
             const obj = JSON.parse(jsonString);
             objects.push(obj);
           } catch (e: any) {
-            // 如果解析失败，在控制台打印错误并继续，不中断整个过程
-            console.error(`[ERA/utils/parseJsonl] JSONL 解析失败: ${e?.message || e}. 失败的片段: ${jsonString}`, e);
+            // 如果解析失败，记录错误并继续，不中断整个过程
+            logger.error(`JSONL 解析失败: ${e?.message || e}. 失败的片段: ${jsonString}`, e);
           }
           // 重置状态，准备寻找下一个对象
           startIndex = -1;
