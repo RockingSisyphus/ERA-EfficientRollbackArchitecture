@@ -8,6 +8,7 @@
 
 import { ERA_DATA_REGEX } from './constants';
 import { Logger } from './log';
+import { parseCharacterMacros } from './text';
 
 const log = new Logger('utils-message');
 
@@ -32,20 +33,28 @@ type EraData = {
 export function getMessageContent(msg: any): string | null {
   if (!msg) return null;
 
+  let content: string | null = null;
+
   // 优先检查 .mes 属性，这是新版酒馆的规范
   if (typeof msg.mes === 'string') {
-    return msg.mes;
+    content = msg.mes;
   }
   // 如果没有 .mes，则处理 swipes
-  if (Array.isArray(msg.swipes)) {
+  else if (Array.isArray(msg.swipes)) {
     const sid = Number(msg.swipe_id ?? 0);
-    return msg.swipes[sid] || null;
+    content = msg.swipes[sid] || null;
   }
   // 最后，作为兼容，检查旧版的 .message 属性
-  if (typeof msg.message === 'string') {
-    return msg.message;
+  else if (typeof msg.message === 'string') {
+    content = msg.message;
   }
-  return null;
+
+  if (content === null) {
+    return null;
+  }
+
+  // 在返回内容前进行宏替换
+  return parseCharacterMacros(content);
 }
 
 /**

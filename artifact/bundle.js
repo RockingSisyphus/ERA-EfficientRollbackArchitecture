@@ -361,21 +361,53 @@ function parseJsonl(str) {
   return objects;
 }
 
+function parseCharacterMacros(text) {
+  if (!text.includes("{{")) {
+    return text;
+  }
+  let result = text;
+  if (result.includes("{{user}}")) {
+    result = result.replace(/{{user}}/gi, SillyTavern.name1);
+  }
+  if (result.includes("{{char}}")) {
+    result = result.replace(/{{char}}/gi, SillyTavern.name2);
+  }
+  return result;
+}
+
+const deepParseCharacterMacros = data => {
+  if (typeof data === "string") {
+    return parseCharacterMacros(data);
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => deepParseCharacterMacros(item));
+  }
+  if (typeof data === "object" && data !== null) {
+    return Object.entries(data).reduce((acc, [key, value]) => {
+      acc[key] = deepParseCharacterMacros(value);
+      return acc;
+    }, {});
+  }
+  return data;
+};
+
 const log = new Logger("utils-message");
 
 function getMessageContent(msg) {
   if (!msg) return null;
+  let content = null;
   if (typeof msg.mes === "string") {
-    return msg.mes;
-  }
-  if (Array.isArray(msg.swipes)) {
+    content = msg.mes;
+  } else if (Array.isArray(msg.swipes)) {
     const sid = Number(msg.swipe_id ?? 0);
-    return msg.swipes[sid] || null;
+    content = msg.swipes[sid] || null;
+  } else if (typeof msg.message === "string") {
+    content = msg.message;
   }
-  if (typeof msg.message === "string") {
-    return msg.message;
+  if (content === null) {
+    return null;
   }
-  return null;
+  return parseCharacterMacros(content);
 }
 
 function parseEraData(messageContent) {
