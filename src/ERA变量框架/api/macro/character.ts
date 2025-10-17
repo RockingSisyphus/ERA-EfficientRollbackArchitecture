@@ -31,7 +31,7 @@ export const deepParseCharacterMacros = (data: any): any => {
     return parseCharacterMacros(data);
   }
   if (Array.isArray(data)) {
-    return data.map((item) => deepParseCharacterMacros(item));
+    return data.map(item => deepParseCharacterMacros(item));
   }
   if (typeof data === 'object' && data !== null) {
     return Object.entries(data).reduce(
