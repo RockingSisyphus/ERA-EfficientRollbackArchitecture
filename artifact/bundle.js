@@ -69,7 +69,7 @@ const LOG_CONFIG = {
     error: 3
   },
   currentLevel: 0,
-  debugWhitelist: [ "api-command", "api-macro-parser", "api-macro-patch", "core-rollback", "core-sync", "core-crud-delete", "core-crud-update", "core-crud-patcher", "core-crud-insert-insert", "core-crud-insert-template", "events-dispatcher", "events-queue", "events-merger", "utils-message" ]
+  debugWhitelist: [ "api-command", "api-macro-parser", "api-macro-patch", "core-rollback", "core-sync", "core-crud-patcher", "core-crud-insert-insert", "events-dispatcher", "events-queue", "events-merger", "utils-message" ]
 };
 
 LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
@@ -321,12 +321,56 @@ function parseEditLog(raw) {
   return [];
 }
 
+function stripComments(str) {
+  if (!str) return "";
+  let result = "";
+  let inString = false;
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === '"' && (i === 0 || str[i - 1] !== "\\")) {
+      inString = !inString;
+    }
+    if (inString) {
+      result += char;
+      continue;
+    }
+    const nextChar = str[i + 1];
+    if (char === "/" && nextChar === "/") {
+      const endOfLine = str.indexOf("\n", i + 2);
+      if (endOfLine === -1) {
+        break;
+      }
+      result += "\n";
+      i = endOfLine;
+      continue;
+    }
+    if (char === "/" && nextChar === "*") {
+      const endOfComment = str.indexOf("*/", i + 2);
+      if (endOfComment === -1) {
+        break;
+      }
+      i = endOfComment + 1;
+      continue;
+    }
+    if (char === "<" && str.substring(i, i + 4) === "\x3c!--") {
+      const endOfComment = str.indexOf("--\x3e", i + 4);
+      if (endOfComment === -1) {
+        break;
+      }
+      i = endOfComment + 2;
+      continue;
+    }
+    result += char;
+  }
+  return result;
+}
+
 function parseJsonl(str) {
   const objects = [];
   if (!str || typeof str !== "string") {
     return objects;
   }
-  const strWithoutComments = str.replace(/\/\/.*/g, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "");
+  const strWithoutComments = stripComments(str);
   const trimmedStr = strWithoutComments.trim();
   let braceCount = 0;
   let startIndex = -1;
@@ -469,6 +513,9 @@ function message_findLastAiMessage() {
 }
 
 async function updateMessageContent(message, newContent) {
+  const oldContent = getMessageContent(message);
+  log.debug("updateMessageContent", "更新前的消息内容:", oldContent);
+  log.debug("updateMessageContent", "更新后的消息内容:", newContent);
   const updatePayload = {
     message_id: message.message_id
   };
@@ -666,6 +713,139 @@ async function era_data_updateEraMetaData(updater) {
   }, CHAT_SCOPE);
 }
 
+function rnd() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+function extractBlocks(text, tag) {
+  const blocks = [];
+  const re = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "g");
+  let m;
+  while (m = re.exec(text)) {
+    const rawBody = (m[1] || "").trim();
+    const body = stripCodeFence(rawBody);
+    if (body) blocks.push(body);
+  }
+  return blocks;
+}
+
+function stripCodeFence(s) {
+  if (!s) return s;
+  let t = String(s).trim();
+  t = t.replace(/^\s*(?:```|~~~)\[a-zA-Z0-9_-\]*\s*\r?\n/, "");
+  t = t.replace(/\r?\n(?:```|~~~)\s*$/, "");
+  return t.trim();
+}
+
+const mk_logger = new Logger("core-key-mk");
+
+function mk_parseEraData(messageContent) {
+  if (typeof messageContent !== "string") {
+    return null;
+  }
+  const match = messageContent.match(ERA_DATA_REGEX);
+  if (!match || !match[1]) {
+    return null;
+  }
+  try {
+    const customFormatBlock = match[1];
+    const keyMatch = customFormatBlock.match(/"era-message-key"\s*=\s*"(.*?)"/);
+    const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
+    if (keyMatch?.[1] && typeMatch?.[1]) {
+      return {
+        "era-message-key": keyMatch[1],
+        "era-message-type": typeMatch[1]
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function mk_readMessageKey(msg) {
+  if (!msg) return "";
+  const content = getMessageContent(msg);
+  const mk = mk_parseEraData(content)?.["era-message-key"] || "";
+  return mk;
+}
+
+async function ensureMessageKey(msg) {
+  if (!msg || typeof msg.message_id !== "number" || !msg.role) {
+    mk_logger.warn("ensureMessageKey", `无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`);
+    return {
+      mk: "",
+      isNew: false
+    };
+  }
+  const existingMk = mk_readMessageKey(msg);
+  if (existingMk) {
+    return {
+      mk: existingMk,
+      isNew: false
+    };
+  }
+  const newMk = `era_mk_${Date.now()}_${rnd()}`;
+  const messageType = msg.role === "user" ? "user" : "assistant";
+  const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
+  mk_logger.log("ensureMessageKey", `为消息 (ID: ${msg.message_id}) 注入新的Key: ${newMk}`);
+  const currentContent = getMessageContent(msg) ?? "";
+  const newContent = dataString + "\n" + currentContent;
+  await updateMessageContent(msg, newContent);
+  return {
+    mk: newMk,
+    isNew: true
+  };
+}
+
+const ensureMkForLatestMessage = async () => {
+  try {
+    const msg = getChatMessages(-1, {
+      include_swipes: true
+    })?.[0];
+    mk_logger.debug("ensureMkForLatestMessage", `获取到的最新消息对象 (msg): ${JSON.stringify(msg)}`);
+    if (!msg || typeof msg.message_id !== "number") {
+      mk_logger.warn("ensureMkForLatestMessage", "无法读取最新消息或其ID，退出");
+      return {
+        mk: "",
+        message_id: null,
+        isNewKey: false
+      };
+    }
+    const {mk, isNew} = await ensureMessageKey(msg);
+    mk_logger.log("ensureMkForLatestMessage", `已为最新消息 ${msg.message_id} 确保 MK 存在。 (是否新建: ${isNew})`);
+    return {
+      mk,
+      message_id: msg.message_id,
+      isNewKey: isNew
+    };
+  } catch (err) {
+    mk_logger.error("ensureMkForLatestMessage", `确保MK时异常: ${err?.message || err}`, err);
+    return {
+      mk: "",
+      message_id: null,
+      isNewKey: false
+    };
+  }
+};
+
+const updateLatestSelectedMk = async () => {
+  const msg = getChatMessages(-1, {
+    include_swipes: true
+  })?.[0];
+  if (!msg || typeof msg.message_id !== "number") return;
+  const {mk: MK} = await ensureMessageKey(msg);
+  if (!MK) return;
+  await era_data_updateEraMetaData(meta => {
+    const selectedMks = external_default().get(meta, constants_SEL_PATH, []);
+    if (selectedMks[msg.message_id] !== MK) {
+      selectedMks[msg.message_id] = MK;
+      external_default().set(meta, constants_SEL_PATH, selectedMks);
+    }
+    return meta;
+  });
+};
+
 const delete_logger = new Logger("core-crud-delete");
 
 function applyDeleteAtLevel(statData, basePath, patchObj, editLog) {
@@ -836,139 +1016,6 @@ async function processInsertBlocks(allInserts, editLog) {
     insert_logger.log("processInsertBlocks", "所有 VariableInsert 操作完成");
   }
 }
-
-function rnd() {
-  return Math.random().toString(36).slice(2, 8);
-}
-
-function extractBlocks(text, tag) {
-  const blocks = [];
-  const re = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "g");
-  let m;
-  while (m = re.exec(text)) {
-    const rawBody = (m[1] || "").trim();
-    const body = stripCodeFence(rawBody);
-    if (body) blocks.push(body);
-  }
-  return blocks;
-}
-
-function stripCodeFence(s) {
-  if (!s) return s;
-  let t = String(s).trim();
-  t = t.replace(/^\s*(?:```|~~~)\[a-zA-Z0-9_-\]*\s*\r?\n/, "");
-  t = t.replace(/\r?\n(?:```|~~~)\s*$/, "");
-  return t.trim();
-}
-
-const mk_logger = new Logger("core-key-mk");
-
-function mk_parseEraData(messageContent) {
-  if (typeof messageContent !== "string") {
-    return null;
-  }
-  const match = messageContent.match(ERA_DATA_REGEX);
-  if (!match || !match[1]) {
-    return null;
-  }
-  try {
-    const customFormatBlock = match[1];
-    const keyMatch = customFormatBlock.match(/"era-message-key"\s*=\s*"(.*?)"/);
-    const typeMatch = customFormatBlock.match(/"era-message-type"\s*=\s*"(.*?)"/);
-    if (keyMatch?.[1] && typeMatch?.[1]) {
-      return {
-        "era-message-key": keyMatch[1],
-        "era-message-type": typeMatch[1]
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function mk_readMessageKey(msg) {
-  if (!msg) return "";
-  const content = getMessageContent(msg);
-  const mk = mk_parseEraData(content)?.["era-message-key"] || "";
-  return mk;
-}
-
-async function ensureMessageKey(msg) {
-  if (!msg || typeof msg.message_id !== "number" || !msg.role) {
-    mk_logger.warn("ensureMessageKey", `无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`);
-    return {
-      mk: "",
-      isNew: false
-    };
-  }
-  const existingMk = mk_readMessageKey(msg);
-  if (existingMk) {
-    return {
-      mk: existingMk,
-      isNew: false
-    };
-  }
-  const newMk = `era_mk_${Date.now()}_${rnd()}`;
-  const messageType = msg.role === "user" ? "user" : "assistant";
-  const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
-  mk_logger.log("ensureMessageKey", `为消息 (ID: ${msg.message_id}) 注入新的Key: ${newMk}`);
-  const currentContent = getMessageContent(msg) ?? "";
-  const newContent = dataString + "\n" + currentContent;
-  await updateMessageContent(msg, newContent);
-  return {
-    mk: newMk,
-    isNew: true
-  };
-}
-
-const ensureMkForLatestMessage = async () => {
-  try {
-    const msg = getChatMessages(-1, {
-      include_swipes: true
-    })?.[0];
-    mk_logger.debug("ensureMkForLatestMessage", `获取到的最新消息对象 (msg): ${JSON.stringify(msg)}`);
-    if (!msg || typeof msg.message_id !== "number") {
-      mk_logger.warn("ensureMkForLatestMessage", "无法读取最新消息或其ID，退出");
-      return {
-        mk: "",
-        message_id: null,
-        isNewKey: false
-      };
-    }
-    const {mk, isNew} = await ensureMessageKey(msg);
-    mk_logger.log("ensureMkForLatestMessage", `已为最新消息 ${msg.message_id} 确保 MK 存在。 (是否新建: ${isNew})`);
-    return {
-      mk,
-      message_id: msg.message_id,
-      isNewKey: isNew
-    };
-  } catch (err) {
-    mk_logger.error("ensureMkForLatestMessage", `确保MK时异常: ${err?.message || err}`, err);
-    return {
-      mk: "",
-      message_id: null,
-      isNewKey: false
-    };
-  }
-};
-
-const updateLatestSelectedMk = async () => {
-  const msg = getChatMessages(-1, {
-    include_swipes: true
-  })?.[0];
-  if (!msg || typeof msg.message_id !== "number") return;
-  const {mk: MK} = await ensureMessageKey(msg);
-  if (!MK) return;
-  await era_data_updateEraMetaData(meta => {
-    const selectedMks = external_default().get(meta, constants_SEL_PATH, []);
-    if (selectedMks[msg.message_id] !== MK) {
-      selectedMks[msg.message_id] = MK;
-      external_default().set(meta, constants_SEL_PATH, selectedMks);
-    }
-    return meta;
-  });
-};
 
 const rollback_logger = new Logger("core-rollback");
 

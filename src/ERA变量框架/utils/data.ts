@@ -153,6 +153,87 @@ export function parseEditLog(raw: any): any[] {
 }
 
 /**
+ * 智能地从字符串中移除各种风格的注释，同时保留字符串字面量中的内容。
+ *
+ * **工作原理**:
+ * 该函数通过一个小型状态机来逐字解析输入字符串。它维护一个 `inString` 状态，
+ * 用于判断当前字符是否位于一个双引号包裹的字符串内部。
+ *
+ * 1. 当检测到进入或退出一个字符串时（通过非转义的双引号 `"`），`inString` 状态会翻转。
+ * 2. 如果 `inString` 为 `true`，则所有字符都会被无条件地保留。这确保了字符串值（如 URL）中的 `//` 或 `/*` 不会被当作注释处理。
+ * 3. 如果 `inString` 为 `false`，函数会检查是否存在注释标记（`//`, `/*`, `<!--`）。
+ * 4. 如果找到注释标记，函数会向前扫描直到注释结束，并跳过这部分内容。
+ * 5. 如果没有找到注释，则将当前字符追加到结果中。
+ *
+ * @param str - 待处理的字符串。
+ * @returns 移除了注释的字符串。
+ */
+function stripComments(str: string): string {
+  if (!str) return '';
+
+  let result = '';
+  let inString = false; // 状态：是否在字符串内部
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+
+    // 检查是否进入或退出字符串。忽略转义的双引号 `\"`。
+    if (char === '"' && (i === 0 || str[i - 1] !== '\\')) {
+      inString = !inString;
+    }
+
+    // 如果在字符串内部，直接追加字符，不进行任何注释检查。
+    if (inString) {
+      result += char;
+      continue;
+    }
+
+    // --- 只有在字符串外部时，才进行注释检查 ---
+    const nextChar = str[i + 1];
+
+    // 检查行注释 `//`
+    if (char === '/' && nextChar === '/') {
+      const endOfLine = str.indexOf('\n', i + 2);
+      if (endOfLine === -1) {
+        // 如果没有换行符，说明注释直到字符串末尾，直接结束循环。
+        break;
+      }
+      // 保留换行符，并将索引 `i` 快进到行尾。
+      result += '\n';
+      i = endOfLine;
+      continue;
+    }
+
+    // 检查块注释 `/* ... */`
+    if (char === '/' && nextChar === '*') {
+      const endOfComment = str.indexOf('*/', i + 2);
+      if (endOfComment === -1) {
+        // 未闭合的注释，忽略剩余所有内容。
+        break;
+      }
+      // 将索引 `i` 快进到注释结尾。
+      i = endOfComment + 1;
+      continue;
+    }
+
+    // 检查 HTML 注释 `<!-- ... -->`
+    if (char === '<' && str.substring(i, i + 4) === '<!--') {
+      const endOfComment = str.indexOf('-->', i + 4);
+      if (endOfComment === -1) {
+        // 未闭合的注释。
+        break;
+      }
+      i = endOfComment + 2;
+      continue;
+    }
+
+    // 如果不是注释，则保留该字符。
+    result += char;
+  }
+  return result;
+}
+
+/**
  * 解析一个包含多个串联 JSON 对象的字符串（类似于 JSONL 格式）。
  * 这种格式有时会由 AI 生成。此函数能够逐个提取并解析它们。
  *
@@ -165,11 +246,10 @@ export function parseJsonl(str: string): any[] {
     return objects;
   }
 
-  // 在解析前，先移除所有类型的注释，以提高解析的鲁棒性。
-  const strWithoutComments = str
-    .replace(/\/\/.*/g, '') // 移除 // 风格的单行注释
-    .replace(/\/\*[\s\S]*?\*\//g, '') // 移除 /* ... */ 风格的多行注释
-    .replace(/<!--[\s\S]*?-->/g, ''); // 移除 <!-- ... --> 风格的 HTML/XML 注释
+  // 在解析 JSON 之前，必须先安全地移除所有注释。
+  // 不能使用简单的正则表达式（如 `/\/\/.*/g`），因为它无法区分代码中的注释和字符串值（如 URL "https://..."）中的 `//`，
+  // 会错误地破坏 JSON 字符串的结构。`stripComments` 函数通过状态管理解决了这个问题。
+  const strWithoutComments = stripComments(str);
   const trimmedStr = strWithoutComments.trim();
 
   let braceCount = 0; // 花括号平衡计数器

@@ -53,7 +53,10 @@ export function getMessageContent(msg: any): string | null {
     return null;
   }
 
-  // 在返回内容前进行宏替换
+  // 在返回内容前进行宏替换。
+  // 这样做是因为酒馆自身的宏替换行为不一致：有时（如消息流式生成后）会替换，
+  // 但有时（如聊天记录刚加载时）则不会，这会导致读取到的内容状态混乱。
+  // 因此，我们统一在获取消息时手动执行一次宏替换，以确保数据的一致性。
   return parseCharacterMacros(content);
 }
 
@@ -143,6 +146,10 @@ export function findLastAiMessage(): any | null {
  * @param {string} newContent - 全新的消息内容。
  */
 export async function updateMessageContent(message: any, newContent: string) {
+  const oldContent = getMessageContent(message);
+  log.debug('updateMessageContent', '更新前的消息内容:', oldContent);
+  log.debug('updateMessageContent', '更新后的消息内容:', newContent);
+
   const updatePayload: { message_id: number; message?: string; swipes?: string[] } = {
     message_id: message.message_id,
   };
