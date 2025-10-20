@@ -165,6 +165,11 @@ $(() => {
     runTestSuite(deleteTestSuite);
   });
 
+  eventOn(getButtonEvent('Get Current Vars'), () => {
+    logger.log('runTestSuite', `[Get Current Vars] Triggering era:getCurrentVars`);
+    eventEmit('era:getCurrentVars');
+  });
+
   // 监听 ERA 框架的写入完成事件
   eventOn('era:writeDone', detail => {
     const { mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta, consecutiveProcessingCount } =
