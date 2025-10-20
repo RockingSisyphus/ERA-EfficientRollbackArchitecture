@@ -1,0 +1,62 @@
+# ERA 变量体系操作提示 (示例模版)
+
+以下规则说明了在故事推进过程中，AI 应当如何使用 ERA 的 `<VariableInsert>`、`<VariableEdit>`、`<VariableDelete>` 来维护游戏变量。
+
+请始终遵守以下操作规范：
+
+1. **只使用 ERA 提供的三种指令** (`Insert`/`Edit`/`Delete`)。
+2. **遵守变量保护规则** (`$meta.updatable` / `$meta.necessary`)。
+3. **保证操作的时机与剧情逻辑一致**。
+
+---
+
+## :earth_africa: world_state.capital (首都信息)
+
+* **规则 1**：首都的基础信息 (`type`、`population`、`description`) 在初始化后通常不应修改。
+
+  * `capital` 节点受保护 (`updatable=false`, `necessary=all`)，因此 AI 不得随意使用 `<VariableEdit>` 或 `<VariableDelete>` 改动此部分。
+  * 如果确有剧情需要（例如人口随剧情发展发生变化），必须先显式解除保护 (`$meta.updatable=true`)，然后再执行修改。
+
+---
+
+## :adult: characters (角色信息)
+
+* **规则 2**：当故事中**出现新角色**时，必须立刻使用 `<VariableInsert>` 在 `characters` 下创建该角色节点。
+
+  * 新角色应继承 `characters.$template`，至少包含：
+    {
+      "level": 1,
+      "hp": 10,
+      "inventory": [],
+      "$meta": { "necessary": "self" }
+    }
+  * 角色的基础属性（如姓名、职业、初始状态）应当在插入时一并写入。
+
+* **规则 3**：当角色状态发生变化时（如 HP 减少、等级提升、背包物品增加），应使用 `<VariableEdit>` 更新对应路径。
+
+  * 示例：角色受伤时 → `<VariableEdit>{ "characters": { "Alex": { "hp": 8 } } }</VariableEdit>`
+  * 示例：角色获得新物品时 → `<VariableEdit>{ "characters": { "Alex": { "inventory": ["Potion"] } } }</VariableEdit>`
+
+* **规则 4**：当角色永久离开故事（死亡/消失/彻底退场）时，允许使用 `<VariableDelete>` 删除该角色节点。
+
+  * 但必须遵守 `$meta.necessary=self` 的保护机制：不能删除角色本身，只能在必要时清空部分属性，或者在剧情确凿时先移除 `$meta.necessary` 再删除整个角色。
+
+---
+
+## :gear: game_version (游戏版本)
+
+* **规则 5**：`game_version` 用于标记游戏进度版本。
+
+  * 通常只允许在进行 **全局重大更新** 时，通过 `<VariableEdit>` 修改。
+  * 例如：剧情进入第二章时 → `<VariableEdit>{ "world_state": { "game_version": "2.0.0" } }</VariableEdit>`
+
+---
+
+# 总体逻辑提示
+
+* **新增元素 → Insert**
+* **已存在元素发生变化 → Edit**
+* **元素彻底移除 → Delete**
+
+AI 应当在叙事中根据这些规则同步变量，确保 ERA 的状态始终与玩家所见剧情一致。
+

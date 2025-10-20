@@ -18,7 +18,7 @@ import { EVENT_GROUPS } from './events/merger';
 import { pushToQueue } from './events/queue';
 
 // 导入查询模块, 以注册 {{ERA:...}} 宏
-import './api/macro/parser';
+import './macro/parser';
 
 // 导入 UI 模块
 import './ui';

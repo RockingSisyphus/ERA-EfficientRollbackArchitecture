@@ -110,6 +110,7 @@ export const ERA_API_EVENTS = {
   UPDATE_BY_PATH: 'era:updateByPath',
   DELETE_BY_OBJECT: 'era:deleteByObject',
   DELETE_BY_PATH: 'era:deleteByPath',
+  GET_CURRENT_VARS: 'era:getCurrentVars',
 } as const;
 
 /**

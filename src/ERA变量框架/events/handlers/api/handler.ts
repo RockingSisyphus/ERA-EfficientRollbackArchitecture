@@ -17,28 +17,19 @@
  */
 
 import _ from 'lodash';
-import { ERA_EVENT_EMITTER, WriteDonePayload } from '../utils/constants';
-import { J, unescapeEraData } from '../utils/data';
-import { Logger } from '../utils/log';
-import { findLastAiMessage, getMessageContent, updateMessageContent } from '../utils/message';
+import { WriteDonePayload } from '../../../utils/constants';
+import { J } from '../../../utils/data';
+import { Logger } from '../../../utils/log';
+import { findLastAiMessage, getMessageContent, updateMessageContent } from '../../../utils/message';
+import { debouncedEmitApiWrite, emitWriteDoneEvent } from '../../emitters/events';
 
-const logger = new Logger('api-command');
+const logger = new Logger('events-handlers-api-handler');
 
 // API 写入任务的接口定义
 interface ApiWriteJob {
   blockTag: 'VariableInsert' | 'VariableEdit' | 'VariableDelete';
   blockContent: object;
 }
-
-// 使用 lodash.debounce 创建一个防抖函数来发送 API 写入事件
-const debouncedEmitApiWrite = _.debounce(
-  () => {
-    eventEmit(ERA_EVENT_EMITTER.API_WRITE);
-    logger.log('debouncedEmitApiWrite', `已触发合并后的 ${ERA_EVENT_EMITTER.API_WRITE} 事件。`);
-  },
-  50, //API调用的防抖改成50毫秒，提高即时性
-  { leading: false, trailing: true },
-);
 
 // ==================================================================
 // API 事件参考
@@ -214,47 +205,10 @@ export function deleteByPath(path: string) {
   performApiWrite({ blockTag: 'VariableDelete', blockContent: block });
 }
 
-// ==================================================================
-// 事件广播器实现 (由 variable_change_processor.ts 等内部模块调用)
-// ==================================================================
-
 /**
- * **【广播器】** 触发 `era:writeDone` 事件。
- * 当一次完整的变量写入操作（包括增、删、改）在 `variable_change_processor.ts` 中成功完成后，
- * 应调用此函数。它向外部脚本广播一个事件，通知它们变量状态已发生改变，并提供详细的上下文。
- *
- * @param {WriteDonePayload} payload - 包含写入操作关键信息的事件负载。
- * @example
- * // 这是一个在外部脚本中监听此事件的示例：
- * eventOn('era:writeDone', (detail) => {
- *   const { mk, message_id, actions, selectedMks, editLogs, stat, statWithoutMeta } = detail;
- *   console.log(`ERA 变量已更新！消息 ID: ${message_id}, MK: ${mk}`);
- *   console.log('执行的操作:', actions);
- *
- *   // 你可以根据需要使用 stat (带 meta) 或 statWithoutMeta (不带 meta)
- *   console.log('最新的纯净状态数据:', statWithoutMeta);
- *
- *   // 此时可以根据最新的状态数据更新你自己的 UI 或执行其他逻辑
- * });
+ * **【处理器】** 处理 `era:getCurrentVars` 事件。
+ * 这个函数是空的，因为它的目的只是为了触发 writeDone 事件，以便其他组件能通过这种方式获取到最新变量。
  */
-export function emitWriteDoneEvent(payload: WriteDonePayload) {
-  // 在广播前，对需要暴露给外部的数据进行反转义
-  const unescapedPayload = {
-    ...payload,
-    stat: unescapeEraData(payload.stat),
-    statWithoutMeta: unescapeEraData(payload.statWithoutMeta),
-  };
-
-  logger.debug('emitWriteDoneEvent', 'writeDone事件广播数据反转义', {
-    before: { stat: payload.stat, statWithoutMeta: payload.statWithoutMeta },
-    after: { stat: unescapedPayload.stat, statWithoutMeta: unescapedPayload.statWithoutMeta },
-  });
-
-  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, unescapedPayload);
-  logger.log(
-    'emitWriteDoneEvent',
-    `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(
-      payload.actions,
-    )}, MK: ${payload.mk}, MsgID: ${payload.message_id}, 连续处理次数: ${payload.consecutiveProcessingCount}`,
-  );
+export function getCurrentVars(payload: WriteDonePayload) {
+  emitWriteDoneEvent(payload);
 }

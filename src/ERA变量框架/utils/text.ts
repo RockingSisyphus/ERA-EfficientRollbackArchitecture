@@ -12,12 +12,8 @@ export function parseCharacterMacros(text: string): string {
 
   let result = text;
   // 使用全局不区分大小写的替换
-  if (result.includes('{{user}}')) {
-    result = result.replace(/{{user}}/gi, SillyTavern.name1);
-  }
-  if (result.includes('{{char}}')) {
-    result = result.replace(/{{char}}/gi, SillyTavern.name2);
-  }
+  result = result.replace(/{{user}}/gi, SillyTavern.name1);
+  result = result.replace(/{{char}}/gi, SillyTavern.name2);
   return result;
 }
 

@@ -1,24 +1,16 @@
 'use strict';
 
 import _ from 'lodash';
-import {
-  deleteByObject,
-  deleteByPath,
-  emitWriteDoneEvent,
-  insertByObject,
-  insertByPath,
-  updateByObject,
-  updateByPath,
-} from '../api/command';
-import { ApplyVarChange } from '../core/crud/patcher';
-import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from '../core/key/mk';
-import { rollbackByMk } from '../core/rollback';
-import { resyncStateOnHistoryChange } from '../core/sync';
-import { forceRenderRecentMessages } from '../ui/patch';
-import { ERA_API_EVENTS, ERA_EVENT_EMITTER, LOGS_PATH, SEL_PATH } from '../utils/constants';
+import { ensureMkForLatestMessage } from '../core/key/mk';
+import { LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { logContext, Logger } from '../utils/log';
+import { handleApiEvent } from './handlers/api/dispatcher';
+import { handleSyncEvent } from './handlers/sync';
+import { handleUpdateMkOnlyEvent } from './handlers/updateMkOnly';
+import { handleWriteEvent } from './handlers/write';
 import { EventJob, getEventGroup } from './merger';
+import { ActionsTaken } from './types';
 
 const logger = new Logger('events-dispatcher');
 
@@ -82,6 +74,28 @@ function handleRedundantRenderEvent(
 }
 
 /**
+ * **【辅助函数】更新连续处理计数**
+ * @returns {number} - 返回更新后的连续处理次数。
+ */
+function updateConsecutiveMkCount(): number {
+  const mk = logContext.mk;
+  if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
+    logger.debug(
+      'updateConsecutiveMkCount',
+      `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`,
+    );
+    consecutiveMkState.count++;
+  } else {
+    logger.debug(
+      'updateConsecutiveMkCount',
+      `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`,
+    );
+    consecutiveMkState = { mk: mk, count: 1 };
+  }
+  return consecutiveMkState.count;
+}
+
+/**
  * **【任务执行器】**
  * 负责执行单个事件任务，包含所有前置、后置处理和错误捕获。
  * @param {EventJob} job - 要执行的事件任务。
@@ -89,17 +103,20 @@ function handleRedundantRenderEvent(
  * @returns {Promise<IgnoreRule | null>} - 返回更新后的忽略规则。
  */
 export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRule | null): Promise<IgnoreRule | null> {
-  const { type: eventType, detail } = job;
+  const { type: eventType } = job;
   const eventGroup = getEventGroup(eventType);
   let message_id: number | null = null;
-  let currentConsecutiveCount = 1;
 
   // 在每轮任务开始时，初始化操作记录器
-  const actionsTaken = { rollback: false, apply: false, resync: false, api: false, apiWrite: false };
+  const actionsTaken: ActionsTaken = { rollback: false, apply: false, resync: false, api: false, apiWrite: false };
 
   try {
     // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
     const { mk, message_id: msgId, isNewKey } = await ensureMkForLatestMessage();
+    if (!mk || msgId === null) {
+      logger.warn('dispatchAndExecuteTask', '无法获取有效的 MK 或消息 ID，跳过任务执行。');
+      return mkToIgnore;
+    }
     logContext.mk = mk;
     message_id = msgId;
 
@@ -122,110 +139,38 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     logger.log('dispatchAndExecuteTask', `执行任务: ${eventType} (分组: ${eventGroup})`);
 
     // **任务分发**
-    logger.debug('dispatchAndExecuteTask - task dispatch', `分发事件: ${eventType}`, { detail, eventGroup });
-    if (eventGroup === 'WRITE') {
-      // 关键：写入前先回滚，确保操作的幂等性。
-      // 即使事件被意外触发多次，也只会产生一次有效写入。
-      const msg = getChatMessages(-1, { include_swipes: true })?.[0];
-      if (msg) {
-        const MK = readMessageKey(msg);
-        if (MK) {
-          await rollbackByMk(MK, true);
-          actionsTaken.rollback = true;
-        }
-      }
-      await ApplyVarChange();
-      actionsTaken.apply = true;
+    // 在分发前，准备好可能需要发送 writeDone 事件的 payload
+    const { meta: metaData, stat: statData } = getEraData();
+    const payload = {
+      mk: mk,
+      message_id: message_id,
+      actions: actionsTaken,
+      selectedMks: _.get(metaData, SEL_PATH, []),
+      editLogs: _.get(metaData, LOGS_PATH, {}),
+      stat: statData,
+      statWithoutMeta: removeMetaFields(statData),
+      consecutiveProcessingCount: 1, // 初始值
+    };
 
-      // 如果是 API 触发的写入，则标记
-      if (eventType === ERA_EVENT_EMITTER.API_WRITE) {
-        actionsTaken.apiWrite = true;
-      }
-
-      // 在变量写入完成后，强制重新渲染消息以触发宏
-      forceRenderRecentMessages();
-    } else if (eventGroup === 'SYNC') {
-      logger.debug('dispatchAndExecuteTask - task dispatch', `事件 ${eventType} 触发状态同步流程...`);
-      const isFullSync = eventType === 'manual_full_sync';
-      await resyncStateOnHistoryChange(isFullSync);
-      actionsTaken.resync = true;
-      // 在同步完成后，强制重新渲染消息以触发宏
-      if (eventType != 'combo_sync') forceRenderRecentMessages();
-    } else if (eventGroup === 'API') {
-      actionsTaken.api = true;
-      // API 事件是“即发即忘”的，同步调用处理器将任务推入 api.ts 的队列后立即返回，不阻塞事件队列。
-      if (eventType === ERA_API_EVENTS.INSERT_BY_OBJECT) insertByObject(detail);
-      else if (eventType === ERA_API_EVENTS.UPDATE_BY_OBJECT) updateByObject(detail);
-      else if (eventType === ERA_API_EVENTS.INSERT_BY_PATH) insertByPath(detail.path, detail.value);
-      else if (eventType === ERA_API_EVENTS.UPDATE_BY_PATH) updateByPath(detail.path, detail.value);
-      else if (eventType === ERA_API_EVENTS.DELETE_BY_OBJECT) deleteByObject(detail);
-      else if (eventType === ERA_API_EVENTS.DELETE_BY_PATH) deleteByPath(detail.path);
-    } else if (eventGroup === 'UPDATE_MK_ONLY') {
-      // 监听此事件仅用于为用户消息创建 MK。
-      await updateLatestSelectedMk();
+    switch (eventGroup) {
+      case 'WRITE':
+        payload.consecutiveProcessingCount = updateConsecutiveMkCount();
+        await handleWriteEvent(job, actionsTaken, payload);
+        break;
+      case 'SYNC':
+        payload.consecutiveProcessingCount = updateConsecutiveMkCount();
+        await handleSyncEvent(job, actionsTaken, payload);
+        break;
+      case 'API':
+        handleApiEvent(job, actionsTaken, payload);
+        break;
+      case 'UPDATE_MK_ONLY':
+        await handleUpdateMkOnlyEvent();
+        break;
     }
   } catch (error) {
     logger.error('dispatchAndExecuteTask', `事件 ${eventType} 处理异常: ${error}`, error);
   } finally {
-    // 仅当本轮处理中实际执行了 ERA 核心操作时，才校准并广播事件
-    // --- 3. 触发写入完成事件 ---
-    if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync) {
-      // **后置保障**: 强制校准 `SelectedMks` 的最新记录。
-      await updateLatestSelectedMk();
-
-      // **只有在事件实际执行了写入/同步操作时，才更新连续处理计数**
-      const mk = logContext.mk;
-      if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
-        logger.debug(
-          'dispatchAndExecuteTask',
-          `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`,
-        );
-        consecutiveMkState.count++;
-      } else {
-        logger.debug(
-          'dispatchAndExecuteTask',
-          `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`,
-        );
-        consecutiveMkState = { mk: mk, count: 1 };
-      }
-      currentConsecutiveCount = consecutiveMkState.count;
-
-      // 在所有操作（包括校准）完成后，获取最新状态并广播事件
-      if (logContext.mk && message_id !== null) {
-        const { meta: metaData, stat: statData } = getEraData();
-        const selectedMks = _.get(metaData, SEL_PATH, []);
-        const editLogs = _.get(metaData, LOGS_PATH, {});
-        const statWithoutMeta = removeMetaFields(statData);
-
-        const payload = {
-          mk: logContext.mk,
-          message_id: message_id,
-          actions: actionsTaken,
-          selectedMks: selectedMks,
-          editLogs: editLogs,
-          stat: statData,
-          statWithoutMeta: statWithoutMeta,
-          consecutiveProcessingCount: currentConsecutiveCount,
-        };
-
-        logger.debug(
-          'dispatchAndExecuteTask',
-          `准备发送 writeDone 事件。触发事件: ${eventType}, 条件: 核心操作已执行 (rollback/apply/resync)。`,
-          {
-            triggeringEvent: eventType,
-            conditions: {
-              actionsTaken,
-              mk: logContext.mk,
-              message_id,
-            },
-            payload,
-          },
-        );
-
-        emitWriteDoneEvent(payload);
-      }
-    }
-
     // 清理日志上下文，为下一个事件做准备
     logContext.mk = '';
 

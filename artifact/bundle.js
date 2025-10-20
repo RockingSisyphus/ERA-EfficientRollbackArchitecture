@@ -53,7 +53,8 @@ const ERA_API_EVENTS = {
   INSERT_BY_PATH: "era:insertByPath",
   UPDATE_BY_PATH: "era:updateByPath",
   DELETE_BY_OBJECT: "era:deleteByObject",
-  DELETE_BY_PATH: "era:deleteByPath"
+  DELETE_BY_PATH: "era:deleteByPath",
+  GET_CURRENT_VARS: "era:getCurrentVars"
 };
 
 const ERA_EVENT_EMITTER = {
@@ -69,7 +70,7 @@ const LOG_CONFIG = {
     error: 3
   },
   currentLevel: 0,
-  debugWhitelist: [ "api-command", "api-macro-parser", "api-macro-patch", "core-rollback", "core-sync", "core-crud-patcher", "core-crud-insert-insert", "events-dispatcher", "events-queue", "events-merger", "utils-message" ]
+  debugWhitelist: [ "index", "core-rollback", "core-sync", "core-crud-delete", "core-crud-patcher", "core-crud-update", "core-crud-insert-insert", "core-crud-insert-template", "core-key-mk", "events-dispatcher", "events-merger", "events-queue", "events-emitters-events", "events-handlers-sync", "events-handlers-api-handler", "macro-parser", "ui-index", "ui-patch", "ui-components-statusBar-index", "ui-components-statusBarContent-index", "ui-parser-analyzer", "utils-message" ]
 };
 
 LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
@@ -223,199 +224,13 @@ function mergeEventBatch(batchToProcess) {
   return filteredJobs;
 }
 
-const data_logger = new Logger("utils-data");
-
-const ESCAPE_MAP = {
-  ".": "__DOT__",
-  '"': "__DQUOTE__",
-  "'": "__SQUOTE__"
-};
-
-const UNESCAPE_MAP = external_default().invert(ESCAPE_MAP);
-
-const escapeRegex = new RegExp(Object.keys(ESCAPE_MAP).map(external_default().escapeRegExp).join("|"), "g");
-
-const unescapeRegex = new RegExp(Object.values(ESCAPE_MAP).map(external_default().escapeRegExp).join("|"), "g");
-
-function escapeEraData(data) {
-  if (Array.isArray(data)) {
-    return data.map(item => escapeEraData(item));
-  }
-  if (external_default().isPlainObject(data)) {
-    const newObj = {};
-    for (const key in data) {
-      if (Object.prototype.hasOwnProperty.call(data, key)) {
-        const escapedKey = key.replace(escapeRegex, match => ESCAPE_MAP[match]);
-        newObj[escapedKey] = escapeEraData(data[key]);
-      }
-    }
-    return newObj;
-  }
-  if (typeof data === "string") {
-    return data.replace(escapeRegex, match => ESCAPE_MAP[match]);
-  }
-  return data;
-}
-
-function unescapeEraData(data) {
-  if (Array.isArray(data)) {
-    return data.map(item => unescapeEraData(item));
-  }
-  if (external_default().isPlainObject(data)) {
-    const newObj = {};
-    for (const key in data) {
-      if (Object.prototype.hasOwnProperty.call(data, key)) {
-        const unescapedKey = key.replace(unescapeRegex, match => UNESCAPE_MAP[match]);
-        newObj[unescapedKey] = unescapeEraData(data[key]);
-      }
-    }
-    return newObj;
-  }
-  if (typeof data === "string") {
-    return data.replace(unescapeRegex, match => UNESCAPE_MAP[match]);
-  }
-  return data;
-}
-
-const isPO = v => _.isPlainObject(v);
-
-function sanitizeArrays(v) {
-  if (Array.isArray(v)) {
-    return v.map(e => Array.isArray(e) || external_default().isPlainObject(e) ? JSON.stringify(e) : e);
-  } else if (external_default().isPlainObject(v)) {
-    const o = {};
-    for (const k in v) o[k] = sanitizeArrays(v[k]);
-    return o;
-  } else {
-    return v;
-  }
-}
-
-const J = o => {
-  try {
-    return JSON.stringify(o, null, 2);
-  } catch (e) {
-    return `<<stringify失败: ${e?.message || e}>>`;
-  }
-};
-
-function mergeReplaceArray(base, patch) {
-  return external_default().mergeWith(external_default().cloneDeep(base), external_default().cloneDeep(patch), (a, b) => {
-    if (Array.isArray(a) || Array.isArray(b)) return b;
-    return undefined;
-  });
-}
-
-function parseEditLog(raw) {
-  if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === "object") return [ raw ];
-  if (typeof raw === "string") {
-    const s = raw.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "");
-    try {
-      const arr = JSON.parse(s);
-      return Array.isArray(arr) ? arr : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-function stripComments(str) {
-  if (!str) return "";
-  let result = "";
-  let inString = false;
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-    if (char === '"' && (i === 0 || str[i - 1] !== "\\")) {
-      inString = !inString;
-    }
-    if (inString) {
-      result += char;
-      continue;
-    }
-    const nextChar = str[i + 1];
-    if (char === "/" && nextChar === "/") {
-      const endOfLine = str.indexOf("\n", i + 2);
-      if (endOfLine === -1) {
-        break;
-      }
-      result += "\n";
-      i = endOfLine;
-      continue;
-    }
-    if (char === "/" && nextChar === "*") {
-      const endOfComment = str.indexOf("*/", i + 2);
-      if (endOfComment === -1) {
-        break;
-      }
-      i = endOfComment + 1;
-      continue;
-    }
-    if (char === "<" && str.substring(i, i + 4) === "\x3c!--") {
-      const endOfComment = str.indexOf("--\x3e", i + 4);
-      if (endOfComment === -1) {
-        break;
-      }
-      i = endOfComment + 2;
-      continue;
-    }
-    result += char;
-  }
-  return result;
-}
-
-function parseJsonl(str) {
-  const objects = [];
-  if (!str || typeof str !== "string") {
-    return objects;
-  }
-  const strWithoutComments = stripComments(str);
-  const trimmedStr = strWithoutComments.trim();
-  let braceCount = 0;
-  let startIndex = -1;
-  let inString = false;
-  for (let i = 0; i < trimmedStr.length; i++) {
-    const char = trimmedStr[i];
-    if (char === '"' && (i === 0 || trimmedStr[i - 1] !== "\\")) {
-      inString = !inString;
-    }
-    if (inString) continue;
-    if (char === "{") {
-      if (braceCount === 0) {
-        startIndex = i;
-      }
-      braceCount++;
-    } else if (char === "}") {
-      if (braceCount > 0) {
-        braceCount--;
-        if (braceCount === 0 && startIndex !== -1) {
-          const jsonString = trimmedStr.substring(startIndex, i + 1);
-          try {
-            const obj = JSON.parse(jsonString);
-            objects.push(obj);
-          } catch (e) {
-            data_logger.error(`JSONL 解析失败: ${e?.message || e}. 失败的片段: ${jsonString}`, e);
-          }
-          startIndex = -1;
-        }
-      }
-    }
-  }
-  return objects;
-}
-
 function parseCharacterMacros(text) {
   if (!text.includes("{{")) {
     return text;
   }
   let result = text;
-  if (result.includes("{{user}}")) {
-    result = result.replace(/{{user}}/gi, SillyTavern.name1);
-  }
-  if (result.includes("{{char}}")) {
-    result = result.replace(/{{char}}/gi, SillyTavern.name2);
-  }
+  result = result.replace(/{{user}}/gi, SillyTavern.name1);
+  result = result.replace(/{{char}}/gi, SillyTavern.name2);
   return result;
 }
 
@@ -530,137 +345,6 @@ async function updateMessageContent(message, newContent) {
   await setChatMessages([ updatePayload ], {
     refresh: "none"
   });
-}
-
-const command_logger = new Logger("api-command");
-
-const debouncedEmitApiWrite = external_default().debounce(() => {
-  eventEmit(ERA_EVENT_EMITTER.API_WRITE);
-  command_logger.log("debouncedEmitApiWrite", `已触发合并后的 ${ERA_EVENT_EMITTER.API_WRITE} 事件。`);
-}, 50, {
-  leading: false,
-  trailing: true
-});
-
-async function performApiWrite(job) {
-  const contentString = J(job.blockContent);
-  const block = `\n<${job.blockTag}>\n${contentString}\n</${job.blockTag}>`;
-  const lastAiMessage = await message_findLastAiMessage();
-  if (!lastAiMessage) {
-    command_logger.warn("performApiWrite", "找不到任何 AI 消息，无法执行 API 写入。");
-    return;
-  }
-  const originalContent = getMessageContent(lastAiMessage) ?? "";
-  const newContent = originalContent + block;
-  command_logger.log("performApiWrite", `实时写入 API 任务 (${job.blockTag}) 到消息 ID ${lastAiMessage.message_id}...`);
-  await updateMessageContent(lastAiMessage, newContent);
-  debouncedEmitApiWrite();
-}
-
-function insertByObject(data) {
-  performApiWrite({
-    blockTag: "VariableInsert",
-    blockContent: data
-  });
-}
-
-function updateByObject(data) {
-  performApiWrite({
-    blockTag: "VariableEdit",
-    blockContent: data
-  });
-}
-
-function insertByPath(path, value) {
-  const block = external_default().set({}, path, value);
-  performApiWrite({
-    blockTag: "VariableInsert",
-    blockContent: block
-  });
-}
-
-function updateByPath(path, value) {
-  const block = external_default().set({}, path, value);
-  performApiWrite({
-    blockTag: "VariableEdit",
-    blockContent: block
-  });
-}
-
-function deleteByObject(data) {
-  performApiWrite({
-    blockTag: "VariableDelete",
-    blockContent: data
-  });
-}
-
-function deleteByPath(path) {
-  const block = external_default().set({}, path, {});
-  performApiWrite({
-    blockTag: "VariableDelete",
-    blockContent: block
-  });
-}
-
-function emitWriteDoneEvent(payload) {
-  const unescapedPayload = {
-    ...payload,
-    stat: unescapeEraData(payload.stat),
-    statWithoutMeta: unescapeEraData(payload.statWithoutMeta)
-  };
-  command_logger.debug("emitWriteDoneEvent", "writeDone事件广播数据反转义", {
-    before: {
-      stat: payload.stat,
-      statWithoutMeta: payload.statWithoutMeta
-    },
-    after: {
-      stat: unescapedPayload.stat,
-      statWithoutMeta: unescapedPayload.statWithoutMeta
-    }
-  });
-  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, unescapedPayload);
-  command_logger.log("emitWriteDoneEvent", `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(payload.actions)}, MK: ${payload.mk}, MsgID: ${payload.message_id}, 连续处理次数: ${payload.consecutiveProcessingCount}`);
-}
-
-const patch_log = new Logger("api-macro-patch");
-
-function forceRenderMessage(messageId) {
-  return new Promise(resolve => {
-    const messageSelector = `div.mes[mesid="${messageId}"]`;
-    const $message = $(messageSelector);
-    $message.find(".mes_button.mes_edit").trigger("click");
-    setTimeout(() => {
-      $message.find(".mes_edit_done.menu_button").trigger("click");
-      resolve();
-    }, 50);
-  });
-}
-
-async function forceRenderRecentMessages() {
-  const scriptVars = getVariables({
-    type: "script",
-    script_id: getScriptId()
-  });
-  const forceReload = external_default().get(scriptVars, "强制重载功能", false);
-  if (!forceReload) {
-    patch_log.debug("forceRenderRecentMessages", "强制重载功能未启用, 跳过。");
-    return;
-  }
-  const messageCount = external_default().get(scriptVars, "强制重载消息数", 1);
-  patch_log.log("forceRenderRecentMessages", `开始强制重载, 数量: ${messageCount}`);
-  await new Promise(resolve => setTimeout(resolve, 1e3));
-  const allMessages = getChatMessages("0-{{lastMessageId}}");
-  if (!allMessages || allMessages.length === 0) {
-    patch_log.warn("forceRenderRecentMessages", "无法获取到任何消息, 终止重载。");
-    return;
-  }
-  const recentMessages = allMessages.slice(-messageCount);
-  for (const message of recentMessages) {
-    patch_log.debug("forceRenderRecentMessages", `正在强制渲染消息: ${message.message_id}`);
-    await forceRenderMessage(message.message_id);
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  patch_log.log("forceRenderRecentMessages", "强制重载完成。");
 }
 
 function removeMetaFields(obj) {
@@ -846,6 +530,390 @@ const updateLatestSelectedMk = async () => {
   });
 };
 
+const data_logger = new Logger("utils-data");
+
+const ESCAPE_MAP = {
+  ".": "__DOT__",
+  '"': "__DQUOTE__",
+  "'": "__SQUOTE__"
+};
+
+const UNESCAPE_MAP = external_default().invert(ESCAPE_MAP);
+
+const escapeRegex = new RegExp(Object.keys(ESCAPE_MAP).map(external_default().escapeRegExp).join("|"), "g");
+
+const unescapeRegex = new RegExp(Object.values(ESCAPE_MAP).map(external_default().escapeRegExp).join("|"), "g");
+
+function escapeEraData(data) {
+  if (Array.isArray(data)) {
+    return data.map(item => escapeEraData(item));
+  }
+  if (external_default().isPlainObject(data)) {
+    const newObj = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const escapedKey = key.replace(escapeRegex, match => ESCAPE_MAP[match]);
+        newObj[escapedKey] = escapeEraData(data[key]);
+      }
+    }
+    return newObj;
+  }
+  if (typeof data === "string") {
+    return data.replace(escapeRegex, match => ESCAPE_MAP[match]);
+  }
+  return data;
+}
+
+function unescapeEraData(data) {
+  if (Array.isArray(data)) {
+    return data.map(item => unescapeEraData(item));
+  }
+  if (external_default().isPlainObject(data)) {
+    const newObj = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const unescapedKey = key.replace(unescapeRegex, match => UNESCAPE_MAP[match]);
+        newObj[unescapedKey] = unescapeEraData(data[key]);
+      }
+    }
+    return newObj;
+  }
+  if (typeof data === "string") {
+    return data.replace(unescapeRegex, match => UNESCAPE_MAP[match]);
+  }
+  return data;
+}
+
+const isPO = v => _.isPlainObject(v);
+
+function sanitizeArrays(v) {
+  if (Array.isArray(v)) {
+    return v.map(e => Array.isArray(e) || external_default().isPlainObject(e) ? JSON.stringify(e) : e);
+  } else if (external_default().isPlainObject(v)) {
+    const o = {};
+    for (const k in v) o[k] = sanitizeArrays(v[k]);
+    return o;
+  } else {
+    return v;
+  }
+}
+
+const J = o => {
+  try {
+    return JSON.stringify(o, null, 2);
+  } catch (e) {
+    return `<<stringify失败: ${e?.message || e}>>`;
+  }
+};
+
+function mergeReplaceArray(base, patch) {
+  return external_default().mergeWith(external_default().cloneDeep(base), external_default().cloneDeep(patch), (a, b) => {
+    if (Array.isArray(a) || Array.isArray(b)) return b;
+    return undefined;
+  });
+}
+
+function parseEditLog(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === "object") return [ raw ];
+  if (typeof raw === "string") {
+    const s = raw.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "");
+    try {
+      const arr = JSON.parse(s);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function stripComments(str) {
+  if (!str) return "";
+  let result = "";
+  let inString = false;
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === '"' && (i === 0 || str[i - 1] !== "\\")) {
+      inString = !inString;
+    }
+    if (inString) {
+      result += char;
+      continue;
+    }
+    const nextChar = str[i + 1];
+    if (char === "/" && nextChar === "/") {
+      const endOfLine = str.indexOf("\n", i + 2);
+      if (endOfLine === -1) {
+        break;
+      }
+      result += "\n";
+      i = endOfLine;
+      continue;
+    }
+    if (char === "/" && nextChar === "*") {
+      const endOfComment = str.indexOf("*/", i + 2);
+      if (endOfComment === -1) {
+        break;
+      }
+      i = endOfComment + 1;
+      continue;
+    }
+    if (char === "<" && str.substring(i, i + 4) === "\x3c!--") {
+      const endOfComment = str.indexOf("--\x3e", i + 4);
+      if (endOfComment === -1) {
+        break;
+      }
+      i = endOfComment + 2;
+      continue;
+    }
+    result += char;
+  }
+  return result;
+}
+
+function parseJsonl(str) {
+  const objects = [];
+  if (!str || typeof str !== "string") {
+    return objects;
+  }
+  const strWithoutComments = stripComments(str);
+  const trimmedStr = strWithoutComments.trim();
+  let braceCount = 0;
+  let startIndex = -1;
+  let inString = false;
+  for (let i = 0; i < trimmedStr.length; i++) {
+    const char = trimmedStr[i];
+    if (char === '"' && (i === 0 || trimmedStr[i - 1] !== "\\")) {
+      inString = !inString;
+    }
+    if (inString) continue;
+    if (char === "{") {
+      if (braceCount === 0) {
+        startIndex = i;
+      }
+      braceCount++;
+    } else if (char === "}") {
+      if (braceCount > 0) {
+        braceCount--;
+        if (braceCount === 0 && startIndex !== -1) {
+          const jsonString = trimmedStr.substring(startIndex, i + 1);
+          try {
+            const obj = JSON.parse(jsonString);
+            objects.push(obj);
+          } catch (e) {
+            data_logger.error(`JSONL 解析失败: ${e?.message || e}. 失败的片段: ${jsonString}`, e);
+          }
+          startIndex = -1;
+        }
+      }
+    }
+  }
+  return objects;
+}
+
+const events_logger = new Logger("events-emitters-events");
+
+const debouncedEmitApiWrite = external_default().debounce(() => {
+  eventEmit(ERA_EVENT_EMITTER.API_WRITE);
+  events_logger.log("debouncedEmitApiWrite", `已触发合并后的 ${ERA_EVENT_EMITTER.API_WRITE} 事件。`);
+}, 50, {
+  leading: false,
+  trailing: true
+});
+
+function emitWriteDoneEvent(payload) {
+  const unescapedPayload = {
+    ...payload,
+    stat: unescapeEraData(payload.stat),
+    statWithoutMeta: unescapeEraData(payload.statWithoutMeta)
+  };
+  events_logger.debug("emitWriteDoneEvent", "writeDone事件广播数据反转义", {
+    before: {
+      stat: payload.stat,
+      statWithoutMeta: payload.statWithoutMeta
+    },
+    after: {
+      stat: unescapedPayload.stat,
+      statWithoutMeta: unescapedPayload.statWithoutMeta
+    }
+  });
+  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, unescapedPayload);
+  events_logger.log("emitWriteDoneEvent", `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(payload.actions)}, MK: ${payload.mk}, MsgID: ${payload.message_id}, 连续处理次数: ${payload.consecutiveProcessingCount}`);
+}
+
+const handler_logger = new Logger("events-handlers-api-handler");
+
+async function performApiWrite(job) {
+  const contentString = J(job.blockContent);
+  const block = `\n<${job.blockTag}>\n${contentString}\n</${job.blockTag}>`;
+  const lastAiMessage = await message_findLastAiMessage();
+  if (!lastAiMessage) {
+    handler_logger.warn("performApiWrite", "找不到任何 AI 消息，无法执行 API 写入。");
+    return;
+  }
+  const originalContent = getMessageContent(lastAiMessage) ?? "";
+  const newContent = originalContent + block;
+  handler_logger.log("performApiWrite", `实时写入 API 任务 (${job.blockTag}) 到消息 ID ${lastAiMessage.message_id}...`);
+  await updateMessageContent(lastAiMessage, newContent);
+  debouncedEmitApiWrite();
+}
+
+function insertByObject(data) {
+  performApiWrite({
+    blockTag: "VariableInsert",
+    blockContent: data
+  });
+}
+
+function updateByObject(data) {
+  performApiWrite({
+    blockTag: "VariableEdit",
+    blockContent: data
+  });
+}
+
+function insertByPath(path, value) {
+  const block = external_default().set({}, path, value);
+  performApiWrite({
+    blockTag: "VariableInsert",
+    blockContent: block
+  });
+}
+
+function updateByPath(path, value) {
+  const block = external_default().set({}, path, value);
+  performApiWrite({
+    blockTag: "VariableEdit",
+    blockContent: block
+  });
+}
+
+function deleteByObject(data) {
+  performApiWrite({
+    blockTag: "VariableDelete",
+    blockContent: data
+  });
+}
+
+function deleteByPath(path) {
+  const block = external_default().set({}, path, {});
+  performApiWrite({
+    blockTag: "VariableDelete",
+    blockContent: block
+  });
+}
+
+function getCurrentVars(payload) {
+  emitWriteDoneEvent(payload);
+}
+
+function handleApiEvent(job, actionsTaken, payload) {
+  const {type: eventType, detail} = job;
+  actionsTaken.api = true;
+  if (eventType === ERA_API_EVENTS.INSERT_BY_OBJECT) insertByObject(detail); else if (eventType === ERA_API_EVENTS.UPDATE_BY_OBJECT) updateByObject(detail); else if (eventType === ERA_API_EVENTS.INSERT_BY_PATH) insertByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.UPDATE_BY_PATH) updateByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.DELETE_BY_OBJECT) deleteByObject(detail); else if (eventType === ERA_API_EVENTS.DELETE_BY_PATH) deleteByPath(detail.path); else if (eventType === ERA_API_EVENTS.GET_CURRENT_VARS) getCurrentVars(payload);
+}
+
+const rollback_logger = new Logger("core-rollback");
+
+async function rollback_rollbackByMk(MK, silent = false) {
+  try {
+    rollback_logger.log("rollbackByMk", `开始回滚, MK=${MK}`);
+    await updateVariablesWith(v => {
+      const meta = _.get(v, META_DATA_PATH, {});
+      const stat = _.get(v, STAT_DATA_PATH, {});
+      const raw = _.get(meta, [ LOGS_PATH, MK ]);
+      const arr = parseEditLog(raw);
+      if (!arr || !arr.length) {
+        rollback_logger.debug("rollbackByMk", `EditLog 为空或无效，跳过回滚。`);
+        return v;
+      }
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const e = arr[i];
+        const op = String(e?.op || "").toLowerCase();
+        const path = String(e?.path || "");
+        if (!path) continue;
+        if (op === "insert") {
+          _.unset(stat, path);
+          continue;
+        }
+        if (op === "update" || op === "delete") {
+          if (typeof e?.value_old === "undefined") {
+            _.unset(stat, path);
+          } else {
+            _.set(stat, path, _.cloneDeep(e.value_old));
+          }
+        }
+      }
+      _.set(v, STAT_DATA_PATH, stat);
+      return v;
+    }, CHAT_SCOPE);
+    rollback_logger.log("rollbackByMk", `回滚完成：MK=${MK}`);
+  } catch (e) {
+    rollback_logger.error("rollbackByMk", `回滚异常：MK=${MK} → ${e?.message || e}`, e);
+  }
+}
+
+async function findLatestNewValue(path, startMessageId, logger) {
+  logger?.debug("findLatestNewValue", `开始为路径 <${path}> 从消息ID <${startMessageId}> 向上追溯历史值...`);
+  const messages = getChatMessages("0-{{lastMessageId}}", {
+    include_swipes: false
+  });
+  if (!messages || messages.length < 1) {
+    logger?.debug("findLatestNewValue", `消息历史为空，无法追溯。`);
+    return null;
+  }
+  const startIndex = messages.findIndex(m => m.message_id === startMessageId);
+  if (startIndex === -1) {
+    logger?.warn("findLatestNewValue", `错误：在消息列表中未找到起始消息ID: ${startMessageId}`);
+    return null;
+  }
+  for (let i = startIndex - 1; i >= 0; i--) {
+    const message = messages[i];
+    const msgId = message?.message_id;
+    logger?.debug("findLatestNewValue", `[进度] 正在检查消息 (ID: ${msgId})，内容: "${(getMessageContent(message) || "").substring(0, 100)}..."`);
+    if (isUserMessage(message) || typeof msgId !== "number") {
+      continue;
+    }
+    const mk = mk_readMessageKey(message);
+    if (!mk) {
+      logger?.debug("findLatestNewValue", `[进度] 消息 (ID: ${msgId}) 无 MK，跳过。`);
+      continue;
+    }
+    const {meta: metaData} = getEraData();
+    const editLogRaw = _.get(metaData, [ LOGS_PATH, mk ]);
+    const editLog = parseEditLog(editLogRaw);
+    if (!editLog || editLog.length === 0) {
+      logger?.debug("findLatestNewValue", `[进度] MK ${mk} 的 EditLog 为空，跳过。`);
+      continue;
+    }
+    logger?.debug("findLatestNewValue", `[进度] 正在检查 MK ${mk} 的 EditLog...\n${J(editLog)}`);
+    for (let j = editLog.length - 1; j >= 0; j--) {
+      const logEntry = editLog[j];
+      if (!logEntry || !logEntry.path) continue;
+      if (logEntry.path === path) {
+        if (logEntry.op === "delete") {
+          logger?.error("findLatestNewValue", `>> 状态异常! 在消息(ID:${message.message_id}, MK:${mk})中为路径 <${path}> 找到了 'delete' 记录。这表明 update 操作可能正在尝试修改一个已被删除的变量。`);
+          return null;
+        }
+        logger?.debug("findLatestNewValue", `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`);
+        return _.cloneDeep(logEntry.value_new);
+      }
+      if (path.startsWith(logEntry.path + ".")) {
+        const subPath = path.substring(logEntry.path.length + 1);
+        const parentNewVal = logEntry.value_new;
+        if (_.isPlainObject(parentNewVal) && _.has(parentNewVal, subPath)) {
+          const foundVal = _.get(parentNewVal, subPath);
+          logger?.debug("findLatestNewValue", `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`);
+          return _.cloneDeep(foundVal);
+        }
+      }
+    }
+  }
+  logger?.debug("findLatestNewValue", `向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`);
+  return null;
+}
+
 const delete_logger = new Logger("core-crud-delete");
 
 function applyDeleteAtLevel(statData, basePath, patchObj, editLog) {
@@ -1015,106 +1083,6 @@ async function processInsertBlocks(allInserts, editLog) {
     }
     insert_logger.log("processInsertBlocks", "所有 VariableInsert 操作完成");
   }
-}
-
-const rollback_logger = new Logger("core-rollback");
-
-async function rollback_rollbackByMk(MK, silent = false) {
-  try {
-    rollback_logger.log("rollbackByMk", `开始回滚, MK=${MK}`);
-    await updateVariablesWith(v => {
-      const meta = _.get(v, META_DATA_PATH, {});
-      const stat = _.get(v, STAT_DATA_PATH, {});
-      const raw = _.get(meta, [ LOGS_PATH, MK ]);
-      const arr = parseEditLog(raw);
-      if (!arr || !arr.length) {
-        rollback_logger.debug("rollbackByMk", `EditLog 为空或无效，跳过回滚。`);
-        return v;
-      }
-      for (let i = arr.length - 1; i >= 0; i--) {
-        const e = arr[i];
-        const op = String(e?.op || "").toLowerCase();
-        const path = String(e?.path || "");
-        if (!path) continue;
-        if (op === "insert") {
-          _.unset(stat, path);
-          continue;
-        }
-        if (op === "update" || op === "delete") {
-          if (typeof e?.value_old === "undefined") {
-            _.unset(stat, path);
-          } else {
-            _.set(stat, path, _.cloneDeep(e.value_old));
-          }
-        }
-      }
-      _.set(v, STAT_DATA_PATH, stat);
-      return v;
-    }, CHAT_SCOPE);
-    rollback_logger.log("rollbackByMk", `回滚完成：MK=${MK}`);
-  } catch (e) {
-    rollback_logger.error("rollbackByMk", `回滚异常：MK=${MK} → ${e?.message || e}`, e);
-  }
-}
-
-async function findLatestNewValue(path, startMessageId, logger) {
-  logger?.debug("findLatestNewValue", `开始为路径 <${path}> 从消息ID <${startMessageId}> 向上追溯历史值...`);
-  const messages = getChatMessages("0-{{lastMessageId}}", {
-    include_swipes: false
-  });
-  if (!messages || messages.length < 1) {
-    logger?.debug("findLatestNewValue", `消息历史为空，无法追溯。`);
-    return null;
-  }
-  const startIndex = messages.findIndex(m => m.message_id === startMessageId);
-  if (startIndex === -1) {
-    logger?.warn("findLatestNewValue", `错误：在消息列表中未找到起始消息ID: ${startMessageId}`);
-    return null;
-  }
-  for (let i = startIndex - 1; i >= 0; i--) {
-    const message = messages[i];
-    const msgId = message?.message_id;
-    logger?.debug("findLatestNewValue", `[进度] 正在检查消息 (ID: ${msgId})，内容: "${(getMessageContent(message) || "").substring(0, 100)}..."`);
-    if (isUserMessage(message) || typeof msgId !== "number") {
-      continue;
-    }
-    const mk = mk_readMessageKey(message);
-    if (!mk) {
-      logger?.debug("findLatestNewValue", `[进度] 消息 (ID: ${msgId}) 无 MK，跳过。`);
-      continue;
-    }
-    const {meta: metaData} = getEraData();
-    const editLogRaw = _.get(metaData, [ LOGS_PATH, mk ]);
-    const editLog = parseEditLog(editLogRaw);
-    if (!editLog || editLog.length === 0) {
-      logger?.debug("findLatestNewValue", `[进度] MK ${mk} 的 EditLog 为空，跳过。`);
-      continue;
-    }
-    logger?.debug("findLatestNewValue", `[进度] 正在检查 MK ${mk} 的 EditLog...\n${J(editLog)}`);
-    for (let j = editLog.length - 1; j >= 0; j--) {
-      const logEntry = editLog[j];
-      if (!logEntry || !logEntry.path) continue;
-      if (logEntry.path === path) {
-        if (logEntry.op === "delete") {
-          logger?.error("findLatestNewValue", `>> 状态异常! 在消息(ID:${message.message_id}, MK:${mk})中为路径 <${path}> 找到了 'delete' 记录。这表明 update 操作可能正在尝试修改一个已被删除的变量。`);
-          return null;
-        }
-        logger?.debug("findLatestNewValue", `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到精确路径 <${path}> 的值为: ${J(logEntry.value_new)}`);
-        return _.cloneDeep(logEntry.value_new);
-      }
-      if (path.startsWith(logEntry.path + ".")) {
-        const subPath = path.substring(logEntry.path.length + 1);
-        const parentNewVal = logEntry.value_new;
-        if (_.isPlainObject(parentNewVal) && _.has(parentNewVal, subPath)) {
-          const foundVal = _.get(parentNewVal, subPath);
-          logger?.debug("findLatestNewValue", `>> 成功! 在消息(ID:${message.message_id}, MK:${mk})中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为: ${J(foundVal)}`);
-          return _.cloneDeep(foundVal);
-        }
-      }
-    }
-  }
-  logger?.debug("findLatestNewValue", `向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`);
-  return null;
 }
 
 const update_logger = new Logger("core-crud-update");
@@ -1432,6 +1400,131 @@ const forceSyncLastAiMessage = async () => {
   }
 };
 
+function analyzeMessageUI(messageDiv) {
+  if (!messageDiv || messageDiv.length === 0) {
+    throw new Error("传入的消息div无效。");
+  }
+  const isEditing = messageDiv.find(".mes_edit_buttons").is(":visible");
+  const state = isEditing ? "editing" : "display";
+  const buttons = {
+    translate: messageDiv.find(".mes_button.mes_translate"),
+    generateImage: messageDiv.find(".mes_button.sd_message_gen"),
+    narrate: messageDiv.find(".mes_button.mes_narrate"),
+    prompt: messageDiv.find(".mes_button.mes_prompt"),
+    exclude: messageDiv.find(".mes_button.mes_hide"),
+    include: messageDiv.find(".mes_button.mes_unhide"),
+    embed: messageDiv.find(".mes_button.mes_embed"),
+    createCheckpoint: messageDiv.find(".mes_button.mes_create_bookmark"),
+    createBranch: messageDiv.find(".mes_button.mes_create_branch"),
+    copy: messageDiv.find(".mes_button.mes_copy"),
+    edit: messageDiv.find(".mes_button.mes_edit"),
+    confirmEdit: messageDiv.find(".mes_edit_done"),
+    copyInEdit: messageDiv.find(".mes_edit_copy"),
+    delete: messageDiv.find(".mes_edit_delete"),
+    moveUp: messageDiv.find(".mes_edit_up"),
+    moveDown: messageDiv.find(".mes_edit_down"),
+    cancelEdit: messageDiv.find(".mes_edit_cancel")
+  };
+  return {
+    state,
+    buttons
+  };
+}
+
+const patch_log = new Logger("ui-patch");
+
+function forceRenderMessage(messageId) {
+  return new Promise(resolve => {
+    const messageSelector = `div.mes[mesid="${messageId}"]`;
+    const $message = $(messageSelector);
+    if ($message.length === 0) {
+      patch_log.warn("forceRenderMessage", `找不到消息ID为 ${messageId} 的div。`);
+      return resolve();
+    }
+    const {state, buttons} = analyzeMessageUI($message);
+    if (state === "editing") {
+      buttons.cancelEdit?.trigger("click");
+      patch_log.debug("forceRenderMessage", `消息 ${messageId} 处于编辑状态，已点击取消。`);
+      setTimeout(resolve, 50);
+    } else {
+      buttons.edit?.trigger("click");
+      patch_log.debug("forceRenderMessage", `消息 ${messageId} 处于常规状态，已点击编辑。`);
+      setTimeout(() => {
+        const {buttons: updatedButtons} = analyzeMessageUI($message);
+        updatedButtons.cancelEdit?.trigger("click");
+        patch_log.debug("forceRenderMessage", `消息 ${messageId} 已点击取消。`);
+        resolve();
+      }, 50);
+    }
+  });
+}
+
+async function forceRenderRecentMessages() {
+  const scriptVars = getVariables({
+    type: "script",
+    script_id: getScriptId()
+  });
+  const forceReload = external_default().get(scriptVars, "强制重载功能", false);
+  if (!forceReload) {
+    patch_log.debug("forceRenderRecentMessages", "强制重载功能未启用, 跳过。");
+    return;
+  }
+  const messageCount = external_default().get(scriptVars, "强制重载消息数", 1);
+  patch_log.log("forceRenderRecentMessages", `开始强制重载, 数量: ${messageCount}`);
+  await new Promise(resolve => setTimeout(resolve, 1e3));
+  const allMessages = getChatMessages("0-{{lastMessageId}}");
+  if (!allMessages || allMessages.length === 0) {
+    patch_log.warn("forceRenderRecentMessages", "无法获取到任何消息, 终止重载。");
+    return;
+  }
+  const recentMessages = allMessages.slice(-messageCount);
+  for (const message of recentMessages) {
+    patch_log.debug("forceRenderRecentMessages", `正在强制渲染消息: ${message.message_id}`);
+    await forceRenderMessage(message.message_id);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  patch_log.log("forceRenderRecentMessages", "强制重载完成。");
+}
+
+const handlers_sync_logger = new Logger("events-handlers-sync");
+
+async function handleSyncEvent(job, actionsTaken, payload) {
+  const {type: eventType} = job;
+  handlers_sync_logger.debug("handleSyncEvent", `事件 ${eventType} 触发状态同步流程...`);
+  const isFullSync = eventType === "manual_full_sync";
+  await resyncStateOnHistoryChange(isFullSync);
+  actionsTaken.resync = true;
+  if (eventType != "combo_sync") forceRenderRecentMessages();
+  await updateLatestSelectedMk();
+  emitWriteDoneEvent(payload);
+}
+
+async function handleUpdateMkOnlyEvent() {
+  await updateLatestSelectedMk();
+}
+
+async function handleWriteEvent(job, actionsTaken, payload) {
+  const {type: eventType} = job;
+  const msg = getChatMessages(-1, {
+    include_swipes: true
+  })?.[0];
+  if (msg) {
+    const MK = mk_readMessageKey(msg);
+    if (MK) {
+      await rollback_rollbackByMk(MK, true);
+      actionsTaken.rollback = true;
+    }
+  }
+  await ApplyVarChange();
+  actionsTaken.apply = true;
+  if (eventType === ERA_EVENT_EMITTER.API_WRITE) {
+    actionsTaken.apiWrite = true;
+  }
+  forceRenderRecentMessages();
+  await updateLatestSelectedMk();
+  emitWriteDoneEvent(payload);
+}
+
 const dispatcher_logger = new Logger("events-dispatcher");
 
 const RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION = 1;
@@ -1457,11 +1550,25 @@ function handleRedundantRenderEvent(eventType, currentMk, mkToIgnore) {
   };
 }
 
+function updateConsecutiveMkCount() {
+  const mk = logContext.mk;
+  if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
+    dispatcher_logger.debug("updateConsecutiveMkCount", `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`);
+    consecutiveMkState.count++;
+  } else {
+    dispatcher_logger.debug("updateConsecutiveMkCount", `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`);
+    consecutiveMkState = {
+      mk,
+      count: 1
+    };
+  }
+  return consecutiveMkState.count;
+}
+
 async function dispatchAndExecuteTask(job, mkToIgnore) {
-  const {type: eventType, detail} = job;
+  const {type: eventType} = job;
   const eventGroup = getEventGroup(eventType);
   let message_id = null;
-  let currentConsecutiveCount = 1;
   const actionsTaken = {
     rollback: false,
     apply: false,
@@ -1471,6 +1578,10 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
   };
   try {
     const {mk, message_id: msgId, isNewKey} = await ensureMkForLatestMessage();
+    if (!mk || msgId === null) {
+      dispatcher_logger.warn("dispatchAndExecuteTask", "无法获取有效的 MK 或消息 ID，跳过任务执行。");
+      return mkToIgnore;
+    }
     logContext.mk = mk;
     message_id = msgId;
     if (isNewKey && mk) {
@@ -1485,73 +1596,39 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
       return mkToIgnore;
     }
     dispatcher_logger.log("dispatchAndExecuteTask", `执行任务: ${eventType} (分组: ${eventGroup})`);
-    dispatcher_logger.debug("dispatchAndExecuteTask - task dispatch", `分发事件: ${eventType}`, {
-      detail,
-      eventGroup
-    });
-    if (eventGroup === "WRITE") {
-      const msg = getChatMessages(-1, {
-        include_swipes: true
-      })?.[0];
-      if (msg) {
-        const MK = mk_readMessageKey(msg);
-        if (MK) {
-          await rollback_rollbackByMk(MK, true);
-          actionsTaken.rollback = true;
-        }
-      }
-      await ApplyVarChange();
-      actionsTaken.apply = true;
-      if (eventType === ERA_EVENT_EMITTER.API_WRITE) {
-        actionsTaken.apiWrite = true;
-      }
-      forceRenderRecentMessages();
-    } else if (eventGroup === "SYNC") {
-      dispatcher_logger.debug("dispatchAndExecuteTask - task dispatch", `事件 ${eventType} 触发状态同步流程...`);
-      const isFullSync = eventType === "manual_full_sync";
-      await resyncStateOnHistoryChange(isFullSync);
-      actionsTaken.resync = true;
-      if (eventType != "combo_sync") forceRenderRecentMessages();
-    } else if (eventGroup === "API") {
-      actionsTaken.api = true;
-      if (eventType === ERA_API_EVENTS.INSERT_BY_OBJECT) insertByObject(detail); else if (eventType === ERA_API_EVENTS.UPDATE_BY_OBJECT) updateByObject(detail); else if (eventType === ERA_API_EVENTS.INSERT_BY_PATH) insertByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.UPDATE_BY_PATH) updateByPath(detail.path, detail.value); else if (eventType === ERA_API_EVENTS.DELETE_BY_OBJECT) deleteByObject(detail); else if (eventType === ERA_API_EVENTS.DELETE_BY_PATH) deleteByPath(detail.path);
-    } else if (eventGroup === "UPDATE_MK_ONLY") {
-      await updateLatestSelectedMk();
+    const {meta: metaData, stat: statData} = getEraData();
+    const payload = {
+      mk,
+      message_id,
+      actions: actionsTaken,
+      selectedMks: external_default().get(metaData, constants_SEL_PATH, []),
+      editLogs: external_default().get(metaData, LOGS_PATH, {}),
+      stat: statData,
+      statWithoutMeta: removeMetaFields(statData),
+      consecutiveProcessingCount: 1
+    };
+    switch (eventGroup) {
+     case "WRITE":
+      payload.consecutiveProcessingCount = updateConsecutiveMkCount();
+      await handleWriteEvent(job, actionsTaken, payload);
+      break;
+
+     case "SYNC":
+      payload.consecutiveProcessingCount = updateConsecutiveMkCount();
+      await handleSyncEvent(job, actionsTaken, payload);
+      break;
+
+     case "API":
+      handleApiEvent(job, actionsTaken, payload);
+      break;
+
+     case "UPDATE_MK_ONLY":
+      await handleUpdateMkOnlyEvent();
+      break;
     }
   } catch (error) {
     dispatcher_logger.error("dispatchAndExecuteTask", `事件 ${eventType} 处理异常: ${error}`, error);
   } finally {
-    if (actionsTaken.rollback || actionsTaken.apply || actionsTaken.resync) {
-      await updateLatestSelectedMk();
-      const mk = logContext.mk;
-      if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
-        dispatcher_logger.debug("dispatchAndExecuteTask", `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`);
-        consecutiveMkState.count++;
-      } else {
-        dispatcher_logger.debug("dispatchAndExecuteTask", `新的写入/同步操作的 MK: ${mk}。重置计数为 1。前一个 MK 是: ${consecutiveMkState?.mk}`);
-        consecutiveMkState = {
-          mk,
-          count: 1
-        };
-      }
-      currentConsecutiveCount = consecutiveMkState.count;
-      if (logContext.mk && message_id !== null) {
-        const {meta: metaData, stat: statData} = getEraData();
-        const selectedMks = external_default().get(metaData, constants_SEL_PATH, []);
-        const editLogs = external_default().get(metaData, LOGS_PATH, {});
-        const statWithoutMeta = removeMetaFields(statData);
-        emitWriteDoneEvent({
-          mk: logContext.mk,
-          message_id,
-          actions: actionsTaken,
-          selectedMks,
-          editLogs,
-          stat: statData,
-          statWithoutMeta,
-          consecutiveProcessingCount: currentConsecutiveCount
-        });
-      }
-    }
     logContext.mk = "";
   }
   return mkToIgnore;
@@ -1628,7 +1705,7 @@ async function processQueue() {
   }
 }
 
-const parser_logger = new Logger("api-macro-parser");
+const parser_logger = new Logger("macro-parser");
 
 function parseEraMacros(text) {
   const macroRegex = /{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi;
@@ -1670,6 +1747,154 @@ function parseEraMacros(text) {
 $(() => {
   registerMacroLike(/{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi, (context, substring, withMeta, path) => parseEraMacros(substring));
 });
+
+const external_$_namespaceObject = $;
+
+var external_$_default = __webpack_require__.n(external_$_namespaceObject);
+
+const statusBarContent_logger = new Logger("ui-components-statusBarContent");
+
+let latestStatData = null;
+
+function jsonToHtml(data) {
+  if (typeof data !== "object" || data === null) {
+    return `<span style="color: #98fb98;">${String(data)}</span>`;
+  }
+  let listHtml = '<ul style="list-style-type: none; padding-left: 20px; margin: 0;">';
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const value = data[key];
+      listHtml += "<li>";
+      listHtml += `<strong style="color: #87ceeb;">${key}:</strong> `;
+      listHtml += jsonToHtml(value);
+      listHtml += "</li>";
+    }
+  }
+  listHtml += "</ul>";
+  return listHtml;
+}
+
+function renderStatusBarContent($contentContainer) {
+  if (latestStatData) {
+    const html = jsonToHtml(latestStatData);
+    $contentContainer.html(html);
+  } else {
+    $contentContainer.html("数据加载中...");
+  }
+}
+
+function initStatusBarContent($contentContainer) {
+  renderStatusBarContent($contentContainer);
+  eventOn("era:writeDone", detail => {
+    statusBarContent_logger.debug("initStatusBarContent", "接收到 era:writeDone 事件，缓存数据。", detail);
+    if (detail && detail.statWithoutMeta) {
+      latestStatData = detail.statWithoutMeta;
+      if ($contentContainer.is(":visible")) {
+        renderStatusBarContent($contentContainer);
+      }
+    }
+  });
+}
+
+const statusBarId = `era-status-bar-${getScriptId()}`;
+
+let isExpanded = false;
+
+const collapsedStyle = {
+  width: "50px",
+  height: "50px",
+  "border-radius": "50%",
+  bottom: "20px",
+  left: "20px",
+  top: "",
+  right: "",
+  cursor: "pointer",
+  "justify-content": "center",
+  "align-items": "center",
+  display: "flex",
+  overflow: "hidden"
+};
+
+const expandedStyle = {
+  width: "300px",
+  height: "200px",
+  "border-radius": "10px",
+  cursor: "default",
+  padding: "12px",
+  display: "block"
+};
+
+function toggleExpand($statusBar, $content) {
+  isExpanded = !isExpanded;
+  if (isExpanded) {
+    $statusBar.css(expandedStyle);
+    $statusBar.find("span").hide();
+    $content.show();
+    renderStatusBarContent($content);
+  } else {
+    $statusBar.css(collapsedStyle);
+    $statusBar.find("span").show();
+    $content.hide();
+  }
+}
+
+function createStatusBar() {
+  if (external_$_default()(`#${statusBarId}`).length > 0) {
+    return;
+  }
+  const $statusBar = external_$_default()("<div>").attr("id", statusBarId).css({
+    position: "fixed",
+    "background-color": "rgba(0, 0, 0, 0.7)",
+    color: "white",
+    "font-size": "14px",
+    "z-index": "10000",
+    "border-top": "1px solid #444",
+    transition: "all 0.3s ease-in-out",
+    ...collapsedStyle
+  }).html("<span>ERA</span>");
+  const $content = external_$_default()("<div>").css({
+    display: "none",
+    "overflow-y": "auto",
+    height: "100%"
+  });
+  $statusBar.append($content);
+  external_$_default()("body").append($statusBar);
+  $statusBar.draggable({
+    handle: `#${statusBarId}`,
+    containment: "window"
+  });
+  $statusBar.on("click", () => {
+    setTimeout(() => {
+      if ($statusBar.hasClass("ui-draggable-dragging")) {
+        return;
+      }
+      toggleExpand($statusBar, $content);
+    }, 50);
+  });
+  return $statusBar;
+}
+
+function removeStatusBar() {
+  external_$_default()(`#${statusBarId}`).remove();
+}
+
+function initStatusBar() {
+  external_$_default()(() => {
+    const $statusBar = createStatusBar();
+    if (!$statusBar) return;
+    const $content = $statusBar.find("div");
+    initStatusBarContent($content);
+  });
+  external_$_default()(window).on("pagehide", () => {
+    removeStatusBar();
+  });
+}
+
+function initUI() {
+  initStatusBar();
+}
+
+initUI();
 
 const eventsToListen = [ ...EVENT_GROUPS.WRITE, ...EVENT_GROUPS.SYNC, ...EVENT_GROUPS.API, ...EVENT_GROUPS.UPDATE_MK_ONLY, ...EVENT_GROUPS.COLLISION_DETECTORS, ...EVENT_GROUPS.COMBO_STARTERS ];
 

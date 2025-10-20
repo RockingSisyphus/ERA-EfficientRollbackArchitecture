@@ -1,8 +1,8 @@
-import { unescapeEraData } from '../../utils/data';
-import { getEraData, removeMetaFields } from '../../utils/era_data';
-import { Logger } from '../../utils/log';
+import { unescapeEraData } from '../utils/data';
+import { getEraData, removeMetaFields } from '../utils/era_data';
+import { Logger } from '../utils/log';
 
-const logger = new Logger('api-macro-parser');
+const logger = new Logger('macro-parser');
 
 /**
  * 解析字符串中的 ERA 宏, 并将其替换为对应的变量值。
