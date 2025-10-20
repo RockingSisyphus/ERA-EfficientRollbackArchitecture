@@ -8,3 +8,14 @@
   s.onerror = e => console.error('加载失败：', url, e); // 失败回调：打印错误
   document.head.appendChild(s); // 插入到<head>触发下载与执行
 })();
+
+
+(() => {
+  const url = encodeURI('http://localhost:5500/dist/ERA变量框架/index.js') + '?v=' + Date.now();
+  const s = document.createElement('script');
+  s.src = url;
+  s.async = false;
+  s.onload = () => console.log('《ERA》已加载并执行：', url);
+  s.onerror = e => console.error('《ERA》加载失败：', url, e);
+  document.head.appendChild(s);
+})();

@@ -4,9 +4,10 @@
  */
 
 import _ from 'lodash';
-import { Logger } from '../../utils/log';
+import { Logger } from '../utils/log';
+import { analyzeMessageUI } from './parser/analyzer';
 
-const log = new Logger('api-macro-patch');
+const log = new Logger('ui-patch');
 
 /**
  * 强制重新渲染单条消息。
@@ -18,14 +19,30 @@ function forceRenderMessage(messageId: number): Promise<void> {
     const messageSelector = `div.mes[mesid="${messageId}"]`;
     const $message = $(messageSelector);
 
-    // 模拟点击“编辑”
-    $message.find('.mes_button.mes_edit').trigger('click');
+    if ($message.length === 0) {
+      log.warn('forceRenderMessage', `找不到消息ID为 ${messageId} 的div。`);
+      return resolve();
+    }
 
-    // 给予UI响应时间, 然后模拟点击“确认”
-    setTimeout(() => {
-      $message.find('.mes_edit_done.menu_button').trigger('click');
-      resolve();
-    }, 50);
+    const { state, buttons } = analyzeMessageUI($message);
+
+    if (state === 'editing') {
+      // 如果已经是编辑状态，直接点击取消
+      buttons.cancelEdit?.trigger('click');
+      log.debug('forceRenderMessage', `消息 ${messageId} 处于编辑状态，已点击取消。`);
+      setTimeout(resolve, 50);
+    } else {
+      // 如果是常规状态，先点击编辑，再点击取消
+      buttons.edit?.trigger('click');
+      log.debug('forceRenderMessage', `消息 ${messageId} 处于常规状态，已点击编辑。`);
+      setTimeout(() => {
+        // 重新分析以获取新状态下的按钮
+        const { buttons: updatedButtons } = analyzeMessageUI($message);
+        updatedButtons.cancelEdit?.trigger('click');
+        log.debug('forceRenderMessage', `消息 ${messageId} 已点击取消。`);
+        resolve();
+      }, 50);
+    }
   });
 }
 

@@ -20,6 +20,9 @@ import { pushToQueue } from './events/queue';
 // 导入查询模块, 以注册 {{ERA:...}} 宏
 import './api/macro/parser';
 
+// 导入 UI 模块
+import './ui';
+
 // ===============================
 // 事件监听器注册
 // ===============================

@@ -1,0 +1,137 @@
+---
+description: 当在隐藏的 DOM 元素上更新内容出现问题时，应参考本文件
+---
+# 在隐藏 DOM 元素上更新内容的渲染问题
+
+## 问题简述
+
+当以下两个条件 **同时满足** 时，可能会因浏览器渲染优化，导致内容显示不全：
+1.  在一个 `display: none` 的 **子元素** 上使用 `.html()` 注入复杂内容。
+2.  随后，该子元素的 **父容器** 发生剧烈的几何/布局变化（例如，尺寸和 `display` 类型同时改变）。
+
+## 解决方案：延迟渲染
+
+核心思想是**避免在隐藏元素上直接渲染**。
+
+1. **缓存数据**：数据到达时，先存入一个变量。
+2. **可见时渲染**：在元素变为可见的时刻，再从变量中读取数据并渲染到 DOM 中。
+
+---
+
+### 统一演示示例
+
+下面的脚本会在酒馆右上角创建两个悬浮球，直观地对比有问题的实现和修复后的实现。
+
+- **上面的球（有问题）**：点击展开后，可能会看到不完整的内容。
+- **下面的球（已修复）**：点击展开后，总能看到完整的内容。
+
+```javascript
+$(function() {
+  // --- 最终可复现问题的范例代码 ---
+
+  function jsonToHtml(data) {
+    if (typeof data !== 'object' || data === null) return `<span>${String(data)}</span>`;
+    let listHtml = '<ul style="padding-left: 15px;">';
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        listHtml += `<li><strong>${key}:</strong> ${jsonToHtml(data[key])}</li>`;
+      }
+    }
+    listHtml += '</ul>';
+    return listHtml;
+  }
+
+  function getComplexDataAsync(callback) {
+    setTimeout(() => {
+      callback({
+        user: { name: "User", id: "user-123", prefs: { theme: "dark" } },
+        session: { token: "xyz-abc-123", status: "active" },
+        system: { version: "1.0", plugins: ["A", "B", { nested: { deep: true } }] }
+      });
+    }, 300);
+  }
+
+  function createInstance(id, top, title, useModuleA, useModuleB) {
+    let isExpanded = false;
+    let cachedHtml = null;
+    let isRendered = false;
+
+    const $statusBar = $('<div>').attr('id', `demo-${id}`).css({
+      position: 'fixed',
+      top: top,
+      left: '20px',
+      background: '#333',
+      color: 'white',
+      border: '1px solid #555',
+      zIndex: 10000,
+      width: '50px',
+      height: '50px',
+      display: 'flex',
+      'align-items': 'center',
+      'justify-content': 'center',
+      cursor: 'pointer',
+    }).html(`<span>${title}</span>`);
+
+    const $content = $('<div>').css({
+      display: 'none',
+      width: '100%',
+      height: '100%',
+      'overflow-y': 'auto',
+    }).html('加载中...');
+
+    $statusBar.append($content);
+    $('body').append($statusBar);
+
+    getComplexDataAsync(function(data) {
+      cachedHtml = jsonToHtml(data);
+      if (useModuleA) {
+        // 【模块一】在隐藏的子元素上渲染内容
+        $content.html(cachedHtml);
+        isRendered = true;
+      }
+    });
+
+    $statusBar.on('click', () => {
+      isExpanded = !isExpanded;
+      if (isExpanded) {
+        if (useModuleB) {
+          // 【模块二】父容器发生剧烈的几何/布局变化 (尺寸和 display 同时改变)
+          $statusBar.css({ width: '300px', height: '200px', display: 'block', cursor: 'default' });
+        } else {
+          // 仅改变尺寸，不改变 display 类型
+          $statusBar.css({ width: '300px', height: '200px', cursor: 'default' });
+        }
+        
+        $statusBar.find('span').hide();
+        $content.show();
+        
+        // 延迟渲染逻辑 (当不使用模块A时)
+        if (!useModuleA && !isRendered) {
+          if (cachedHtml) {
+            $content.html(cachedHtml);
+          }
+          isRendered = true;
+        }
+      } else {
+        // 恢复收缩状态
+        $statusBar.css({ width: '50px', height: '50px', display: 'flex', cursor: 'pointer' });
+        $statusBar.find('span').show();
+        $content.hide();
+        if (!useModuleA) {
+          isRendered = false;
+        }
+      }
+    });
+  }
+
+  // --- 测试矩阵 ---
+  // A: 在隐藏元素上渲染, B: 父容器剧烈几何变化
+  createInstance('problem', '20px', 'A+B(问题)', true, true);
+  createInstance('fixed', '90px', '!A+B(仅B)', false, true);
+  createInstance('test-a-only', '160px', 'A+!B(仅A)', true, false);
+  createInstance('control', '230px', '!A+!B(对照)', false, false);
+
+  $(window).on('pagehide', function() {
+    $('body').find('[id^="demo-"]').remove();
+  });
+});

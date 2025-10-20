@@ -10,11 +10,11 @@ import {
   updateByObject,
   updateByPath,
 } from '../api/command';
-import { forceRenderRecentMessages } from '../api/macro/patch';
 import { ApplyVarChange } from '../core/crud/patcher';
 import { ensureMkForLatestMessage, readMessageKey, updateLatestSelectedMk } from '../core/key/mk';
 import { rollbackByMk } from '../core/rollback';
 import { resyncStateOnHistoryChange } from '../core/sync';
+import { forceRenderRecentMessages } from '../ui/patch';
 import { ERA_API_EVENTS, ERA_EVENT_EMITTER, LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { logContext, Logger } from '../utils/log';
@@ -197,7 +197,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
         const editLogs = _.get(metaData, LOGS_PATH, {});
         const statWithoutMeta = removeMetaFields(statData);
 
-        emitWriteDoneEvent({
+        const payload = {
           mk: logContext.mk,
           message_id: message_id,
           actions: actionsTaken,
@@ -206,7 +206,23 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
           stat: statData,
           statWithoutMeta: statWithoutMeta,
           consecutiveProcessingCount: currentConsecutiveCount,
-        });
+        };
+
+        logger.debug(
+          'dispatchAndExecuteTask',
+          `准备发送 writeDone 事件。触发事件: ${eventType}, 条件: 核心操作已执行 (rollback/apply/resync)。`,
+          {
+            triggeringEvent: eventType,
+            conditions: {
+              actionsTaken,
+              mk: logContext.mk,
+              message_id,
+            },
+            payload,
+          },
+        );
+
+        emitWriteDoneEvent(payload);
       }
     }
 

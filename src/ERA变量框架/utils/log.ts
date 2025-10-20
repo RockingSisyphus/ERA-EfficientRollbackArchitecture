@@ -39,6 +39,7 @@ export const LOG_CONFIG = {
     'events-queue',
     'events-merger',
     'utils-message',
+    'ui-components-statusBarContent',
   ] as string[],
 };
 // 初始化时将 currentLevel 设置为 debug 级别
