@@ -82,7 +82,26 @@ const logContext = {
 class Logger {
   moduleName;
   constructor(moduleName) {
-    this.moduleName = moduleName;
+    if (moduleName) {
+      this.moduleName = moduleName;
+    } else {
+      this.moduleName = this._getModuleNameFromStack() || "unknown";
+    }
+  }
+  _getModuleNameFromStack() {
+    try {
+      const stack = (new Error).stack || "";
+      const callerLine = stack.split("\n")[2];
+      if (!callerLine) return null;
+      const match = callerLine.match(/\((?:webpack-internal:\/\/\/)?\.\/(.*)\)/);
+      if (!match || !match[1]) return null;
+      let path = match[1];
+      path = path.split("?")[0];
+      path = path.replace(/\.(vue|ts|js)$/, "");
+      return path.replace(/^src\/ERA变量框架\//, "").replace(/\//g, "-");
+    } catch (e) {
+      return null;
+    }
   }
   formatMessage(funcName, message) {
     const mkString = logContext.mk ? `（${logContext.mk}）` : "";

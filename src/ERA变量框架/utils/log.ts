@@ -70,23 +70,46 @@ export const logContext = {
 };
 
 export class Logger {
-  /**
-   * @private
-   * @property {string} moduleName - 该 Logger 实例绑定的模块名称。
-   * @description
-   * 命名规则:
-   * 为了方便在日志中快速定位来源，模块名应遵循 `目录-子目录-...-文件名` 的格式。
-   * 例如，位于 `src/ERA变量框架/core/crud/insert/insert.ts` 的文件，
-   * 其模块名应为 `core-crud-insert-insert`。
-   */
   private moduleName: string;
 
   /**
    * 创建一个新的 Logger 实例。
-   * @param {string} moduleName - 该 Logger 实例绑定的模块名称。
+   * @param {string} [moduleName] - 可选。该 Logger 实例绑定的模块名称。如果未提供，将自动从调用栈中解析。
    */
-  constructor(moduleName: string) {
-    this.moduleName = moduleName;
+  constructor(moduleName?: string) {
+    if (moduleName) {
+      this.moduleName = moduleName;
+    } else {
+      this.moduleName = this._getModuleNameFromStack() || 'unknown';
+    }
+  }
+
+  /**
+   * @private
+   * 从 Error stack 中解析调用方的文件名作为模块名。
+   * @returns {string | null} 解析出的模块名，或在失败时返回 null。
+   */
+  private _getModuleNameFromStack(): string | null {
+    try {
+      const stack = new Error().stack || '';
+      // 栈的第二行通常是构造函数的直接调用者
+      const callerLine = stack.split('\n')[2];
+      if (!callerLine) return null;
+
+      // 正则表达式匹配括号内的路径
+      const match = callerLine.match(/\((?:webpack-internal:\/\/\/)?\.\/(.*)\)/);
+      if (!match || !match[1]) return null;
+
+      let path = match[1];
+      // 移除路径中的查询参数 (如 ?vue&type=script&setup=true&lang=ts)
+      path = path.split('?')[0];
+      // 移除文件名后缀
+      path = path.replace(/\.(vue|ts|js)$/, '');
+      // 将 'src/ERA变量框架/' 替换为空，并用 '-' 替换 '/'
+      return path.replace(/^src\/ERA变量框架\//, '').replace(/\//g, '-');
+    } catch (e) {
+      return null; // 解析失败则返回 null
+    }
   }
 
   /**
