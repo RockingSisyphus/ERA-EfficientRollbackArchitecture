@@ -5,7 +5,6 @@
 
 import _ from 'lodash';
 import { Logger } from '../utils/log';
-import { analyzeMessageUI } from './parser/analyzer';
 
 const log = new Logger('ui-patch');
 
@@ -55,7 +54,7 @@ async function forceRenderMessage(messageId: number): Promise<void> {
   const messages = getChatMessages(messageId);
 
   if (!messages || messages.length === 0) {
-    log.warn('forceRenderMessage', `找不到消息ID为 ${messageId} 的消息。`);
+    log.warn('forceRenderMessage', `找不到ID为 ${messageId} 的消息。`);
     return;
   }
 
