@@ -1,5 +1,11 @@
 # ERA 变量框架 (Efficient Rollback Architecture)
 
+> **注意**: 本文档主要介绍 ERA 框架的核心概念和架构。
+> - 如需学习如何构建**基础角色卡**，请参阅 [`./doc/构建era角色卡需要阅读和使用的文件`](./doc/构建era角色卡需要阅读和使用的文件) 文件夹中的文档。
+> - 如需学习 EJS 模板、API 调用等**进阶用法**，请参阅 [`./doc/进阶角色卡构建需要阅读和使用的文件`](./doc/进阶角色卡构建需要阅读和使用的文件) 文件夹中的文档。
+
+---
+
 ERA (Efficient Rollback Architecture) 变量框架是一款为 **SillyTavern 角色卡作者** 设计的、基于 [酒馆助手 (Tavern Helper)](https://github.com/N0VI028/JS-Slash-Runner) 的高性能、高鲁棒性脚本，旨在提供一个专业级的消息楼层变量管理解决方案。
 
 它通过读取 AI 消息中的变量修改指令来管理聊天变量，并从根本上解决了因 SillyTavern 的消息删除、分支切换（swipe）等操作而导致的变量状态与聊天历史不一致的核心痛点。
@@ -108,51 +114,30 @@ ERA 的架构使其对这些问题天然免疫：
 
 ERA 提供了一套强大的宏，允许您在发送给 AI 的消息中动态地查询和注入当前的变量状态。
 
-*   `{{ERA:path.to.data}}`: 查询并替换为**不含** `$meta` 的纯净数据。
-    *   *示例*: `当前玩家HP: {{ERA:player.hp}}`
-    *   `{{ERA:$ALLDATA}}` 将返回整个移除 `$meta` 后的 `stat_data` 对象。
-*   `{{ERA-withmeta:path.to.data}}`: 查询并替换为**包含** `$meta` 的原始数据。
-    *   `{{ERA-withmeta:$ALLDATA}}` 将返回完整的 `stat_data` 对象。
+* `{{ERA:path.to.data}}`: 查询并替换为**不含** `$meta` 的纯净数据。
+  * *示例*: `当前玩家HP: {{ERA:player.hp}}`
+  * `{{ERA:$ALLDATA}}` 将返回整个移除 `$meta` 后的 `stat_data` 对象。
+* `{{ERA-withmeta:path.to.data}}`: 查询并替换为**包含** `$meta` 的原始数据。
+  * `{{ERA-withmeta:$ALLDATA}}` 将返回完整的 `stat_data` 对象。
 
-## 开发者说明
+## 事件与 API (开发者)
 
-ERA 框架通过一套基于事件的 API 与外部脚本进行交互，而不是直接暴露函数。
+ERA 框架采用**事件驱动架构**与外部脚本进行交互。您不直接调用 ERA 的函数，而是通过酒馆的 `eventEmit` 和 `eventOn` 系统来发送和接收消息，以实现高度解耦和系统稳定性。
 
-### 写入变量 (API 调用)
+### 监听的事件 (外部 -> ERA)
 
-要修改变量，您需要使用 `eventEmit` 发送特定格式的事件。ERA 会监听这些事件，并将其安全地整合到其处理队列中。支持的事件包括：
+您可以通过 `eventEmit` 发送以下事件来操作变量。所有事件的参数都应放在 `detail` 对象中。
 
-*   `era:insertByObject`
-*   `era:updateByObject`
-*   `era:insertByPath`
-*   `era:updateByPath`
-*   `era:deleteByObject`
-*   `era:deleteByPath`
+* `era:insertByObject`: 非破坏性地插入一个对象。
+* `era:updateByObject`: 修改一个已存在的对象。
+* `era:insertByPath`: 在指定路径插入一个值。
+* `era:updateByPath`: 修改指定路径的值（支持 `+=` 等运算）。
+* `era:deleteByObject`: 根据对象结构删除一个或多个键。
+* `era:deleteByPath`: 删除指定路径的键。
+* `era:getCurrentVars`: 请求获取当前最新的变量快照（通过 `era:writeDone` 事件返回）。
 
-*示例：使用 API 更新玩家生命值*
-```javascript
-eventEmit('era:updateByPath', {
-  path: 'player.hp',
-  value: 120
-});
-```
+### 广播的事件 (ERA -> 外部)
 
-### 监听变量变更 (`era:writeDone` 事件)
+ERA 在完成一次或多次变量写入操作后，会广播以下事件：
 
-当任何变量写入操作成功完成时，ERA 会广播一个 `era:writeDone` 事件。这是外部脚本获取最新状态并做出响应的**唯一推荐方式**。
-
-*示例：监听 `era:writeDone` 事件*
-```javascript
-eventOn('era:writeDone', (detail) => {
-  const { mk, message_id, actions, stat, statWithoutMeta } = detail;
-
-  console.log(`ERA 变量已在消息 ${message_id} (MK: ${mk}) 处更新。`);
-  console.log('执行的操作:', actions);
-
-  // `statWithoutMeta` 提供了一个不含内部 `$meta` 字段的干净数据版本，
-  // 非常适合用于更新 UI 或进行其他业务逻辑处理。
-  updateMyUI(statWithoutMeta);
-});
-```
-
-通过监听此事件，您可以确保您的脚本总是在 ERA 完成其内部同步和处理流程后，才基于最新的、一致的状态进行操作。
+* `era:writeDone`: 这是外部脚本获取最新状态并做出响应的**唯一推荐方式**。`detail` 对象中包含了本次更新的详细信息，如 `stat` (完整变量) 和 `statWithoutMeta` (用于 UI 的纯净变量)。

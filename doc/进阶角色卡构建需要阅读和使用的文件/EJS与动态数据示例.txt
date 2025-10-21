@@ -1,0 +1,48 @@
+# 进阶用法：EJS 模板与动态数据
+
+当简单的宏无法满足需求时（例如，需要条件判断、循环或更复杂的数据处理），您可以在世界书中使用 EJS (Embedded JavaScript) 模板。
+
+## 一、动态情报 (EJS 示例)
+{{// 用法说明 (方法二：EJS 模板): //}}
+{{// 当需要更复杂的逻辑时，可以使用 EJS 模板。下面的示例将所有逻辑包裹在一个立即调用的异步函数中。//}}
+{{// 这种模式 `<%= await (async () => { ... })() %>` 可以创建局部作用域，避免变量污染，是编写复杂 EJS 逻辑的最佳实践。//}}
+<%= await (async () => {
+  try {
+    let output = '<capital_dynamic_report>\n  capital_status:\n';
+    const population = getvar('stat_data.world_state.capital.population', { scope: 'local' });
+
+    if (typeof population === 'number') {
+      if (population >= 1000) {
+        output += '    - 首都人口已达 ' + population + '，是一个繁荣的大都会。商业活动频繁，文化交流兴盛。';
+      } else if (population >= 500) {
+        output += '    - 首都人口为 ' + population + '，规模可观，是一个重要的区域中心。';
+      } else {
+        output += '    - 首都当前人口为 ' + population + '，是一个宁静的小型城市，充满发展潜力。';
+      }
+    } else {
+      output += '    - 无法获取准确的人口数据。';
+    }
+    
+    output += '\n</capital_dynamic_report>';
+    return output;
+  } catch (e) {
+    return '[EJS 脚本错误 (动态情报)]: ' + (e?.message || e);
+  }
+})() %>
+
+## 二、完整的世界状态数据 (EJS 示例)
+
+### 2.1 使用 EJS 模板获取
+{{// 用法说明 (EJS 模板输出完整对象): //}}
+<%= await (async () => {
+  try {
+    const worldState = getvar('stat_data.world_state', { scope: 'local', clone: true });
+    if (worldState) {
+      return JSON.stringify(worldState, null, 2);
+    } else {
+      return "[错误: 未能从聊天变量中找到 world_state。]";
+    }
+  } catch (e) {
+    return `[EJS 脚本错误 (完整状态)]: ${e?.message || e}`;
+  }
+})() %>

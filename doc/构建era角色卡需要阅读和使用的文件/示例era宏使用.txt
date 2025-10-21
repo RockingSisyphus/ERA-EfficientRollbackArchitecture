@@ -1,0 +1,40 @@
+[系统提示：以下是动态生成的世界状态报告，请根据此信息进行回应。]
+
+# 世界状态报告
+
+## 一、游戏概览
+
+*   **当前游戏版本**: `{{ERA:world_state.game_version}}`
+    {{// 用法说明 (方法一：ERA 宏): //}}
+    {{// 这是最基础的 ERA 宏用法。`ERA:path.to.variable` 会被自动替换为 chat 变量中对应路径的值。 //}}
+    {{// 此处，它会显示 `world_state.game_version` 的值。 //}}
+    {{// 这种方式最简单直观，适用于直接展示变量。 //}}
+
+## 二、首都信息
+
+我们的故事发生在一个名为 **{{ERA:world_state.capital.type}}** 的宏伟城市。
+
+*   **城市人口**: 目前约有 **{{ERA:world_state.capital.population}}** 名居民。
+*   **城市描述**: {{ERA:world_state.capital.description}}
+
+## 三、角色创建规则
+{{// 用法说明 (ERA 宏处理对象): //}}
+{{// 如果 ERA 宏查询的路径指向一个对象或数组，它会自动被转换成一个 JSON 字符串。 //}}
+{{// 下面的宏将展示 `world_state.characters.$template` 这个对象的内容。 //}}
+在这个世界中，所有新角色都遵循以下基础模板：
+```json
+{{ERA:world_state.characters.$template}}
+```
+
+## 四、完整的世界状态数据 (ERA 宏获取)
+{{// 用法说明 (ERA 宏获取完整数据): //}}
+{{// 这是获取完整数据的推荐方式，因为它更简洁且由 ERA 框架原生支持。//}}
+
+### 纯净数据 (不含 $)
+```json
+{{ERA:$ALLDATA}}
+```
+
+### 原始数据 (包含 $)
+```json
+{{ERA-withmeta:$ALLDATA}}
