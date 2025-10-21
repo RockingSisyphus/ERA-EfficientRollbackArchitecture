@@ -1400,63 +1400,20 @@ const forceSyncLastAiMessage = async () => {
   }
 };
 
-function analyzeMessageUI(messageDiv) {
-  if (!messageDiv || messageDiv.length === 0) {
-    throw new Error("传入的消息div无效。");
-  }
-  const isEditing = messageDiv.find(".mes_edit_buttons").is(":visible");
-  const state = isEditing ? "editing" : "display";
-  const buttons = {
-    translate: messageDiv.find(".mes_button.mes_translate"),
-    generateImage: messageDiv.find(".mes_button.sd_message_gen"),
-    narrate: messageDiv.find(".mes_button.mes_narrate"),
-    prompt: messageDiv.find(".mes_button.mes_prompt"),
-    exclude: messageDiv.find(".mes_button.mes_hide"),
-    include: messageDiv.find(".mes_button.mes_unhide"),
-    embed: messageDiv.find(".mes_button.mes_embed"),
-    createCheckpoint: messageDiv.find(".mes_button.mes_create_bookmark"),
-    createBranch: messageDiv.find(".mes_button.mes_create_branch"),
-    copy: messageDiv.find(".mes_button.mes_copy"),
-    edit: messageDiv.find(".mes_button.mes_edit"),
-    confirmEdit: messageDiv.find(".mes_edit_done"),
-    copyInEdit: messageDiv.find(".mes_edit_copy"),
-    delete: messageDiv.find(".mes_edit_delete"),
-    moveUp: messageDiv.find(".mes_edit_up"),
-    moveDown: messageDiv.find(".mes_edit_down"),
-    cancelEdit: messageDiv.find(".mes_edit_cancel")
-  };
-  return {
-    state,
-    buttons
-  };
-}
-
 const patch_log = new Logger("ui-patch");
 
-function forceRenderMessage(messageId) {
-  return new Promise(resolve => {
-    const messageSelector = `div.mes[mesid="${messageId}"]`;
-    const $message = $(messageSelector);
-    if ($message.length === 0) {
-      patch_log.warn("forceRenderMessage", `找不到消息ID为 ${messageId} 的div。`);
-      return resolve();
-    }
-    const {state, buttons} = analyzeMessageUI($message);
-    if (state === "editing") {
-      buttons.cancelEdit?.trigger("click");
-      patch_log.debug("forceRenderMessage", `消息 ${messageId} 处于编辑状态，已点击取消。`);
-      setTimeout(resolve, 50);
-    } else {
-      buttons.edit?.trigger("click");
-      patch_log.debug("forceRenderMessage", `消息 ${messageId} 处于常规状态，已点击编辑。`);
-      setTimeout(() => {
-        const {buttons: updatedButtons} = analyzeMessageUI($message);
-        updatedButtons.cancelEdit?.trigger("click");
-        patch_log.debug("forceRenderMessage", `消息 ${messageId} 已点击取消。`);
-        resolve();
-      }, 50);
-    }
-  });
+async function forceRenderMessage(messageId) {
+  const messages = getChatMessages(messageId);
+  if (!messages || messages.length === 0) {
+    patch_log.warn("forceRenderMessage", `找不到消息ID为 ${messageId} 的消息。`);
+    return;
+  }
+  const message = messages[0];
+  await setChatMessages([ {
+    message_id: messageId,
+    message: message.message
+  } ]);
+  patch_log.debug("forceRenderMessage", `已使用 setChatMessages 刷新消息 ${messageId}。`);
 }
 
 async function forceRenderRecentMessages() {
