@@ -117,7 +117,7 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
     experiments: {
       outputModule: true,
     },
-    devtool: argv.mode === 'production' ? false : 'eval-source-map',
+    devtool: argv.mode === 'production' ? false : 'source-map',
     watchOptions: {
       ignored: ['**/dist', '**/node_modules'],
     },
@@ -371,14 +371,18 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
           : [],
       ),
     optimization: {
-      minimize: true,
+      minimize: argv.mode === 'production', // 只在生产模式下压缩
       minimizer: [
         new TerserPlugin({
           extractComments: false,
           terserOptions: {
-            format: { beautify: true, indent_level: 2 },
-            compress: false,
-            mangle: false,
+            // 在开发模式下，beautify会生效，生成可读代码
+            format: {
+              beautify: argv.mode !== 'production',
+              indent_level: 2,
+            },
+            compress: argv.mode === 'production', // 只在生产模式下进行代码压缩
+            mangle: argv.mode === 'production', // 只在生产模式下进行变量名混淆
           },
         }),
       ],

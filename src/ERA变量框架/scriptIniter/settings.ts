@@ -5,17 +5,19 @@ const logger = new Logger();
 /**
  * 定义外部设定的变量结构和默认值。
  */
-const SettingsSchema = z.object({
-  强制重载功能: z.boolean().default(false),
-  强制重载消息数: z.number().default(2),
-});
+const SettingsSchema = z
+  .object({
+    强制重载功能: z.boolean().default(false),
+    强制重载消息数: z.number().default(2),
+  })
+  .prefault({});
 
 /**
  * 初始化脚本的外部设置变量。
  * 该函数会检查并创建缺失的脚本变量，如果已存在则不进行任何操作。
  * 同时，它会输出检查结果，报告哪些变量已存在，哪些缺失。
  */
-export function initializeExternalSettings() {
+export function initializeExternalSettingsBak() {
   const scriptId = getScriptId();
 
   // 检查并初始化脚本变量
@@ -43,6 +45,12 @@ export function initializeExternalSettings() {
     logger.debug('initializeExternalSettings', '检测到以下缺失变量:', missingVarKeys);
     // 创建缺失的变量
     insertVariables(missingVars, { type: 'script', script_id: scriptId });
+    // insertVariables 可能无法正常工作, 改为使用 replaceVariables
+    //const updatedVars = { ...currentVars, ...missingVars };
+    //logger.debug('initializeExternalSettings', '更新脚本变量为:', updatedVars);
+    //replaceVariables(updatedVars, { type: 'script', script_id: scriptId });
+    // 尝试使用 updateVariablesWith
+    //updateVariablesWith((variables) => ({ ...variables, ...missingVars }),{ type: 'script', script_id: scriptId },);
     logger.log('initializeExternalSettings', '已初始化缺失的脚本变量。');
   }
 
@@ -50,5 +58,15 @@ export function initializeExternalSettings() {
     logger.log('initializeExternalSettings', '所有必需的外部变量均已存在，无需初始化。');
   }
 }
-
+export function initializeExternalSettings() {
+  let settings;
+  if (!settings) {
+    settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }));
+    logger.debug('initializeExternalSettings', '写入脚本变量:', settings);
+    insertVariables(settings, { type: 'script', script_id: getScriptId() });
+  }
+}
 // 导出函数，由事件分发器在 app_ready 事件时调用
+$(() => {
+  initializeExternalSettings();
+});

@@ -132,14 +132,29 @@ export class Logger {
   private _getModuleNameFromStack(): string | null {
     try {
       const stack = new Error().stack || '';
-      const callerLine = stack.split('\n')[3]; // 调整栈深度以获取实例化 Logger 的位置
-      if (!callerLine) return null;
+      // 智能寻找调用者：遍历堆栈，找到第一个不属于 log.ts 的、包含项目路径的行
+      const callerLine = stack
+        .split('\n')
+        .find(line => line.includes('/src/ERA变量框架/') && !line.includes('/utils/log.ts'));
 
-      const match = callerLine.match(/\((?:webpack-internal:\/\/\/)?\.\/(.*)\)/);
-      if (!match || !match[1]) return null;
+      if (!callerLine) {
+        // 如果找不到，打印调试信息并优雅降级
+        console.warn('《ERA-Log-Debug》:无法从堆栈中确定模块名，将使用 "unknown"。堆栈:', stack);
+        return null;
+      }
+
+      // 更鲁棒的正则，用于从不同格式的堆栈行中提取路径
+      const match = callerLine.match(/src\/ERA变量框架\/([^?:\s)]+)/);
+
+      if (!match || !match[1]) {
+        // 如果正则匹配失败，打印调试信息
+        console.warn('《ERA-Log-Debug》: 正则表达式无法从调用行中提取路径。调用行:', callerLine);
+        return null;
+      }
 
       let path = match[1];
-      path = path.split('?')[0];
+
+      // 移除文件扩展名
       path = path.replace(/\.(vue|ts|js)$/, '');
       // 将 'src/ERA变量框架/' 替换为空，并用 '-' 替换 '/'
       return path
@@ -147,6 +162,7 @@ export class Logger {
         .replace(/\/index$/, '')
         .replace(/\//g, '-');
     } catch (e) {
+      console.error('《ERA-Log-Debug》: 解析模块名时发生意外错误。', e);
       return null;
     }
   }
