@@ -35,11 +35,16 @@ function jsonToHtml(data: any, level = 0, maxDepth = Infinity, defaultCollapsed 
   if (!isFoldable) {
     const primitiveText = (() => {
       switch (type) {
-        case 'string': return JSON.stringify(data);
-        case 'number': return String(data);
-        case 'boolean': return data ? 'true' : 'false';
-        case 'null': return 'null';
-        default: return String(data);
+        case 'string':
+          return JSON.stringify(data);
+        case 'number':
+          return String(data);
+        case 'boolean':
+          return data ? 'true' : 'false';
+        case 'null':
+          return 'null';
+        default:
+          return String(data);
       }
     })();
     return `<span class="val ${type}">${primitiveText}</span>`;
@@ -82,14 +87,22 @@ function createAccordionHtml(title: string, content: string, defaultOpen = false
 }
 
 function createTabsHtml(tabs: { key: string; label: string; content: string }[]): string {
-  const radios = tabs.map((tab, index) => `
+  const radios = tabs
+    .map(
+      (tab, index) => `
     <input type="radio" id="tab-${tab.key}" name="tabs" ${index === 0 ? 'checked' : ''} class="tab-radio">
-  `).join('');
+  `,
+    )
+    .join('');
 
-  const labelsAndContent = tabs.map(tab => `
+  const labelsAndContent = tabs
+    .map(
+      tab => `
     <label for="tab-${tab.key}" class="tab-label">${tab.label}</label>
     <div class="tab-content">${tab.content}</div>
-  `).join('');
+  `,
+    )
+    .join('');
 
   return `<div class="tab-switch">${radios}${labelsAndContent}</div>`;
 }
@@ -114,10 +127,11 @@ export function createPanelBodyHtml(payload: WriteDonePayload | null): string {
   const selectedMksContent = jsonToHtml(payload.selectedMks, 0, 3);
   const editLogsContent = jsonToHtml(payload.editLogs, 0, 2);
 
-  const detailsAccordion = createAccordionHtml('ERA 最新操作详情', 
+  const detailsAccordion = createAccordionHtml(
+    'ERA 最新操作详情',
     createAccordionHtml('SelectedMks（数组）', selectedMksContent, false) +
-    createAccordionHtml('EditLogs（对象）', editLogsContent, false),
-    false
+      createAccordionHtml('EditLogs（对象）', editLogsContent, false),
+    false,
   );
 
   const tabs = [

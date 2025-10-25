@@ -42,18 +42,14 @@ function initUI() {
     $('body').append($mountPoint);
     log.debug('initUI', '挂载点已添加到 body。');
 
-    const { toggle, remount } = createToggleableVueApp(
-      $mountPoint[0],
-      StatusBar,
-      currentIsToggled => {
-        isExpanded.value = currentIsToggled; // 同步外部状态
-        return {
-          isExpanded: currentIsToggled,
-          onToggle: toggle,
-          initialData: latestStatData.value,
-        };
-      },
-    );
+    const { toggle, remount } = createToggleableVueApp($mountPoint[0], StatusBar, currentIsToggled => {
+      isExpanded.value = currentIsToggled; // 同步外部状态
+      return {
+        isExpanded: currentIsToggled,
+        onToggle: toggle,
+        initialData: latestStatData.value,
+      };
+    });
 
     remountController.remount = remount; // 保存 remount 函数
 

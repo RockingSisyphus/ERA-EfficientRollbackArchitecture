@@ -1,12 +1,6 @@
 <template>
   <!-- 收缩状态：悬浮球 -->
-  <div
-    v-if="!isExpanded"
-    :id="statusBarId"
-    ref="statusBarRef"
-    class="status-bar era-collapsed"
-    @click="onToggle"
-  >
+  <div v-if="!isExpanded" :id="statusBarId" ref="statusBarRef" class="status-bar era-collapsed" @click="onToggle">
     <span>ERA</span>
   </div>
 

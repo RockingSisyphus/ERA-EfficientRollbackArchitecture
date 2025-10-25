@@ -11,9 +11,7 @@ export function teleportStyle() {
   // 使用 requestAnimationFrame 确保在 Vue 挂载并注入样式后执行
   requestAnimationFrame(() => {
     const $styles = $('head > style', document).clone();
-    const $styleContainer = $('<div>')
-      .attr('id', `era-style-container-${getScriptId()}`)
-      .append($styles);
+    const $styleContainer = $('<div>').attr('id', `era-style-container-${getScriptId()}`).append($styles);
 
     $('head').append($styleContainer);
     log.debug('teleportStyle', '样式已传送到主文档。');
