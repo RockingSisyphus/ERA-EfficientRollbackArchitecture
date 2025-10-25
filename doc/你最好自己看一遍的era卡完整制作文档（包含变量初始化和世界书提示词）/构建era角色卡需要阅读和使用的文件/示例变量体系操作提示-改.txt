@@ -5,8 +5,7 @@
 请始终遵守以下操作规范：
 
 1. **只使用 ERA 提供的三种指令** (`Insert`/`Edit`/`Delete`)。
-2. **遵守变量保护规则** (`$meta.updatable` / `$meta.necessary`)。
-3. **保证操作的时机与剧情逻辑一致**。
+2. **保证操作的时机与剧情逻辑一致**。
 
 ---
 
@@ -14,7 +13,7 @@
 
 * **规则 1**：首都的基础信息 (`type`、`population`、`description`) 在初始化后通常不应修改。
 
-  * `capital` 节点受保护 (`updatable=false`, `necessary=all`)，因此 AI 不得随意使用 `<VariableEdit>` 或 `<VariableDelete>` 改动此部分。
+  * `capital` 节点受保护，AI 不得随意使用 `<VariableEdit>` 或 `<VariableDelete>` 改动此部分。
   * 如果确有剧情需要（例如人口随剧情发展发生变化），必须先显式解除保护 (`$meta.updatable=true`)，然后再执行修改。
 
 ---
@@ -23,12 +22,11 @@
 
 * **规则 2**：当故事中**出现新角色**时，必须立刻使用 `<VariableInsert>` 在 `characters` 下创建该角色节点。
 
-  * 新角色应继承 `characters.$template`，至少包含：
+  * 新角色应至少包含：
     {
       "level": 1,
       "hp": 10,
-      "inventory": [],
-      "$meta": { "necessary": "self" }
+      "inventory": []
     }
   * 角色的基础属性（如姓名、职业、初始状态）应当在插入时一并写入。
 
@@ -39,7 +37,7 @@
 
 * **规则 4**：当角色永久离开故事（死亡/消失/彻底退场）时，允许使用 `<VariableDelete>` 删除该角色节点。
 
-  * 但必须遵守 `$meta.necessary=self` 的保护机制：不能删除角色本身，只能在必要时清空部分属性，或者在剧情确凿时先移除 `$meta.necessary` 再删除整个角色。
+  * 但只能在必要时清空部分属性，或者在剧情确凿时先移除 `$meta.necessary` 再删除整个角色。
 
 ---
 
