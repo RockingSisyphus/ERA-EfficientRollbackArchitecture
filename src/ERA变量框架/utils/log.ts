@@ -142,7 +142,10 @@ export class Logger {
       path = path.split('?')[0];
       path = path.replace(/\.(vue|ts|js)$/, '');
       // 将 'src/ERA变量框架/' 替换为空，并用 '-' 替换 '/'
-      return path.replace(/^src\/ERA变量框架\//, '').replace(/\/index$/, '').replace(/\//g, '-');
+      return path
+        .replace(/^src\/ERA变量框架\//, '')
+        .replace(/\/index$/, '')
+        .replace(/\//g, '-');
     } catch (e) {
       return null;
     }
