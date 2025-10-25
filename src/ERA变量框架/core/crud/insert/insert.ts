@@ -12,12 +12,12 @@
  */
 'use strict';
 
-import { applyTemplateToPatch, getInheritedTemplateContent, resolveTemplate } from './template';
-import { updateEraStatData } from '../../../utils/era_data';
 import { sanitizeArrays } from '../../../utils/data';
+import { updateEraStatData } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log';
+import { applyTemplateToPatch, getInheritedTemplateContent, resolveTemplate } from './template';
 
-const logger = new Logger('core-crud-insert-insert');
+const logger = new Logger();
 
 /**
  * **【递归插入】**

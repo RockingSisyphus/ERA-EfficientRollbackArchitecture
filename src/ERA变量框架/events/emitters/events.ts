@@ -1,11 +1,10 @@
 'use strict';
 
-import _ from 'lodash';
 import { ERA_EVENT_EMITTER, WriteDonePayload } from '../../utils/constants';
-import { J, unescapeEraData } from '../../utils/data';
+import { unescapeEraData } from '../../utils/data';
 import { Logger } from '../../utils/log';
 
-const logger = new Logger('events-emitters-events');
+const logger = new Logger();
 
 // ==================================================================
 // API 事件广播器

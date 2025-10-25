@@ -1,18 +1,17 @@
 'use strict';
 
-import _ from 'lodash';
 import { ensureMkForLatestMessage } from '../core/key/mk';
+import { initializeExternalSettings } from '../scriptIniter/settings';
 import { LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { logContext, Logger } from '../utils/log';
 import { handleApiEvent } from './handlers/api/dispatcher';
 import { handleSyncEvent } from './handlers/sync';
 import { handleUpdateMkOnlyEvent } from './handlers/updateMkOnly';
-import { handleWriteEvent } from './handlers/write';
 import { EventJob, getEventGroup } from './merger';
 import { ActionsTaken } from './types';
 
-const logger = new Logger('events-dispatcher');
+const logger = new Logger();
 
 /**
  * @constant {number} RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION
@@ -153,9 +152,11 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     };
 
     switch (eventGroup) {
-      case 'WRITE':
+      case 'INIT':
+        initializeExternalSettings();
+        // 为了兼容旧版酒馆的swipe逻辑，这里也调用同步
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();
-        await handleWriteEvent(job, actionsTaken, payload);
+        await handleSyncEvent(job, actionsTaken, payload);
         break;
       case 'SYNC':
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();

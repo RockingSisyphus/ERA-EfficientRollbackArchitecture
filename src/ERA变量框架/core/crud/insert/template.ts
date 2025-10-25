@@ -3,7 +3,7 @@
 import { mergeReplaceArray } from '../../../utils/data';
 import { Logger } from '../../../utils/log';
 
-const logger = new Logger('core-crud-insert-template');
+const logger = new Logger();
 
 /**
  * **【解析并合并模板内容】**

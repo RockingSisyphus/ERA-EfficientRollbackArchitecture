@@ -19,7 +19,7 @@ import { Logger } from '../utils/log';
 import { dispatchAndExecuteTask, IgnoreRule } from './dispatcher';
 import { EVENT_DEBOUNCE_MAP, EventJob, getEventGroup, mergeEventBatch } from './merger';
 
-const logger = new Logger('events-queue');
+const logger = new Logger();
 
 /**
  * @const {EventJob[]} eventQueue

@@ -10,7 +10,7 @@ import { ERA_DATA_REGEX } from './constants';
 import { Logger } from './log';
 import { parseCharacterMacros } from './text';
 
-const log = new Logger('utils-message');
+const log = new Logger();
 
 /**
  * @type {EraData} - 定义了存储在 `<era_data>` 块中的元数据结构。

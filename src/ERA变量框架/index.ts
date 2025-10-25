@@ -32,7 +32,7 @@ import './ui';
  * @description 定义了所有需要被 ERA 框架监听的事件。
  */
 const eventsToListen = [
-  ...EVENT_GROUPS.WRITE,
+  ...EVENT_GROUPS.INIT,
   ...EVENT_GROUPS.SYNC,
   ...EVENT_GROUPS.API,
   ...EVENT_GROUPS.UPDATE_MK_ONLY,

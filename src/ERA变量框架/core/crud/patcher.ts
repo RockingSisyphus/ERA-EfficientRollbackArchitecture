@@ -32,7 +32,7 @@ import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert/insert';
 import { processEditBlocks } from './update';
 
-const logger = new Logger('core-crud-patcher');
+const logger = new Logger();
 
 /**
  * **【核心实现】** 对指定的消息应用变量修改。

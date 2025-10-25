@@ -12,12 +12,12 @@
  */
 'use strict';
 
-import { findLatestNewValue } from '../rollback';
-import { updateEraStatData } from '../../utils/era_data';
 import { sanitizeArrays } from '../../utils/data';
+import { updateEraStatData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
+import { findLatestNewValue } from '../rollback';
 
-const logger = new Logger('core-crud-update');
+const logger = new Logger();
 
 /**
  * **【递归编辑】**
@@ -95,7 +95,7 @@ export async function applyEditAtLevel(
     // a. 查找旧值 (`valOld`)
     // 这是确保回滚准确性的核心。
     logger.debug('applyEditAtLevel', `[旧值查找] 准备为路径 <${subPath}> 从消息 ID <${messageId}> 向上追溯...`);
-    let valOld = await findLatestNewValue(subPath, messageId, logger);
+    let valOld = await findLatestNewValue(subPath, messageId);
     if (valOld === null) {
       valOld = _.get(statData, subPath);
       logger.debug(

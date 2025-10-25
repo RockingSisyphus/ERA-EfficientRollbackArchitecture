@@ -1,7 +1,6 @@
 /**
  * @file UI解析器，用于分析和操作酒馆UI元素。
  */
-import _ from 'lodash';
 
 /**
  * 表示消息UI的当前状态。

@@ -9,7 +9,7 @@ import { emitWriteDoneEvent } from '../emitters/events';
 import { EventJob } from '../merger';
 import { ActionsTaken } from '../types';
 
-const logger = new Logger('events-handlers-sync');
+const logger = new Logger();
 
 export async function handleSyncEvent(
   job: EventJob,

@@ -14,7 +14,7 @@
 import { updateEraStatData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
 
-const logger = new Logger('core-crud-delete');
+const logger = new Logger();
 
 /**
  * **【递归删除】**

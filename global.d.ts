@@ -20,6 +20,9 @@ declare module '*.vue' {
   export default component;
 }
 
+declare const $: typeof import('jquery');
+declare const _: typeof import('lodash');
+
 declare const YAML: typeof import('yaml');
 
 declare const z: typeof import('zod');

@@ -1,23 +1,18 @@
 'use strict';
 
-import _ from 'lodash';
 import { ERA_API_EVENTS, ERA_EVENT_EMITTER } from '../utils/constants';
 import { Logger } from '../utils/log';
 
-const logger = new Logger('events-merger');
+const logger = new Logger();
 
 /**
  * @description 定义需要监听的事件的分组
  */
 export const EVENT_GROUPS = {
-  WRITE: [
-    //tavern_events.CHARACTER_MESSAGE_RENDERED,
-    tavern_events.APP_READY,
+  INIT: [tavern_events.APP_READY],
+  SYNC: [
     'manual_write',
     ERA_EVENT_EMITTER.API_WRITE,
-    //tavern_events.MESSAGE_RECEIVED,
-  ],
-  SYNC: [
     tavern_events.MESSAGE_RECEIVED,
     tavern_events.MESSAGE_DELETED,
     tavern_events.MESSAGE_SWIPED,
@@ -107,11 +102,11 @@ export interface EventJob {
 /**
  * 根据事件类型，查找它属于哪个预定义的组。
  * @param {string} eventType - 要检查的事件类型。
- * @returns {string} 事件所属的组名 ('WRITE', 'SYNC', 'API', 'UPDATE_MK_ONLY', 'UNKNOWN')。
+ * @returns {string} 事件所属的组名 ('INIT', 'SYNC', 'API', 'UPDATE_MK_ONLY', 'UNKNOWN')。
  */
 export function getEventGroup(eventType: string): string {
   // 使用 as string[] 来解决 TypeScript 因 'as const' 推断出的过于严格的类型问题
-  if ((EVENT_GROUPS.WRITE as string[]).includes(eventType)) return 'WRITE';
+  if ((EVENT_GROUPS.INIT as string[]).includes(eventType)) return 'INIT';
   if ((EVENT_GROUPS.SYNC as string[]).includes(eventType)) return 'SYNC';
   if ((EVENT_GROUPS.API as string[]).includes(eventType)) return 'API';
   if ((EVENT_GROUPS.UPDATE_MK_ONLY as string[]).includes(eventType)) return 'UPDATE_MK_ONLY';
@@ -184,7 +179,7 @@ export function mergeEventBatch(batchToProcess: EventJob[]): EventJob[] {
 
     // 定义合并条件，让 if 判断的意图更清晰
     const areInSameGroup = prevGroup === currentGroup;
-    const isMergeableGroup = prevGroup === 'WRITE' || prevGroup === 'SYNC';
+    const isMergeableGroup = prevGroup === 'SYNC';
 
     // 如果满足合并条件
     if (areInSameGroup && isMergeableGroup) {
@@ -208,8 +203,8 @@ export function mergeEventBatch(batchToProcess: EventJob[]): EventJob[] {
 
   // 打印合并日志
   logger.debug('mergeEventBatch', `事件合并: ${originalEvents.length} -> ${filteredJobs.length}`, {
-    before: originalEvents.map(e => e.type),
-    after: filteredJobs.map(e => e.type),
+    before: originalEvents.map((e: EventJob) => e.type),
+    after: filteredJobs.map((e: EventJob) => e.type),
   });
 
   return filteredJobs;

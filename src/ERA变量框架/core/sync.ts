@@ -26,15 +26,14 @@
  */
 
 import { LOGS_PATH, SEL_PATH } from '../utils/constants';
-import { readMessageKey } from './key/mk';
-import { findLastAiMessage } from '../utils/message';
-import { rollbackByMk } from './rollback';
-import { getEraData, updateEraMetaData } from '../utils/era_data';
 import { parseEditLog } from '../utils/data';
+import { getEraData, updateEraMetaData } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import { ApplyVarChangeForMessage } from './crud/patcher';
+import { readMessageKey } from './key/mk';
+import { rollbackByMk } from './rollback';
 
-const logger = new Logger('core-sync');
+const logger = new Logger();
 
 /**
  * 获取用于变量操作的MK。如果消息是用户消息，则返回null以跳过操作。
@@ -68,7 +67,8 @@ const checkEditLogsAreEmpty = (mks: (string | null)[]): boolean => {
 
 /**
  * 当聊天记录发生变化（删除、切换分支）时，重新同步状态的核心函数
- * 实现了“逆序回滚，顺序重算”的逻辑
+ * 实现了“逆序回滚，顺序重算”的逻辑。
+ * 在没有检测到历史变化时，该函数还会自动回滚并重算最后一条消息，从而实现了“写入”操作的统一。
  * @param {boolean} [forceFullResync=false] - 如果为 true，则强制从头开始完全重算，忽略差异检测。
  */
 export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
@@ -169,11 +169,25 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
       }
     }
     if (firstRecalcId === -1) {
-      logger.log('resyncStateOnHistoryChange', '所有MK均匹配，无需重算。');
       // N.B. 在当前架构下，MK 已被直接写入消息内容，与内容强绑定。
       // 因此，任何导致内容变化的操作（如 swipe）也必然会导致 MK 的变化。
-      // 这意味着，如果 MK 序列完全匹配，那么内容也必然完全匹配，无需进行任何重算或保险性检查。
-      return; // 直接返回，终止同步。
+      // 这意味着，如果 MK 序列完全匹配，那么内容也必然完全匹配。
+      // logger.log('resyncStateOnHistoryChange', '所有MK均匹配，无需重算。');
+      // return; // 直接返回，终止同步。
+
+      // 【模拟写入】为了将“写入”操作统一到“同步”流程中，我们在此处模拟写入。
+      // 当所有 MK 匹配（即没有检测到历史变化）时，我们将重算点强制设置为最后一条消息。
+      // 这相当于“回滚并重写最后一条消息”，从而实现了写入操作。
+      //
+      // 【历史问题】过去，一个类似的“保险机制”曾导致 Bug：在同步逻辑更新完 selectedMK 和 editLog 后，
+      // 这个机制会错误地回滚最后一条消息，导致状态被破坏。
+      // 【安全性】但此处的修改是安全的，因为它发生在状态数组（selectedMks, editLogs）被修改之前，
+      // 属于同步流程的前置判断环节，因此不会造成过去的问题。
+      firstRecalcId = allMessages.length > 0 ? allMessages.length - 1 : 0;
+      logger.log(
+        'resyncStateOnHistoryChange',
+        `所有MK均匹配。启动模拟写入，强制重算最后一条消息 (ID: ${firstRecalcId})。`,
+      );
     } else {
       logger.log('resyncStateOnHistoryChange', `找到最早的不匹配点于 message_id=${firstRecalcId}。将从该点开始重算。`);
     }
@@ -256,6 +270,7 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
 };
 
 /**
+ * @deprecated 该函数已被 resyncStateOnHistoryChange 的内置“模拟写入”逻辑所取代。
  * **【强制同步最后一条AI消息】**
  * 这是一个用于特定场景的函数，例如由外部 API 触发，需要强制重算最后一条 AI 消息的变量。
  * 它解决了在消息内容被外部修改（但 MK 未变）时，状态无法自动更新的问题。
@@ -270,50 +285,50 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
  * 此函数操作目标明确（最后一条 AI 消息），且回滚和重算在同一调用链中完成，
  * 避免了旧“保险机制”中因目标不明确而破坏 `resync` 状态的风险。
  */
-export const forceSyncLastAiMessage = async () => {
-  logger.log('forceSyncLastAiMessage', '启动强制同步最后一条 AI 消息...');
+// export const forceSyncLastAiMessage = async () => {
+//   logger.log('forceSyncLastAiMessage', '启动强制同步最后一条 AI 消息...');
 
-  // 1. 定位
-  const msg = findLastAiMessage();
-  if (!msg || typeof msg.message_id !== 'number') {
-    logger.warn('forceSyncLastAiMessage', '未找到可供强制同步的 AI 消息。');
-    return;
-  }
+//   // 1. 定位
+//   const msg = findLastAiMessage();
+//   if (!msg || typeof msg.message_id !== 'number') {
+//     logger.warn('forceSyncLastAiMessage', '未找到可供强制同步的 AI 消息。');
+//     return;
+//   }
 
-  const messageId = msg.message_id;
-  const MK = readMessageKey(msg);
+//   const messageId = msg.message_id;
+//   const MK = readMessageKey(msg);
 
-  if (!MK) {
-    logger.warn('forceSyncLastAiMessage', `消息 (ID: ${messageId}) 不含 MK，无法执行强制同步。将转为执行常规写入...`);
-    // 如果没有 MK，说明是新消息，直接走标准写入流程即可
-    await ApplyVarChangeForMessage(msg);
-    return;
-  }
+//   if (!MK) {
+//     logger.warn('forceSyncLastAiMessage', `消息 (ID: ${messageId}) 不含 MK，无法执行强制同步。将转为执行常规写入...`);
+//     // 如果没有 MK，说明是新消息，直接走标准写入流程即可
+//     await ApplyVarChangeForMessage(msg);
+//     return;
+//   }
 
-  logger.log('forceSyncLastAiMessage', `目标消息 (ID: ${messageId}, MK: ${MK})。`);
+//   logger.log('forceSyncLastAiMessage', `目标消息 (ID: ${messageId}, MK: ${MK})。`);
 
-  // 2. 回滚
-  logger.debug('forceSyncLastAiMessage', `正在回滚 MK: ${MK}...`);
-  await rollbackByMk(MK, true); // silent=true，避免不必要的日志刷新
+//   // 2. 回滚
+//   logger.debug('forceSyncLastAiMessage', `正在回滚 MK: ${MK}...`);
+//   await rollbackByMk(MK, true); // silent=true，避免不必要的日志刷新
 
-  // 3. 重算
-  logger.debug('forceSyncLastAiMessage', `回滚完成，正在根据当前内容重算 MK: ${MK}...`);
-  const newMK = await ApplyVarChangeForMessage(msg);
+//   // 3. 重算
+//   logger.debug('forceSyncLastAiMessage', `回滚完成，正在根据当前内容重算 MK: ${MK}...`);
+//   const newMK = await ApplyVarChangeForMessage(msg);
 
-  // 4. 更新 SelectedMks
-  if (newMK) {
-    try {
-      await updateEraMetaData(meta => {
-        const selectedMks = _.get(meta, SEL_PATH, []);
-        selectedMks[messageId] = newMK;
-        _.set(meta, SEL_PATH, selectedMks);
-        return meta;
-      });
-      logger.log('forceSyncLastAiMessage', `强制同步完成，已更新 SelectedMks[${messageId}] = ${newMK}`);
-    } catch (e: any) {
-      logger.error('forceSyncLastAiMessage', `强制同步后更新 SelectedMks 失败: ${e?.message || e}`, e);
-    }
-  } else {
-    logger.error('forceSyncLastAiMessage', `重算后未能获取新的 MK，SelectedMks 可能未更新。`);
-  }
-};
+//   // 4. 更新 SelectedMks
+//   if (newMK) {
+//     try {
+//       await updateEraMetaData(meta => {
+//         const selectedMks = _.get(meta, SEL_PATH, []);
+//         selectedMks[messageId] = newMK;
+//         _.set(meta, SEL_PATH, selectedMks);
+//         return meta;
+//       });
+//       logger.log('forceSyncLastAiMessage', `强制同步完成，已更新 SelectedMks[${messageId}] = ${newMK}`);
+//     } catch (e: any) {
+//       logger.error('forceSyncLastAiMessage', `强制同步后更新 SelectedMks 失败: ${e?.message || e}`, e);
+//     }
+//   } else {
+//     logger.error('forceSyncLastAiMessage', `重算后未能获取新的 MK，SelectedMks 可能未更新。`);
+//   }
+// };

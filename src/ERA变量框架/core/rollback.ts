@@ -15,13 +15,13 @@
 'use strict';
 
 import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from '../utils/constants';
-import { readMessageKey } from './key/mk';
-import { getMessageContent, isUserMessage } from '../utils/message';
-import { getEraData } from '../utils/era_data';
 import { J, parseEditLog } from '../utils/data';
+import { getEraData } from '../utils/era_data';
 import { Logger } from '../utils/log';
+import { getMessageContent, isUserMessage } from '../utils/message';
+import { readMessageKey } from './key/mk';
 
-const logger = new Logger('core-rollback');
+const logger = new Logger();
 
 /**
  * **【回滚】**
@@ -86,10 +86,9 @@ export async function rollbackByMk(MK: string, silent = false) {
  *
  * @param {string} path - 要查找的变量的完整路径。
  * @param {number} startMessageId - 从此消息 ID 的**前一条**消息开始向上查找。
- * @param {Logger} [logger] - 可选的 Logger 实例，用于记录详细的追溯过程。
  * @returns {Promise<any>} 返回找到的 `value_new`。如果追溯到聊天记录的开头都未找到，则返回 `null`。
  */
-export async function findLatestNewValue(path: string, startMessageId: number, logger?: Logger): Promise<any> {
+export async function findLatestNewValue(path: string, startMessageId: number): Promise<any> {
   logger?.debug('findLatestNewValue', `开始为路径 <${path}> 从消息ID <${startMessageId}> 向上追溯历史值...`);
   const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
   if (!messages || messages.length < 1) {

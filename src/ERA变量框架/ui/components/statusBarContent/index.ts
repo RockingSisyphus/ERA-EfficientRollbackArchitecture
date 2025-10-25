@@ -1,6 +1,6 @@
 import { Logger } from '../../../utils/log';
 
-const logger = new Logger('ui-components-statusBarContent');
+const logger = new Logger();
 let latestStatData: any = null; // 用于缓存最新的数据
 
 function jsonToHtml(data: any): string {

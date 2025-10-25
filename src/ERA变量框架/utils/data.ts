@@ -4,10 +4,9 @@
 
 'use strict';
 
-import _ from 'lodash';
 import { Logger } from './log';
 
-const logger = new Logger('utils-data');
+const logger = new Logger();
 
 const ESCAPE_MAP: { [key: string]: string } = {
   '.': '__DOT__',

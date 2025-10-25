@@ -16,14 +16,13 @@
  * 从而将 API 调用无缝地整合到 ERA 的原生解析和同步流程中。
  */
 
-import _ from 'lodash';
 import { WriteDonePayload } from '../../../utils/constants';
 import { J } from '../../../utils/data';
 import { Logger } from '../../../utils/log';
 import { findLastAiMessage, getMessageContent, updateMessageContent } from '../../../utils/message';
 import { debouncedEmitApiWrite, emitWriteDoneEvent } from '../../emitters/events';
 
-const logger = new Logger('events-handlers-api-handler');
+const logger = new Logger();
 
 // API 写入任务的接口定义
 interface ApiWriteJob {

@@ -1,69 +1,117 @@
 /**
- * @file ERA 变量框架 - 日志记录模块
+ * @file ERA 变量框架 - 日志记录模块 (V2 - 动态配置版)
  */
 
 'use strict';
 
+// --- 新的运行时调试配置系统 ---
+
 /**
- * @constant {object} LOG_CONFIG
- * @description
- * 用于控制日志输出的配置对象。
+ * @constant {string} DEBUG_LS_KEY
+ * @description 用于在 localStorage 中存储调试模式的键名。
  */
-export const LOG_CONFIG = {
-  // 定义所有可用的日志级别及其权重。数字越小，级别越低。
-  levels: {
-    debug: 0,
-    log: 1,
-    warn: 2,
-    error: 3,
-  },
+const DEBUG_LS_KEY = 'era_debug';
 
-  // 设置当前全局日志级别。只有权重等于或高于此级别的日志才会被输出。
-  currentLevel: 0, // 默认为 'debug'
+let activeNamespaces: RegExp[];
+let skippedNamespaces: RegExp[];
 
-  // 'debug' 级别的白名单。只有当 currentLevel 为 debug 时，此列表才生效。
-  // 只有在此列表中的模块才会输出 debug 日志。
-  debugWhitelist: [
-    'index',
-    'core-rollback',
-    'core-sync',
-    'core-crud-delete',
-    'core-crud-patcher',
-    'core-crud-update',
-    'core-crud-insert-insert',
-    'core-crud-insert-template',
-    'core-key-mk',
-    'events-dispatcher',
-    'events-merger',
-    'events-queue',
-    'events-emitters-events',
-    'events-handlers-sync',
-    'events-handlers-api-handler',
-    'macro-parser',
-    'ui-index',
-    'ui-patch',
-    'ui-components-statusBar-index',
-    'ui-components-statusBarContent-index',
-    'ui-parser-analyzer',
-    'utils-message',
-  ] as string[],
-};
-// 初始化时将 currentLevel 设置为 debug 级别
-LOG_CONFIG.currentLevel = LOG_CONFIG.levels.debug;
+/**
+ * 将用户输入的调试模式字符串（支持通配符 *）转换为正则表达式数组。
+ * @param {string} pattern - 例如 'core-*,events-*,-core-key'
+ */
+function parseDebugPattern(pattern: string) {
+  const patterns = pattern.split(/[\s,]+/);
+  activeNamespaces = [];
+  skippedNamespaces = [];
+
+  for (const p of patterns) {
+    if (!p) continue;
+
+    // 将通配符 * 转换为正则表达式的 .*?
+    const regexPattern = p.replace(/\*/g, '.*?');
+
+    if (regexPattern.startsWith('-')) {
+      // 如果以 - 开头，表示排除该模式
+      skippedNamespaces.push(new RegExp(`^${regexPattern.slice(1)}$`));
+    } else {
+      // 否则，为激活模式
+      activeNamespaces.push(new RegExp(`^${regexPattern}$`));
+    }
+  }
+}
+
+/**
+ * 检查给定的模块名是否应该输出 debug 日志。
+ * @param {string} moduleName - 要检查的模块名。
+ * @returns {boolean} - 如果允许输出则返回 true。
+ */
+function isDebugEnabled(moduleName: string): boolean {
+  if (!moduleName) return false;
+  // 如果模块名匹配任何一个“排除”模式，则禁用
+  if (skippedNamespaces.some(re => re.test(moduleName))) {
+    return false;
+  }
+  // 如果“激活”模式列表为空（即没有设置任何模式），则全部禁用
+  if (activeNamespaces.length === 0) {
+    return false;
+  }
+  // 如果模块名匹配任何一个“激活”模式，则启用
+  // 如果设置了 'all' 或 '*'，则全部启用
+  if (activeNamespaces.some(re => re.test('all') || re.test(moduleName))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 从 localStorage 加载并解析调试模式。
+ */
+function loadDebugConfig() {
+  const pattern = globalThis.localStorage?.getItem(DEBUG_LS_KEY) || '';
+  parseDebugPattern(pattern);
+}
+
+/**
+ * 设置新的调试模式，并将其保存到 localStorage。
+ * @param {string} pattern - 新的调试模式字符串。
+ * @example
+ * // 开启所有 core 和 ui 开头的模块
+ * eraDebug('core-*,ui-*')
+ * // 开启所有模块，但排除 core-key
+ * eraDebug('*,-core-key')
+ * // 关闭所有调试日志
+ * eraDebug('')
+ */
+function setDebug(pattern: string) {
+  globalThis.localStorage?.setItem(DEBUG_LS_KEY, pattern);
+  loadDebugConfig();
+  console.log(
+    `%c《ERA-Log》调试模式已更新: %c${pattern || '(已禁用)'}%c。部分模块可能需刷新页面生效。`,
+    'color: #3498db; font-weight: bold;',
+    'color: #f39c12; font-style: italic;',
+    'color: #3498db; font-weight: bold;',
+  );
+}
+
+// 初始化配置
+loadDebugConfig();
+
+// 将设置函数暴露到全局，方便在浏览器控制台调用
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).eraDebug = setDebug;
+}
+
+// --- Logger 类 ---
 
 /**
  * @class Logger
- * @description 一个为 ERA 框架设计的、支持日志分级的记录器。
+ * @description 一个为 ERA 框架设计的、支持动态配置的日志记录器。
  *
  * **核心功能**:
- * 1. **日志分级**: 提供 `debug`, `log`, `warn`, `error` 四个级别，方便过滤和定位问题。
- * 2. **统一格式**: 所有日志都遵循 `《ERA》「模块名」【函数名】日志内容` 的格式，清晰明了。
- * 3. **控制台输出**: 日志会根据级别使用不同颜色和样式的 `console` 方法输出，便于在浏览器中实时调试。
- * 4. **纯粹的控制台日志**: 日志系统不再向酒馆聊天变量中写入任何数据，避免了性能问题和数据污染。
- */
-/**
- * @type {{mk: string}}
- * @description 一个用于在事件处理期间临时存储日志上下文（如 Message Key）的对象。
+ * 1. **动态调试**: 可通过浏览器控制台 `eraDebug('...')` 命令在运行时开启/关闭指定模块的 `debug` 日志。
+ * 2. **统一格式**: 所有日志都遵循 `《ERA》「模块名」【函数名】日志内容` 的格式。
+ * 3. **自动模块名**: 自动从调用栈解析模块名，推荐在每个文件中创建独立的 logger 实例以保证准确性。
+ *    例如: `const logger = new Logger();`
  */
 export const logContext = {
   mk: '',
@@ -72,124 +120,73 @@ export const logContext = {
 export class Logger {
   private moduleName: string;
 
-  /**
-   * 创建一个新的 Logger 实例。
-   * @param {string} [moduleName] - 可选。该 Logger 实例绑定的模块名称。如果未提供，将自动从调用栈中解析。
-   */
   constructor(moduleName?: string) {
     if (moduleName) {
       this.moduleName = moduleName;
     } else {
+      // 自动从调用栈获取模块名，能有效避免因实例共享导致的模块名不准问题
       this.moduleName = this._getModuleNameFromStack() || 'unknown';
     }
   }
 
-  /**
-   * @private
-   * 从 Error stack 中解析调用方的文件名作为模块名。
-   * @returns {string | null} 解析出的模块名，或在失败时返回 null。
-   */
   private _getModuleNameFromStack(): string | null {
     try {
       const stack = new Error().stack || '';
-      // 栈的第二行通常是构造函数的直接调用者
-      const callerLine = stack.split('\n')[2];
+      const callerLine = stack.split('\n')[3]; // 调整栈深度以获取实例化 Logger 的位置
       if (!callerLine) return null;
 
-      // 正则表达式匹配括号内的路径
       const match = callerLine.match(/\((?:webpack-internal:\/\/\/)?\.\/(.*)\)/);
       if (!match || !match[1]) return null;
 
       let path = match[1];
-      // 移除路径中的查询参数 (如 ?vue&type=script&setup=true&lang=ts)
       path = path.split('?')[0];
-      // 移除文件名后缀
       path = path.replace(/\.(vue|ts|js)$/, '');
       // 将 'src/ERA变量框架/' 替换为空，并用 '-' 替换 '/'
-      return path.replace(/^src\/ERA变量框架\//, '').replace(/\//g, '-');
+      return path.replace(/^src\/ERA变量框架\//, '').replace(/\/index$/, '').replace(/\//g, '-');
     } catch (e) {
-      return null; // 解析失败则返回 null
+      return null;
     }
   }
 
-  /**
-   * 格式化日志消息。
-   * @param {string} funcName - 调用日志的函数名。
-   * @param {any} message - 日志内容。
-   * @returns {string} 格式化后的日志字符串。
-   */
   private formatMessage(funcName: string, message: any): string {
     const mkString = logContext.mk ? `（${logContext.mk}）` : '';
     return `《ERA》${mkString}「${this.moduleName}」【${funcName}】${String(message)}`;
   }
 
-  /**
-   * 记录一条 debug 级别的日志。
-   * @param {string} funcName - 函数名。
-   * @param {any} message - 日志内容。
-   * @param {any} [obj] - 可选的、附加到日志中的对象。
-   */
   debug(funcName: string, message: any, obj?: any) {
-    // 1. 全局级别检查
-    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.debug) return;
-    // 2. 白名单检查 (仅对 debug 生效)
-    if (LOG_CONFIG.currentLevel === LOG_CONFIG.levels.debug && !LOG_CONFIG.debugWhitelist.includes(this.moduleName)) {
+    if (!isDebugEnabled(this.moduleName)) {
       return;
     }
 
     const formattedMessage = this.formatMessage(funcName, message);
-    if (obj) {
+    if (obj !== undefined) {
       console.debug(formattedMessage, obj);
     } else {
       console.debug(formattedMessage);
     }
   }
 
-  /**
-   * 记录一条 log 级别的日志。
-   * @param {string} funcName - 函数名。
-   * @param {any} message - 日志内容。
-   * @param {any} [obj] - 可选的、附加到日志中的对象。
-   */
   log(funcName: string, message: any, obj?: any) {
-    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.log) return;
-
     const formattedMessage = this.formatMessage(funcName, message);
-    if (obj) {
+    if (obj !== undefined) {
       console.log(`%c${formattedMessage}`, 'color: #3498db;', obj);
     } else {
       console.log(`%c${formattedMessage}`, 'color: #3498db;');
     }
   }
 
-  /**
-   * 记录一条 warn 级别的日志。
-   * @param {string} funcName - 函数名。
-   * @param {any} message - 日志内容。
-   * @param {any} [obj] - 可选的、附加到日志中的对象。
-   */
   warn(funcName: string, message: any, obj?: any) {
-    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.warn) return;
-
     const formattedMessage = this.formatMessage(funcName, message);
-    if (obj) {
+    if (obj !== undefined) {
       console.warn(`%c${formattedMessage}`, 'color: #f39c12;', obj);
     } else {
       console.warn(`%c${formattedMessage}`, 'color: #f39c12;');
     }
   }
 
-  /**
-   * 记录一条 error 级别的日志。
-   * @param {string} funcName - 函数名。
-   * @param {any} message - 日志内容。
-   * @param {any} [errorObj] - 可选的、附加到日志中的错误对象。
-   */
   error(funcName: string, message: any, errorObj?: any) {
-    if (LOG_CONFIG.currentLevel > LOG_CONFIG.levels.error) return;
-
     const formattedMessage = this.formatMessage(funcName, message);
-    if (errorObj) {
+    if (errorObj !== undefined) {
       console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;', errorObj);
     } else {
       console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;');

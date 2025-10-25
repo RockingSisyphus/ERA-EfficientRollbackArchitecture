@@ -3,10 +3,9 @@
  * @description 通过模拟用户UI操作, 强制酒馆重新渲染消息, 以触发完整的宏替换。
  */
 
-import _ from 'lodash';
 import { Logger } from '../utils/log';
 
-const log = new Logger('ui-patch');
+const log = new Logger();
 
 /*
  * 强制重新渲染单条消息 (UI事件模拟备份)。
