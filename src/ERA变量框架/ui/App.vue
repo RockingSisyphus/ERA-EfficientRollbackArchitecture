@@ -2,7 +2,8 @@
   <div class="era-app-container">
     <FloatingBall v-if="currentComponent === 'FloatingBall'" @click="requestSwitchView('ExpandedView')" />
     <template v-if="currentComponent === 'ExpandedView'">
-      <ExpandedView :event-data="props.eventData" @close="requestSwitchView('FloatingBall')" />
+      <!-- <ExpandedView :event-data="props.eventData" @close="requestSwitchView('FloatingBall')" /> -->
+      <EraDataPanel :event-data="props.eventData" @close="requestSwitchView('FloatingBall')" />
       <ActionButtons />
     </template>
   </div>
@@ -11,7 +12,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import FloatingBall from './components/FloatingBall.vue';
-import ExpandedView from './components/ExpandedView.vue';
+//import ExpandedView from './components/ExpandedView.vue';
+import EraDataPanel from './components/era-panel/EraDataPanel.vue'; // 新路径
+
 import ActionButtons from './components/ActionButtons.vue';
 
 // 定义 props
