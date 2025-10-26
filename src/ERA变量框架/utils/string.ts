@@ -60,7 +60,11 @@ export function createTagRegex(keyword: string = '', mode: TagMatchMode = 'exact
  * @param {number} [endIndex=text.length] - 开始搜索的位置。
  * @returns {{startIndex: number, endIndex: number, content: string, tagName: string} | null} 包含起止索引、内容和完整标签名的对象，或 null。
  */
-function findTagFromEndByRegex(text: string, tagNameRegex: RegExp, endIndex: number = text.length): { startIndex: number; endIndex: number; content: string; tagName: string } | null {
+function findTagFromEndByRegex(
+  text: string,
+  tagNameRegex: RegExp,
+  endIndex: number = text.length,
+): { startIndex: number; endIndex: number; content: string; tagName: string } | null {
   const closeTagRegex = new RegExp(`</${tagNameRegex.source}>`, 'g');
   let lastMatch = null;
   let currentMatch;
