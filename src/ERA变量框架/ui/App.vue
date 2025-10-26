@@ -1,7 +1,7 @@
 <template>
   <div class="era-app-container">
-    <FloatingBall v-if="currentComponent === 'FloatingBall'" @click="requestSwitchView('ExpandedView')" />
-    <template v-if="currentComponent === 'ExpandedView'">
+    <FloatingBall v-show="currentComponent === 'FloatingBall'" @click="requestSwitchView('ExpandedView')" />
+    <div v-show="currentComponent === 'ExpandedView'">
       <!-- EraDataPanel 的内容直接在这里展开 -->
       <div class="era-panel">
         <!-- 顶部栏：标题 + 关闭按钮 -->
@@ -50,14 +50,14 @@
         </div>
       </div>
       <ActionButtons />
-    </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import FloatingBall from './components/FloatingBall.vue';
+import { computed, ref } from 'vue';
 import ActionButtons from './components/ActionButtons.vue';
+import FloatingBall from './components/FloatingBall.vue';
 
 // 从 EraDataPanel 迁移过来的 imports
 import EraAccordion from './components/era-panel/parts/EraAccordion.vue';

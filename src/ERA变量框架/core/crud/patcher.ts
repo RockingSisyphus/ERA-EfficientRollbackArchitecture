@@ -27,7 +27,7 @@ import { escapeEraData, parseEditLog, parseJsonl } from '../../utils/data';
 import { updateEraMetaData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
 import { findLastAiMessage, getMessageContent, isUserMessage } from '../../utils/message';
-import { extractBlocks } from '../../utils/string';
+import { createTagRegex, extractValidBlocks } from '../../utils/string';
 import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert/insert';
 import { processEditBlocks } from './update';
@@ -68,20 +68,20 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
     const rawContent = getMessageContent(msg) || '';
 
     // 1. 从消息内容中解析出所有指令块。
-    const insertBlocks = extractBlocks(rawContent, 'VariableInsert');
-    const editBlocks = extractBlocks(rawContent, 'VariableEdit');
-    const deleteBlocks = extractBlocks(rawContent, 'VariableDelete');
+    const insertBlocks = extractValidBlocks(rawContent, createTagRegex('VariableInsert', 'exact'));
+    const editBlocks = extractValidBlocks(rawContent, createTagRegex('VariableEdit', 'exact'));
+    const deleteBlocks = extractValidBlocks(rawContent, createTagRegex('VariableDelete', 'exact'));
 
     // 调试日志：输出提取的原始块
-    //logger.debug('【ERA调试】原始指令块', insertBlocks);
+    logger.debug('ApplyVarChangeForMessage', 'delete拿到的指令', deleteBlocks);
 
     if (!insertBlocks.length && !editBlocks.length && !deleteBlocks.length) {
       logger.debug('ApplyVarChangeForMessage', `消息 (ID: ${messageId}) 未检测到变量修改标签。`);
     }
 
-    const rawInserts = insertBlocks.flatMap(s => parseJsonl(s));
-    const rawEdits = editBlocks.flatMap(s => parseJsonl(s));
-    const rawDeletes = deleteBlocks.flatMap(s => parseJsonl(s));
+    const rawInserts = insertBlocks.flatMap((s: string) => parseJsonl(s));
+    const rawEdits = editBlocks.flatMap((s: string) => parseJsonl(s));
+    const rawDeletes = deleteBlocks.flatMap((s: string) => parseJsonl(s));
 
     // 调试日志：输出 JSONL 解析结果
     //logger.debug('【ERA调试】JSONL解析结果', rawInserts);
