@@ -98,11 +98,16 @@ export function getScriptSettings(): z.infer<typeof SettingsSchema> {
  * @returns {Promise<void>}
  */
 export async function updateScriptSettings(
-  updater: (currentSettings: z.infer<typeof SettingsSchema>) => z.infer<typeof SettingsSchema> | Promise<z.infer<typeof SettingsSchema>>,
+  updater: (
+    currentSettings: z.infer<typeof SettingsSchema>,
+  ) => z.infer<typeof SettingsSchema> | Promise<z.infer<typeof SettingsSchema>>,
 ): Promise<void> {
-  await updateVariablesWith(async rawSettings => {
-    const currentSettings = SettingsSchema.parse(rawSettings ?? {});
-    const newSettings = await updater(currentSettings);
-    return newSettings;
-  }, { type: 'script', script_id: getScriptId() });
+  await updateVariablesWith(
+    async rawSettings => {
+      const currentSettings = SettingsSchema.parse(rawSettings ?? {});
+      const newSettings = await updater(currentSettings);
+      return newSettings;
+    },
+    { type: 'script', script_id: getScriptId() },
+  );
 }

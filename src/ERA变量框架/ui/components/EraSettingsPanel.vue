@@ -167,14 +167,14 @@ function loadVars() {
     Object.entries(obj)
       .filter(([key]) => key !== '开启悬浮球')
       .forEach(([key, value]) => {
-      const t = detectType(value);
-      rows.value.push({ key, value, type: t });
-      if (t === 'json') {
-        jsonBuffers[key] = safeStringify(value);
-      } else {
-        edits[key] = value;
-      }
-    });
+        const t = detectType(value);
+        rows.value.push({ key, value, type: t });
+        if (t === 'json') {
+          jsonBuffers[key] = safeStringify(value);
+        } else {
+          edits[key] = value;
+        }
+      });
   } catch (e) {
     logger.error('loadVars', '读取脚本变量失败:', e);
     alert('读取 ERA 设置失败，请检查浏览器控制台获取详细信息。');
