@@ -30,6 +30,19 @@
 
 'use strict';
 
+import { z } from 'zod';
+
+/**
+ * @constant {z.ZodObject} SettingsSchema
+ * @description
+ * 定义了脚本设置的 Zod schema，包括类型和默认值。
+ */
+export const SettingsSchema = z.object({
+  '开启悬浮球': z.boolean().default(true),
+  '强制重载功能': z.boolean().default(false),
+  '强制重载消息数': z.number().default(2),
+});
+
 /**
  * @constant {object} CHAT_SCOPE
  * @description

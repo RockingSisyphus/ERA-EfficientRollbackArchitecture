@@ -106,20 +106,12 @@
    - 保存时按原类型回写到脚本域。
 */
 import { reactive, ref } from 'vue'; // 中文注释：Vue 响应式 API
+import { z } from 'zod';
+import { SettingsSchema } from '../../utils/constants';
+import { getScriptSettings, updateScriptSettings } from '../../utils/era_data';
 import { Logger } from '../../utils/log'; // 中文注释：项目内日志工具
 
-// === 运行时依赖（由你的环境提供）：getVariables / replaceVariables / getScriptId / updateVariablesWith 等 ===
-// 声明为全局（若你是 TS 严格模式，可在 d.ts 中声明）
-declare const getVariables: (opt: { type: 'script'; script_id: string }) => Record<string, any> | null; // 中文注释：读取脚本域变量
-declare const replaceVariables: (vars: Record<string, any>, opt: { type: 'script'; script_id: string }) => void; // 中文注释：整包写回
-declare const updateVariablesWith: (
-  fn: (vars: Record<string, any>) => Record<string, any>,
-  opt: { type: 'script'; script_id: string },
-) => void; // 中文注释：函数式更新（可选）
-declare const getScriptId: () => string; // 中文注释：获取当前脚本 ID
-declare const eventEmit: (name: string, payload?: any) => void; // 中文注释：事件触发（可选，用于通知外界已更新）
-
-const logger = new Logger('ui-EraSettingsPanel'); // 中文注释：实例化日志
+const logger = new Logger(); // 中文注释：实例化日志
 
 // === 折叠状态 ===
 const isOpen = ref(false); // 中文注释：是否展开
@@ -154,34 +146,38 @@ function safeStringify(v: any): string {
 
 // === 加载变量列表 ===
 function loadVars() {
-  // 中文注释：读取脚本域变量
   try {
-    // 中文注释：异常捕获
-    const sid = getScriptId(); // 中文注释：获取脚本 ID
-    const obj = getVariables({ type: 'script', script_id: sid }) ?? {}; // 中文注释：读取变量对象
-    logger.debug('loadVars', '脚本变量：', obj); // 中文注释：日志输出
+    logger.debug('loadVars', '尝试读取脚本设置...');
+    const obj = getScriptSettings();
+    logger.debug('loadVars', '成功读取脚本设置:', obj);
+
+    if (!obj || Object.keys(obj).length === 0) {
+      logger.warn('loadVars', '设置对象为空，UI 将不会被填充。');
+      rows.value = [];
+      return;
+    }
+
     // 清空旧缓存
-    rows.value = []; // 中文注释：清空行
-    for (const k of Object.keys(edits)) delete edits[k]; // 中文注释：清空简易编辑缓存
-    for (const k of Object.keys(jsonBuffers)) delete jsonBuffers[k]; // 中文注释：清空 json 文本缓存
-    for (const k of Object.keys(jsonState)) delete jsonState[k]; // 中文注释：清空 json 状态
+    rows.value = [];
+    for (const k of Object.keys(edits)) delete edits[k];
+    for (const k of Object.keys(jsonBuffers)) delete jsonBuffers[k];
+    for (const k of Object.keys(jsonState)) delete jsonState[k];
 
     // 构建可编辑行
-    Object.entries(obj).forEach(([key, value]) => {
-      // 中文注释：遍历变量
-      const t = detectType(value); // 中文注释：判类型
-      rows.value.push({ key, value, type: t }); // 中文注释：压入行
+    Object.entries(obj)
+      .filter(([key]) => key !== '开启悬浮球')
+      .forEach(([key, value]) => {
+      const t = detectType(value);
+      rows.value.push({ key, value, type: t });
       if (t === 'json') {
-        // 中文注释：JSON 类型
-        jsonBuffers[key] = safeStringify(value); // 中文注释：记录文本缓存
+        jsonBuffers[key] = safeStringify(value);
       } else {
-        // 中文注释：简单类型
-        edits[key] = value; // 中文注释：记录可直接编辑的值
+        edits[key] = value;
       }
     });
   } catch (e) {
-    // 中文注释：异常分支
-    logger.error('loadVars', '读取脚本变量失败：', e); // 中文注释：错误日志
+    logger.error('loadVars', '读取脚本变量失败:', e);
+    alert('读取 ERA 设置失败，请检查浏览器控制台获取详细信息。');
   }
 }
 
@@ -217,40 +213,35 @@ function discardEdits() {
 }
 
 // === 保存修改 ===
-function saveEdits() {
+async function saveEdits() {
   // 中文注释：保存到脚本域
   try {
-    // 中文注释：异常捕获
-    const sid = getScriptId(); // 中文注释：脚本 ID
-    const current = getVariables({ type: 'script', script_id: sid }) ?? {}; // 中文注释：当前值
-    const next: Record<string, any> = { ...current }; // 中文注释：下一版对象（拷贝）
+    await updateScriptSettings(currentSettings => {
+      const next: z.infer<typeof SettingsSchema> = { ...currentSettings };
 
-    // 合并简单类型的改动（布尔/数字/字符串）
-    Object.entries(edits).forEach(([k, v]) => {
-      next[k] = v;
-    }); // 中文注释：合并简单改动
+      // 合并简单类型的改动（布尔/数字/字符串）
+      Object.entries(edits).forEach(([k, v]) => {
+        const key = k as keyof z.infer<typeof SettingsSchema>;
+        (next as any)[key] = v;
+      });
 
-    // 合并 JSON 文本改动（需先通过校验）
-    Object.entries(jsonBuffers).forEach(([k, txt]) => {
-      // 中文注释：遍历 JSON 缓存
-      if (txt != null) {
-        // 中文注释：有文本
-        if (jsonState[k]?.bad) throw new Error(`键 ${k} 的 JSON 格式不正确`); // 中文注释：若已标坏则阻止提交
-        next[k] = JSON.parse(txt); // 中文注释：写入解析后的对象
-      }
+      // 合并 JSON 文本改动（需先通过校验）
+      Object.entries(jsonBuffers).forEach(([k, txt]) => {
+        if (txt != null) {
+          if (jsonState[k]?.bad) throw new Error(`键 ${k} 的 JSON 格式不正确`);
+          const key = k as keyof z.infer<typeof SettingsSchema>;
+          (next as any)[key] = JSON.parse(txt);
+        }
+      });
+
+      return next;
     });
 
-    // === 写回：两种方式任选其一（默认用 replaceVariables） ===
-    replaceVariables(next, { type: 'script', script_id: sid }); // 中文注释：整包写回
-    // updateVariablesWith(() => next, { type: 'script', script_id: sid }); // 中文注释：若更偏好函数式更新，改用此行
-
-    logger.log('saveEdits', '脚本变量已保存：', next); // 中文注释：成功日志
-    eventEmit?.('era:variables_updated', { scope: 'script', keys: Object.keys(next) }); // 中文注释：可选：通知外界更新
-    loadVars(); // 中文注释：重载以反映保存后的最终值
+    logger.log('saveEdits', '脚本变量已保存');
+    loadVars();
   } catch (e) {
-    // 中文注释：异常分支
-    logger.error('saveEdits', '保存失败：', e); // 中文注释：错误日志
-    alert(`保存失败：${(e as any)?.message ?? e}`); // 中文注释：用户提示
+    logger.error('saveEdits', '保存失败：', e);
+    alert(`保存失败：${(e as any)?.message ?? e}`);
   }
 }
 </script>

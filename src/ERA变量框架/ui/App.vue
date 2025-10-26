@@ -82,6 +82,7 @@
           <!-- 中文注释：右侧栏容器 -->
           <ActionButtons />
           <!-- 中文注释：操作按钮组件（事件保持不变） -->
+          <EraSettingsPanel />
         </aside>
       </div>
     </div>
@@ -89,11 +90,10 @@
 </template>
 
 <script setup lang="ts">
-import EraSettingsPanel from './components/EraSettingsPanel.vue'; // 中文注释：新增“ERA 设置”拓展面板
-
 import { computed, onMounted, ref, watch } from 'vue';
 import { Logger } from '../utils/log';
 import ActionButtons from './components/ActionButtons.vue';
+import EraSettingsPanel from './components/EraSettingsPanel.vue';
 import FloatingBall from './components/FloatingBall.vue';
 
 // 从 EraDataPanel 迁移过来的 imports
@@ -380,7 +380,7 @@ watch(
   /* 选中子组件根元素（scoped 下用 deep） */
   position: fixed; /* 固定定位到视口 */
   right: max(16px, env(safe-area-inset-right)); /* 右侧安全区 + 基础边距 */
-  bottom: max(16px, env(safe-area-inset-bottom)); /* 底部安全区 + 基础边距 */
+  bottom: max(90px, env(safe-area-inset-bottom)); /* 底部安全区 + 基础边距 */
   z-index: 2147483647; /* 高于容器根，确保始终可点 */
   pointer-events: auto; /* 启用点击（父容器是 none） */
   touch-action: manipulation; /* 移动端减少点击延迟 */

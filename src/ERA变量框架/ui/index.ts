@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia';
 import { createApp, App as VueApp } from 'vue';
+import { getScriptSettings } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import App from './App.vue';
 import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } from './utils/dom';
@@ -22,10 +23,7 @@ function renderApp(viewToShow: 'FloatingBall' | 'ExpandedView', dataToPass: any)
   }
 
   // 1. 卸载当前 app
-  if (vueApp) {
-    logger.debug('renderApp', '卸载旧的 Vue 实例');
-    vueApp.unmount();
-  }
+  unmountVueApp();
 
   // 2. 创建并挂载新的 app 实例，并通过 props 传递初始视图和数据
   vueApp = createApp(App, {
@@ -58,9 +56,35 @@ function switchView(viewName: 'FloatingBall' | 'ExpandedView') {
 // 暴露切换函数到 window
 (window as any).eraUiSwitchView = switchView;
 
+function unmountVueApp() {
+  if (vueApp) {
+    logger.debug('unmountVueApp', '卸载 Vue 实例');
+    vueApp.unmount();
+    vueApp = null;
+  }
+}
+
+function unloadUI() {
+  logger.log('unloadUI', 'UI 脚本开始卸载');
+  unmountVueApp();
+  deteleportStyle();
+  if (mountPoint) {
+    logger.debug('unloadUI', '销毁挂载点');
+    destroyMountPoint();
+    mountPoint = null;
+  }
+  logger.log('unloadUI', 'UI 脚本卸载完成');
+}
+
 // 在加载时执行
 $(() => {
-  logger.log('$(document).ready', 'UI 脚本开始初始化');
+  const settings = getScriptSettings();
+  if (settings['开启悬浮球'] === false) {
+    logger.log('initialize', 'UI ahow ball disabled, attempting to unload...');
+    unloadUI();
+    return;
+  }
+  logger.log('initialize', 'UI 脚本开始初始化');
   // 创建挂载点
   mountPoint = createMountPoint();
   logger.debug('$(document).ready', '创建挂载点', mountPoint);
@@ -83,16 +107,4 @@ $(() => {
 });
 
 // 在卸载时执行
-$(window).on('pagehide', () => {
-  logger.log('pagehide', 'UI 脚本开始卸载');
-  if (vueApp) {
-    logger.debug('pagehide', '卸载 Vue 实例');
-    vueApp.unmount();
-  }
-  deteleportStyle();
-  if (mountPoint) {
-    logger.debug('pagehide', '销毁挂载点');
-    destroyMountPoint();
-  }
-  logger.log('pagehide', 'UI 脚本卸载完成');
-});
+$(window).on('pagehide', unloadUI);

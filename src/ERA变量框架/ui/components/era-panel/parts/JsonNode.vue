@@ -64,10 +64,10 @@ export default defineComponent({
     maxDepth: { type: Number, default: 3 }, // 初次展开的最大深度
   },
   setup(p) {
-    const logger = new Logger(`ui-JsonNode[${p.path}]`);
+    const logger = new Logger();
 
     onMounted(() => {
-      logger.log('onMounted', '组件已挂载', { props: p });
+      logger.debug('onMounted', '组件已挂载', { props: p });
     });
 
     // 节点类型判定

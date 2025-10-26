@@ -5,7 +5,9 @@
 'use strict';
 
 import _ from 'lodash';
-import { CHAT_SCOPE, META_DATA_PATH, STAT_DATA_PATH } from './constants';
+import { CHAT_SCOPE, META_DATA_PATH, STAT_DATA_PATH, SettingsSchema } from './constants';
+
+declare function getScriptId(): string;
 
 /**
  * 递归地从对象中移除所有以 `$` 开头的字段（如 `$meta`, `$template`）。
@@ -79,4 +81,28 @@ export async function updateEraMetaData(updater: (currentMetaData: any) => any |
     _.set(v, META_DATA_PATH, newMeta);
     return v;
   }, CHAT_SCOPE);
+}
+
+/**
+ * 获取并解析脚本设置
+ * @returns {z.infer<typeof SettingsSchema>}
+ */
+export function getScriptSettings(): z.infer<typeof SettingsSchema> {
+  const rawSettings = getVariables({ type: 'script', script_id: getScriptId() });
+  return SettingsSchema.parse(rawSettings ?? {});
+}
+
+/**
+ * 原子性地更新脚本设置
+ * @param {(currentSettings: z.infer<typeof SettingsSchema>) => z.infer<typeof SettingsSchema>} updater
+ * @returns {Promise<void>}
+ */
+export async function updateScriptSettings(
+  updater: (currentSettings: z.infer<typeof SettingsSchema>) => z.infer<typeof SettingsSchema> | Promise<z.infer<typeof SettingsSchema>>,
+): Promise<void> {
+  await updateVariablesWith(async rawSettings => {
+    const currentSettings = SettingsSchema.parse(rawSettings ?? {});
+    const newSettings = await updater(currentSettings);
+    return newSettings;
+  }, { type: 'script', script_id: getScriptId() });
 }
