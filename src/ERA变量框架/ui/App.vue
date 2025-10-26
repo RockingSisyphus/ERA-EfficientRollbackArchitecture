@@ -89,6 +89,8 @@
 </template>
 
 <script setup lang="ts">
+import EraSettingsPanel from './components/EraSettingsPanel.vue'; // 中文注释：新增“ERA 设置”拓展面板
+
 import { computed, onMounted, ref, watch } from 'vue';
 import { Logger } from '../utils/log';
 import ActionButtons from './components/ActionButtons.vue';
