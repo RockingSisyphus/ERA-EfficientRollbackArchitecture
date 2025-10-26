@@ -77,14 +77,10 @@ function updateConfig(newConfig: { enabled: string[]; disabled: string[] }) {
   };
   globalThis.localStorage?.setItem(DEBUG_CONFIG_LS_KEY, JSON.stringify(uniqueConfig));
   loadDebugConfig();
-  console.log(
-    `%c《ERA-Log》调试模式已更新。`,
-    'color: #3498db; font-weight: bold;',
-    {
-      '启用 (Enabled)': uniqueConfig.enabled,
-      '禁用 (Disabled)': uniqueConfig.disabled,
-    },
-  );
+  console.log(`%c《ERA-Log》调试模式已更新。`, 'color: #3498db; font-weight: bold;', {
+    '启用 (Enabled)': uniqueConfig.enabled,
+    '禁用 (Disabled)': uniqueConfig.disabled,
+  });
 }
 
 // 初始化配置
