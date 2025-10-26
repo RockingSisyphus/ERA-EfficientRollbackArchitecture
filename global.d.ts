@@ -10,6 +10,10 @@ declare module '*.html' {
   const content: string;
   export default content;
 }
+declare module '*.md' {
+  const content: string;
+  export default content;
+}
 declare module '*.css' {
   const content: unknown;
   export default content;
@@ -19,9 +23,6 @@ declare module '*.vue' {
   const component: DefineComponent;
   export default component;
 }
-
-declare const $: typeof import('jquery');
-declare const _: typeof import('lodash');
 
 declare const YAML: typeof import('yaml');
 

@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import url from 'node:url';
+import RemarkHTML from 'remark-html';
 import { Server } from 'socket.io';
 import TerserPlugin from 'terser-webpack-plugin';
 import TsconfigPathsPlugin from 'tsconfig-paths-webpack-plugin';
@@ -49,14 +50,6 @@ function common_path(lhs: string, rhs: string) {
 }
 
 function glob_script_files() {
-  if (process.env.BUILD_TARGET) {
-    const target_path = `src/${process.env.BUILD_TARGET}/index.ts`;
-    if (fs.existsSync(target_path)) {
-      return [target_path];
-    } else {
-      throw new Error(`Build target not found: ${target_path}`);
-    }
-  }
   const files: string[] = fs
     .globSync(`src/**/index.{ts,js}`)
     .filter(file => process.env.CI !== 'true' || !fs.readFileSync(path.join(__dirname, file)).includes('@no-ci'));
@@ -82,7 +75,7 @@ function glob_script_files() {
 }
 
 const config: Config = {
-  port: 6622,
+  port: 6621,
   entries: glob_script_files().map(parse_entry),
 };
 
@@ -109,7 +102,7 @@ function watch_it(compiler: webpack.Compiler) {
   }
 }
 
-function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Configuration {
+function parse_configuration(entry: Entry, is_release = false): (_env: any, argv: any) => webpack.Configuration {
   const should_obfuscate = fs.readFileSync(path.join(__dirname, entry.script), 'utf-8').includes('@obfuscate');
   const script_filepath = path.parse(entry.script);
 
@@ -117,38 +110,45 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
     experiments: {
       outputModule: true,
     },
-    devtool: argv.mode === 'production' ? false : 'source-map',
+    devtool: is_release ? false : argv.mode === 'production' ? 'source-map' : 'eval-source-map',
     watchOptions: {
       ignored: ['**/dist', '**/node_modules'],
     },
     entry: path.join(__dirname, entry.script),
     target: 'browserslist',
-    output: {
-      devtoolNamespace: 'tavern_helper_template',
-      devtoolModuleFilenameTemplate: info => {
-        const resource_path = decodeURIComponent(info.resourcePath.replace(/^\.\//, ''));
-        const is_direct = info.allLoaders === '';
-        const is_vue_script =
-          resource_path.match(/\.vue$/) &&
-          info.query.match(/\btype=script\b/) &&
-          !info.allLoaders.match(/\bts-loader\b/);
+    output: is_release
+      ? {
+          filename: 'bundle.js',
+          path: path.join(__dirname, 'artifact'),
+          clean: true,
+          library: {
+            type: 'module',
+          },
+        }
+      : {
+          devtoolNamespace: 'tavern_helper_template',
+          devtoolModuleFilenameTemplate: info => {
+            const resource_path = decodeURIComponent(info.resourcePath.replace(/^\.\//, ''));
+            const is_direct = info.allLoaders === '';
+            const is_vue_script =
+              resource_path.match(/\.vue$/) &&
+              info.query.match(/\btype=script\b/) &&
+              !info.allLoaders.match(/\bts-loader\b/);
 
-        return `${is_direct === true ? 'src' : 'webpack'}://${info.namespace}/${resource_path}${is_direct || is_vue_script ? '' : '?' + info.hash}`;
-      },
-      filename: 'index.js',
-      path: path.join(
-        __dirname,
-        argv.mode === 'production' ? 'artifact' : 'dist',
-        path.relative(path.join(__dirname, 'src'), script_filepath.dir),
-      ),
-      chunkFilename: '[name].[contenthash].chunk.js',
-      asyncChunks: true,
-      clean: true,
-      publicPath: '',
-      library: {
-        type: 'module',
-      },
-    },
+            return `${is_direct === true ? 'src' : 'webpack'}://${info.namespace}/${resource_path}${
+              is_direct || is_vue_script ? '' : '?' + info.hash
+            }`;
+          },
+          filename: `${script_filepath.name}.js`,
+          path: path.join(__dirname, 'dist', path.relative(path.join(__dirname, 'src'), script_filepath.dir)),
+          chunkFilename: `${script_filepath.name}.[contenthash].chunk.js`,
+          asyncChunks: true,
+          clean: true,
+          publicPath: '',
+          library: {
+            type: 'module',
+          },
+        },
     module: {
       rules: [
         {
@@ -240,9 +240,25 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
               exclude: /node_modules/,
             },
             {
-              test: /\.html?$/,
+              test: /\.html$/,
               use: 'html-loader',
               exclude: /node_modules/,
+            },
+            {
+              test: /\.md$/,
+              use: [
+                {
+                  loader: 'html-loader',
+                },
+                {
+                  loader: 'remark-loader',
+                  options: {
+                    remarkOptions: {
+                      plugins: [RemarkHTML],
+                    },
+                  },
+                },
+              ],
             },
           ].concat(
             entry.html === undefined
@@ -317,23 +333,25 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       ],
       alias: {},
     },
-    plugins: (entry.html === undefined
-      ? [new MiniCssExtractPlugin()]
-      : [
-          new HtmlWebpackPlugin({
-            template: path.join(__dirname, entry.html),
-            filename: path.parse(entry.html).base,
-            scriptLoading: 'module',
-            cache: false,
-          }),
-          new HtmlInlineScriptWebpackPlugin(),
-          new MiniCssExtractPlugin(),
-          new HTMLInlineCSSWebpackPlugin({
-            styleTagFactory({ style }: { style: string }) {
-              return `<style>${style}</style>`;
-            },
-          }),
-        ]
+    plugins: (is_release
+      ? []
+      : entry.html === undefined
+        ? [new MiniCssExtractPlugin()]
+        : [
+            new HtmlWebpackPlugin({
+              template: path.join(__dirname, entry.html!),
+              filename: path.parse(entry.html!).base,
+              scriptLoading: 'module',
+              cache: false,
+            }),
+            new HtmlInlineScriptWebpackPlugin(),
+            new MiniCssExtractPlugin(),
+            new HTMLInlineCSSWebpackPlugin({
+              styleTagFactory({ style }: { style: string }) {
+                return `<style>${style}</style>`;
+              },
+            }),
+          ]
     )
       .concat(
         { apply: watch_it },
@@ -346,16 +364,23 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
             'pinia',
             '@vueuse/core',
             { from: 'dedent', imports: [['default', 'dedent']] },
+            { from: 'klona', imports: ['klona'] },
+            { from: 'vue-final-modal', imports: ['useModal'] },
             { from: 'zod', imports: ['z'] },
           ],
         }),
         unpluginVueComponents({
           dts: true,
           syncMode: 'overwrite',
-          resolvers: [VueUseComponentsResolver(), VueUseDirectiveResolver()],
           // globs: ['src/panel/component/*.vue'],
+          resolvers: [VueUseComponentsResolver(), VueUseDirectiveResolver()],
         }),
         new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
+        new webpack.DefinePlugin({
+          __VUE_OPTIONS_API__: false,
+          __VUE_PROD_DEVTOOLS__: process.env.CI !== 'true',
+          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+        }),
       )
       .concat(
         should_obfuscate
@@ -371,20 +396,20 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
           : [],
       ),
     optimization: {
-      minimize: argv.mode === 'production', // 只在生产模式下压缩
+      minimize: true,
       minimizer: [
-        new TerserPlugin({
-          extractComments: false,
-          terserOptions: {
-            // 在开发模式下，beautify会生效，生成可读代码
-            format: {
-              beautify: argv.mode !== 'production',
-              indent_level: 2,
-            },
-            compress: argv.mode === 'production', // 只在生产模式下进行代码压缩
-            mangle: argv.mode === 'production', // 只在生产模式下进行变量名混淆
-          },
-        }),
+        argv.mode === 'production'
+          ? new TerserPlugin({
+              terserOptions: { format: { quote_style: 1 }, mangle: { reserved: ['_', 'toastr', 'YAML', '$', 'z'] } },
+            })
+          : new TerserPlugin({
+              extractComments: false,
+              terserOptions: {
+                format: { beautify: true, indent_level: 2 },
+                compress: false,
+                mangle: false,
+              },
+            }),
       ],
       splitChunks: {
         chunks: 'async',
@@ -429,9 +454,13 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       if (builtin.includes(request)) {
         return callback();
       }
+      if (argv.mode !== 'production' && ['vue', 'pixi'].some(key => request.includes(key))) {
+        return callback();
+      }
       const global = {
         jquery: '$',
         lodash: '_',
+        showdown: 'showdown',
         toastr: 'toastr',
         vue: 'Vue',
         'vue-router': 'VueRouter',
@@ -453,24 +482,15 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
   });
 }
 
-export default (_env: any, argv: any) => {
-  if (argv.mode === 'production') {
-    // Production: build only ERA变量框架 into artifact/bundle.js
-    const eraEntry: Entry = { script: 'src/ERA变量框架/index.ts' };
-    const eraConfigFn = parse_configuration(eraEntry);
-    const eraConfig = eraConfigFn(_env, argv); // Get the base config
+const is_release = process.env.npm_lifecycle_event === 'release';
 
-    // Override the output settings for this specific case
-    if (eraConfig.output) {
-      eraConfig.output.path = path.join(__dirname, 'artifact');
-      eraConfig.output.filename = 'bundle.js';
-    }
-
-    return eraConfig; // Webpack accepts a single config object
-  } else {
-    // Development: build all entries into dist/
-    const allEntries = glob_script_files().map(parse_entry);
-    // `map` will return an array of config objects
-    return allEntries.map(entry => parse_configuration(entry)(_env, argv));
-  }
-};
+export default is_release
+  ? [
+      parse_configuration(
+        {
+          script: 'src/ERA变量框架/index.ts',
+        },
+        true,
+      ),
+    ]
+  : config.entries.map(it => parse_configuration(it, false));

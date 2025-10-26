@@ -71,20 +71,7 @@ export default [
       'vue/multi-word-component-names': 'off',
       yoda: 'error',
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': 'warn',
-    },
-    settings: {
-      // 让 eslint-plugin-import-x 以 TypeScript 解析相对路径（包括省略扩展名的 .ts）
-      'import-x/resolver': {
-        typescript: {
-          // 使用 tsconfig 的 "moduleResolution": "bundler" 与 baseUrl
-          project: ['./tsconfig.json'],
-          alwaysTryTypes: true,
-        },
-        node: {
-          extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'],
-        },
-      },
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
   eslintConfigPrettier,
