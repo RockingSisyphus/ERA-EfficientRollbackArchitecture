@@ -79,10 +79,17 @@ const open = ref<boolean>(props.defaultOpen);
 }
 
 .inner {
-  overflow: hidden; /* Crucial for the grid transition to work */
-  padding: 0 12px; /* Remove vertical padding, let the content decide */
+  overflow: hidden;
+  /* Add transitions for padding and visibility */
+  transition:
+    padding 0.28s ease,
+    visibility 0s 0.28s; /* Hide after the collapse transition ends */
+  padding: 0 12px;
+  visibility: hidden;
 }
 .acc-body.open .inner {
-  padding: 10px 12px; /* Add padding back when open */
+  padding: 10px 12px;
+  visibility: visible;
+  transition-delay: 0s; /* Show immediately when opening */
 }
 </style>

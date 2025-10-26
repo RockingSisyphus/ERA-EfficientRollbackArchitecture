@@ -275,4 +275,23 @@ watch(
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.5);
 }
+
+/* ===[新增] 折叠时把“按钮后紧邻的内容体”彻底压平并裁剪（通用规则） === */
+/* 适配 EraAccordion：标题按钮有 aria-expanded，内容体是紧邻兄弟元素 */
+:deep(button[aria-expanded='false'] + *) {
+  height: 0 !important; /* 高度压到 0，彻底收起 */
+  padding-top: 0 !important; /* 去掉上下内边距，防止露出一条边 */
+  padding-bottom: 0 !important;
+  margin-top: 0 !important; /* 去掉上下外边距，避免 margin 折叠穿出 */
+  margin-bottom: 0 !important;
+  border-top-width: 0 !important; /* 若内容体自身有分割线，折叠时去掉 */
+  border-bottom-width: 0 !important;
+  overflow: clip !important; /* 关键：裁剪一切子内容（含虚线/阴影） */
+  contain: paint !important; /* 防止子级阴影/边框超出裁剪边界 */
+}
+
+/* 展开状态可恢复可见溢出（如悬浮提示），默认即可，可保守加一条： */
+:deep(button[aria-expanded='true'] + *) {
+  overflow: visible; /* 展开时恢复正常绘制 */
+}
 </style>
