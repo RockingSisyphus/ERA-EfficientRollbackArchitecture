@@ -217,15 +217,16 @@ export default defineComponent({
 }
 
 /* ===[新增] 防溢出：节点与子树都裁剪（配合上层折叠时彻底看不见） === */
-.node {                     /* 单个节点容器 */
-  overflow: clip;           /* 裁剪节点内部所有绘制 */
-  contain: paint;           /* 隔离绘制，避免 1px 渲染外泄 */
-  min-height: 0;            /* 防“最小高度”把父级撑开 */
+.node {
+  /* 单个节点容器 */
+  overflow: clip; /* 裁剪节点内部所有绘制 */
+  contain: paint; /* 隔离绘制，避免 1px 渲染外泄 */
+  min-height: 0; /* 防“最小高度”把父级撑开 */
 }
 
-.json-children {            /* 子节点区域 */
-  overflow: clip;           /* 裁剪子树（含左侧虚线等装饰） */
-  contain: paint;           /* 防止子元素阴影/边框超界 */
+.json-children {
+  /* 子节点区域 */
+  overflow: clip; /* 裁剪子树（含左侧虚线等装饰） */
+  contain: paint; /* 防止子元素阴影/边框超界 */
 }
-
 </style>

@@ -175,15 +175,16 @@ const rootClose = computed(() => (isArrayRoot.value ? ']' : '}')); // 根闭括�
 }
 
 /* ===[新增] 防溢出：根与子容器都裁剪绘制，避免在外部容器高度为 0 时“透出” === */
-.json-root {                /* JSON 根容器：自身成为一个绘制边界 */
-  overflow: clip;           /* 裁剪一切溢出（比 hidden 更省性能、无滚动条） */
-  contain: layout paint;    /* 隔离布局与绘制，防外部高度计算误差 */
-  min-height: 0;            /* 防止 flex 场景 min-content 顶高父级 */
+.json-root {
+  /* JSON 根容器：自身成为一个绘制边界 */
+  overflow: clip; /* 裁剪一切溢出（比 hidden 更省性能、无滚动条） */
+  contain: layout paint; /* 隔离布局与绘制，防外部高度计算误差 */
+  min-height: 0; /* 防止 flex 场景 min-content 顶高父级 */
 }
 
-.json-children {            /* 子区：同样裁剪，解决左侧虚线在收起时外露 */
-  overflow: clip;           /* 子级再保险裁剪 */
-  contain: paint;           /* 进一步隔离绘制 */
+.json-children {
+  /* 子区：同样裁剪，解决左侧虚线在收起时外露 */
+  overflow: clip; /* 子级再保险裁剪 */
+  contain: paint; /* 进一步隔离绘制 */
 }
-
 </style>
