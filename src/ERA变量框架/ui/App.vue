@@ -19,16 +19,18 @@
             <!-- 2. 可折叠：ERA 最新操作详情 -->
             <EraAccordion title="ERA 最新操作详情" :default-open="false">
               <template #default>
-                <EraAccordion title="SelectedMks（数组）" :default-open="false">
-                  <template #default>
-                    <PrettyJsonViewer :value="dataRef.selectedMks" :default-collapsed="true" :max-depth="3" />
-                  </template>
-                </EraAccordion>
-                <EraAccordion title="EditLogs（对象）" :default-open="false">
-                  <template #default>
-                    <PrettyJsonViewer :value="dataRef.editLogs" :default-collapsed="true" :max-depth="2" />
-                  </template>
-                </EraAccordion>
+                <div style="display: flex; flex-direction: column; gap: 8px">
+                  <EraAccordion title="SelectedMks（数组）" :default-open="false">
+                    <template #default>
+                      <PrettyJsonViewer :value="dataRef.selectedMks" :default-collapsed="true" :max-depth="3" />
+                    </template>
+                  </EraAccordion>
+                  <EraAccordion title="EditLogs（对象）" :default-open="false">
+                    <template #default>
+                      <PrettyJsonViewer :value="dataRef.editLogs" :default-collapsed="true" :max-depth="2" />
+                    </template>
+                  </EraAccordion>
+                </div>
               </template>
             </EraAccordion>
 

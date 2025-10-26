@@ -27,8 +27,8 @@
     </div>
 
     <!-- 子元素区域：仅当可折叠且处于展开态时显示 -->
-    <template v-if="foldable">
-      <div v-show="open" class="json-children">
+    <template v-if="foldable && open">
+      <div class="json-children">
         <!-- 递归：自引用同名组件 JsonNode（依赖 name: 'JsonNode' 实现自递归） -->
         <JsonNode
           v-for="(childVal, childKey) in childEntries"
