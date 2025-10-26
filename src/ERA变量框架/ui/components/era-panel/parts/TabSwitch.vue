@@ -29,10 +29,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'; // 引入响应式工具
+import { onMounted, ref, watch } from 'vue'; // 引入响应式工具
+import { Logger } from '../../../../utils/log';
 
 type TabItem = { key: 'pure' | 'full'; label: string }; // Tab 项类型
 
+const logger = new Logger('ui-TabSwitch');
 const props = defineProps<{ tabs: TabItem[]; active?: 'pure' | 'full' }>(); // 输入 tabs 与可选 active
 const emit = defineEmits<{ 'update:active': ['pure' | 'full'] }>(); // v-model:active
 
@@ -41,13 +43,21 @@ const innerActive = ref<'pure' | 'full'>(props.active ?? 'pure'); // 内部活�
 watch(
   () => props.active,
   v => {
-    if (v) innerActive.value = v;
+    if (v) {
+      logger.debug('watch:active', `外部同步 active tab 为: ${v}`);
+      innerActive.value = v;
+    }
   },
 ); // 外部变更时同步
 function setActive(k: 'pure' | 'full') {
+  logger.log('setActive', `用户点击，切换 tab 到: ${k}`);
   innerActive.value = k;
   emit('update:active', k);
 } // 切换并抛出
+
+onMounted(() => {
+  logger.log('onMounted', '组件已挂载', { props });
+});
 </script>
 
 <style scoped>

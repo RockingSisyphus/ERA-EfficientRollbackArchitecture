@@ -7,33 +7,16 @@
 
     <div class="json-children">
       <template v-if="isPlainObjectOrArray">
-        <!-- 对象根：按键枚举 -->
-        <template v-if="!isArrayRoot">
-          <JsonNode
-            v-for="(v, k) in value"
-            :key="String(k)"
-            :k="String(k)"
-            :v="v"
-            :path="String(k)"
-            :level="1"
-            :default-collapsed="defaultCollapsed"
-            :max-depth="maxDepth"
-          />
-        </template>
-
-        <!-- 数组根：按索引枚举 -->
-        <template v-else>
-          <JsonNode
-            v-for="(v, i) in value"
-            :key="String(i)"
-            :k="String(i)"
-            :v="v"
-            :path="String(i)"
-            :level="1"
-            :default-collapsed="defaultCollapsed"
-            :max-depth="maxDepth"
-          />
-        </template>
+        <JsonNode
+          v-for="(v, k) in value"
+          :key="String(k)"
+          :k="String(k)"
+          :v="v"
+          :path="String(k)"
+          :level="1"
+          :default-collapsed="defaultCollapsed"
+          :max-depth="maxDepth"
+        />
       </template>
 
       <template v-else>
@@ -53,7 +36,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'; // 计算属性工具
+import { Logger } from '../../../../utils/log';
 import JsonNode from './JsonNode.vue'; // ✅ 改为导入独立 SFC 的递归节点组件
+
+const logger = new Logger();
 
 const props = withDefaults(
   defineProps<{
@@ -69,44 +55,74 @@ const props = withDefaults(
 
 const isPlainObjectOrArray = computed(() => {
   const v = props.value; // 取入参值
-  return v !== null && typeof v === 'object'; // 仅对象/数组才进入逐键渲染
+  const result = v !== null && typeof v === 'object'; // 仅对象/数组才进入逐键渲染
+  logger.debug('isPlainObjectOrArray', `计算结果: ${result}。该值${result ? '是' : '不是'}普通对象或数组。`, {
+    传入值: v,
+  });
+  return result;
 }); // 是否对象/数组
 
 const primitiveType = computed(() => {
   const v = props.value; // 取入参值
-  if (v === null) return 'null'; // null
-  if (Array.isArray(v)) return 'array'; // 数组（不会走到该分支，因为上面判断过）
-  const t = typeof v; // 原始类型
-  return (t === 'undefined' ? 'undefined' : t) as string;
+  let result: string;
+  if (v === null) {
+    result = 'null';
+  } else if (Array.isArray(v)) {
+    result = 'array'; // 数组（不会走到该分支，因为上面 isPlainObjectOrArray 判断过）
+  } else {
+    const t = typeof v; // 原始类型
+    result = t === 'undefined' ? 'undefined' : t;
+  }
+  logger.debug('primitiveType', `计算原始值类型: ${result}`, { 传入值: v });
+  return result;
 }); // 原始值类型名（用于着色）
 
 const primitiveText = computed(() => {
   const v = props.value; // 取入参值
+  let result: string;
   switch (
     primitiveType.value // 按类型格式化文本
   ) {
     case 'string':
-      return JSON.stringify(v); // 字符串带引号
+      result = JSON.stringify(v); // 字符串带引号
+      break;
     case 'number':
-      return String(v); // 数字
+      result = String(v); // 数字
+      break;
     case 'boolean':
-      return v ? 'true' : 'false'; // 布尔
+      result = v ? 'true' : 'false'; // 布尔
+      break;
     case 'null':
-      return 'null'; // null
+      result = 'null'; // null
+      break;
     case 'undefined':
-      return 'undefined'; // undefined
+      result = 'undefined'; // undefined
+      break;
     case 'bigint':
-      return String(v) + 'n'; // bigint
+      result = String(v) + 'n'; // bigint
+      break;
     case 'symbol':
-      return String(v); // symbol
+      result = String(v); // symbol
+      break;
     case 'function':
-      return 'ƒ()'; // 函数
+      result = 'ƒ()'; // 函数
+      break;
     default:
-      return ''; // 兜底
+      result = ''; // 兜底
+      break;
   }
+  logger.debug('primitiveText', `格式化原始值文本: "${result}"`, {
+    传入值: v,
+    类型: primitiveType.value,
+  });
+  return result;
 }); // 原始值文本
 
-const isArrayRoot = computed(() => Array.isArray(props.value)); // 根是否数组
+const isArrayRoot = computed(() => {
+  const result = Array.isArray(props.value);
+  logger.debug('isArrayRoot', `计算根节点是否为数组: ${result}`, { 传入值: props.value });
+  return result;
+}); // 根是否数组
 const rootOpen = computed(() => (isArrayRoot.value ? '[' : '{')); // 根开括号
 const rootClose = computed(() => (isArrayRoot.value ? ']' : '}')); // 根闭括号
 </script>

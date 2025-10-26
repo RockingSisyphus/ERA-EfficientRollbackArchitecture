@@ -21,17 +21,17 @@ __webpack_require__.r(__webpack_exports__);
 var ___CSS_LOADER_EXPORT___ = _node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `.era-app-container{display:flex;flex-direction:column;gap:10px}
-`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/App.vue"],"names":[],"mappings":"AAoHA,mBACE,YAAa,CACb,qBAAsB,CACtB,QACF","sourcesContent":["<template>\n  <div class=\"era-app-container\">\n    <FloatingBall v-show=\"currentComponent === 'FloatingBall'\" @click=\"requestSwitchView('ExpandedView')\" />\n    <div v-show=\"currentComponent === 'ExpandedView'\">\n      <!-- EraDataPanel 的内容直接在这里展开 -->\n      <div class=\"era-panel\">\n        <!-- 顶部栏：标题 + 关闭按钮 -->\n        <header class=\"panel-top\">\n          <h3 class=\"panel-title\">ERA 数据面板</h3>\n          <button class=\"btn-close\" aria-label=\"关闭\" @click=\"requestSwitchView('FloatingBall')\">×</button>\n        </header>\n\n        <!-- 内容区 -->\n        <div class=\"panel-body\">\n          <template v-if=\"dataRef\">\n            <!-- 1. 最新消息元数据 -->\n            <MetaHeader :mk=\"dataRef.mk\" :message-id=\"dataRef.message_id\" />\n\n            <!-- 2. 可折叠：ERA 最新操作详情 -->\n            <EraAccordion title=\"ERA 最新操作详情\" :default-open=\"false\">\n              <template #default>\n                <EraAccordion title=\"SelectedMks（数组）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.selectedMks\" :default-collapsed=\"true\" :max-depth=\"3\" />\n                  </template>\n                </EraAccordion>\n                <EraAccordion title=\"EditLogs（对象）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.editLogs\" :default-collapsed=\"true\" :max-depth=\"2\" />\n                  </template>\n                </EraAccordion>\n              </template>\n            </EraAccordion>\n\n            <!-- 3. Tab：状态数据主区 -->\n            <TabSwitch v-model:active=\"activeTab\" :tabs=\"tabs\">\n              <template #pure>\n                <PrettyJsonViewer :value=\"dataRef.statWithoutMeta\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n              <template #full>\n                <PrettyJsonViewer :value=\"dataRef.stat\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n            </TabSwitch>\n          </template>\n\n          <!-- 无数据占位 -->\n          <template v-else>\n            <div class=\"empty\">等待 era:writeDone 事件数据…</div>\n          </template>\n        </div>\n      </div>\n      <ActionButtons />\n    </div>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { computed, ref } from 'vue';\nimport ActionButtons from './components/ActionButtons.vue';\nimport FloatingBall from './components/FloatingBall.vue';\n\n// 从 EraDataPanel 迁移过来的 imports\nimport EraAccordion from './components/era-panel/parts/EraAccordion.vue';\nimport MetaHeader from './components/era-panel/parts/MetaHeader.vue';\nimport PrettyJsonViewer from './components/era-panel/parts/PrettyJsonViewer.vue';\nimport TabSwitch from './components/era-panel/parts/TabSwitch.vue';\n\n// 从 EraDataPanel 迁移过来的类型定义\ntype Actions = { rollback: boolean; apply: boolean; resync: boolean; api: boolean; apiWrite: boolean };\nexport interface WriteDonePayload {\n  mk: string;\n  message_id: number;\n  actions: Actions;\n  selectedMks: (string | null)[];\n  editLogs: Record<string, any[]>;\n  stat: any;\n  statWithoutMeta: any;\n  consecutiveProcessingCount: number;\n}\n\n// TabSwitch 需要的类型\ntype TabItem = { key: 'pure' | 'full'; label: string };\n\n// App.vue 原有的 props\nconst props = defineProps({\n  initialView: {\n    type: String,\n    required: true,\n    default: 'FloatingBall',\n  },\n  eventData: {\n    type: Object as () => WriteDonePayload | null,\n    default: () => null,\n  },\n});\n\n// App.vue 原有的逻辑\nconst currentComponent = ref(props.initialView);\nconst requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {\n  if ((window as any).eraUiSwitchView) {\n    (window as any).eraUiSwitchView(viewName);\n  }\n};\n\n// 从 EraDataPanel 迁移过来的逻辑\nconst dataRef = computed(() => props.eventData || null);\n\nconst tabs: TabItem[] = [\n  { key: 'pure', label: '纯净状态数据' },\n  { key: 'full', label: '完整状态数据' },\n];\nconst activeTab = ref<'pure' | 'full'>('pure');\n</script>\n\n<style>\n/* App.vue 原有样式 */\n.era-app-container {\n  display: flex;\n  flex-direction: column;\n  gap: 10px; /* 为子元素之间添加一些间距 */\n}\n</style>\n\n<style scoped>\n/* 从 EraDataPanel.vue 迁移过来的样式 */\n.era-panel {\n  width: min(960px, 60vw);\n  height: min(680px, 86vh);\n  display: flex;\n  flex-direction: column;\n  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.65));\n  border: 1px solid rgba(255, 255, 255, 0.6);\n  backdrop-filter: blur(10px);\n  border-radius: 16px;\n  box-shadow:\n    0 10px 40px rgba(0, 0, 0, 0.18),\n    inset 0 1px 0 rgba(255, 255, 255, 0.6);\n  overflow: hidden;\n  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n}\n\n.panel-top {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 14px 16px;\n  border-bottom: 1px solid rgba(0, 0, 0, 0.06);\n  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));\n}\n.panel-title {\n  font-size: 16px;\n  font-weight: 800;\n  letter-spacing: 0.5px;\n  color: #1f2937;\n}\n.btn-close {\n  width: 32px;\n  height: 32px;\n  line-height: 30px;\n  text-align: center;\n  border-radius: 8px;\n  border: 1px solid rgba(0, 0, 0, 0.08);\n  background: #fff;\n  cursor: pointer;\n  font-size: 18px;\n  color: #6b7280;\n  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);\n}\n.btn-close:hover {\n  transform: translateY(-1px);\n  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);\n}\n\n.panel-body {\n  padding: 14px 14px 16px;\n  overflow: auto;\n}\n\n.block {\n  margin: 12px 0 4px;\n  padding: 10px 12px;\n  background: rgba(255, 255, 255, 0.6);\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 12px;\n}\n.block-title {\n  margin: 0 0 8px;\n  font-size: 13px;\n  font-weight: 800;\n  color: #374151;\n}\n\n.chips {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n.chip {\n  font-size: 12px;\n  padding: 6px 8px;\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 999px;\n  background: linear-gradient(180deg, #fafafa, #f4f4f4);\n  color: #6b7280;\n  box-shadow: inset 0 1px 0 #fff;\n}\n.chip.ok {\n  color: #065f46;\n  background: linear-gradient(180deg, #ecfdf5, #d1fae5);\n  border-color: #a7f3d0;\n}\n\n.mk-strip {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  max-height: 140px;\n  overflow: auto;\n}\n.mk-pill {\n  display: inline-flex;\n  gap: 6px;\n  align-items: center;\n  padding: 6px 8px;\n  background: linear-gradient(180deg, #eef2ff, #e0e7ff);\n  color: #4338ca;\n  border: 1px solid #c7d2fe;\n  border-radius: 8px;\n  font-size: 12px;\n}\n.mk-pill.is-null {\n  background: linear-gradient(180deg, #f9fafb, #f3f4f6);\n  color: #6b7280;\n  border-color: #e5e7eb;\n}\n\n.empty {\n  height: 360px;\n  display: grid;\n  place-items: center;\n  color: #6b7280;\n  font-size: 14px;\n  border: 1px dashed rgba(0, 0, 0, 0.08);\n  border-radius: 12px;\n  background: rgba(255, 255, 255, 0.5);\n}\n</style>\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/App.vue"],"names":[],"mappings":"AAiJA,mBACE,YAAa,CACb,qBAAsB,CACtB,QACF","sourcesContent":["<template>\n  <div class=\"era-app-container\">\n    <FloatingBall v-show=\"currentComponent === 'FloatingBall'\" @click=\"requestSwitchView('ExpandedView')\" />\n    <div v-show=\"currentComponent === 'ExpandedView'\">\n      <!-- EraDataPanel 的内容直接在这里展开 -->\n      <div class=\"era-panel\">\n        <!-- 顶部栏：标题 + 关闭按钮 -->\n        <header class=\"panel-top\">\n          <h3 class=\"panel-title\">ERA 数据面板</h3>\n          <button class=\"btn-close\" aria-label=\"关闭\" @click=\"requestSwitchView('FloatingBall')\">×</button>\n        </header>\n\n        <!-- 内容区 -->\n        <div class=\"panel-body\">\n          <template v-if=\"dataRef\">\n            <!-- 1. 最新消息元数据 -->\n            <MetaHeader :mk=\"dataRef.mk\" :message-id=\"dataRef.message_id\" />\n\n            <!-- 2. 可折叠：ERA 最新操作详情 -->\n            <EraAccordion title=\"ERA 最新操作详情\" :default-open=\"false\">\n              <template #default>\n                <EraAccordion title=\"SelectedMks（数组）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.selectedMks\" :default-collapsed=\"true\" :max-depth=\"3\" />\n                  </template>\n                </EraAccordion>\n                <EraAccordion title=\"EditLogs（对象）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.editLogs\" :default-collapsed=\"true\" :max-depth=\"2\" />\n                  </template>\n                </EraAccordion>\n              </template>\n            </EraAccordion>\n\n            <!-- 3. Tab：状态数据主区 -->\n            <TabSwitch v-model:active=\"activeTab\" :tabs=\"tabs\">\n              <template #pure>\n                <PrettyJsonViewer :value=\"dataRef.statWithoutMeta\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n              <template #full>\n                <PrettyJsonViewer :value=\"dataRef.stat\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n            </TabSwitch>\n          </template>\n\n          <!-- 无数据占位 -->\n          <template v-else>\n            <div class=\"empty\">等待 era:writeDone 事件数据…</div>\n          </template>\n        </div>\n      </div>\n      <ActionButtons />\n    </div>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { computed, onMounted, ref, watch } from 'vue';\nimport { Logger } from '../utils/log';\nimport ActionButtons from './components/ActionButtons.vue';\nimport FloatingBall from './components/FloatingBall.vue';\n\n// 从 EraDataPanel 迁移过来的 imports\nimport EraAccordion from './components/era-panel/parts/EraAccordion.vue';\nimport MetaHeader from './components/era-panel/parts/MetaHeader.vue';\nimport PrettyJsonViewer from './components/era-panel/parts/PrettyJsonViewer.vue';\nimport TabSwitch from './components/era-panel/parts/TabSwitch.vue';\n\n// 从 EraDataPanel 迁移过来的类型定义\ntype Actions = { rollback: boolean; apply: boolean; resync: boolean; api: boolean; apiWrite: boolean };\nexport interface WriteDonePayload {\n  mk: string;\n  message_id: number;\n  actions: Actions;\n  selectedMks: (string | null)[];\n  editLogs: Record<string, any[]>;\n  stat: any;\n  statWithoutMeta: any;\n  consecutiveProcessingCount: number;\n}\n\n// TabSwitch 需要的类型\ntype TabItem = { key: 'pure' | 'full'; label: string };\n\nconst logger = new Logger('ui-App');\n\n// App.vue 原有的 props\nconst props = defineProps({\n  initialView: {\n    type: String,\n    required: true,\n    default: 'FloatingBall',\n  },\n  eventData: {\n    type: Object as () => WriteDonePayload | null,\n    default: () => null,\n  },\n});\n\n// App.vue 原有的逻辑\nconst currentComponent = ref(props.initialView);\nconst requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {\n  logger.debug('requestSwitchView', `请求切换视图到: ${viewName}`);\n  if ((window as any).eraUiSwitchView) {\n    (window as any).eraUiSwitchView(viewName);\n  } else {\n    logger.warn('requestSwitchView', '全局切换函数 eraUiSwitchView 未找到');\n  }\n};\n\n// 从 EraDataPanel 迁移过来的逻辑\nconst dataRef = computed(() => props.eventData || null);\n\nconst tabs: TabItem[] = [\n  { key: 'pure', label: '纯净状态数据' },\n  { key: 'full', label: '完整状态数据' },\n];\nconst activeTab = ref<'pure' | 'full'>('pure');\n\nonMounted(() => {\n  logger.log('onMounted', 'App.vue 组件已挂载', { props: props });\n});\n\nwatch(\n  () => props.eventData,\n  (newData, oldData) => {\n    logger.debug('watch:eventData', 'eventData prop 发生变化', {\n      newData,\n      oldData,\n    });\n  },\n  { deep: true },\n);\n\nwatch(\n  () => props.initialView,\n  newView => {\n    logger.debug('watch:initialView', `initialView prop 发生变化，新视图: ${newView}`);\n    currentComponent.value = newView;\n  },\n);\n</script>\n\n<style>\n/* App.vue 原有样式 */\n.era-app-container {\n  display: flex;\n  flex-direction: column;\n  gap: 10px; /* 为子元素之间添加一些间距 */\n}\n</style>\n\n<style scoped>\n/* 从 EraDataPanel.vue 迁移过来的样式 */\n.era-panel {\n  width: min(960px, 60vw);\n  height: min(680px, 86vh);\n  display: flex;\n  flex-direction: column;\n  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.65));\n  border: 1px solid rgba(255, 255, 255, 0.6);\n  backdrop-filter: blur(10px);\n  border-radius: 16px;\n  box-shadow:\n    0 10px 40px rgba(0, 0, 0, 0.18),\n    inset 0 1px 0 rgba(255, 255, 255, 0.6);\n  overflow: hidden;\n  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n}\n\n.panel-top {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 14px 16px;\n  border-bottom: 1px solid rgba(0, 0, 0, 0.06);\n  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));\n}\n.panel-title {\n  font-size: 16px;\n  font-weight: 800;\n  letter-spacing: 0.5px;\n  color: #1f2937;\n}\n.btn-close {\n  width: 32px;\n  height: 32px;\n  line-height: 30px;\n  text-align: center;\n  border-radius: 8px;\n  border: 1px solid rgba(0, 0, 0, 0.08);\n  background: #fff;\n  cursor: pointer;\n  font-size: 18px;\n  color: #6b7280;\n  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);\n}\n.btn-close:hover {\n  transform: translateY(-1px);\n  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);\n}\n\n.panel-body {\n  padding: 14px 14px 16px;\n  overflow: auto;\n}\n\n.block {\n  margin: 12px 0 4px;\n  padding: 10px 12px;\n  background: rgba(255, 255, 255, 0.6);\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 12px;\n}\n.block-title {\n  margin: 0 0 8px;\n  font-size: 13px;\n  font-weight: 800;\n  color: #374151;\n}\n\n.chips {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n.chip {\n  font-size: 12px;\n  padding: 6px 8px;\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 999px;\n  background: linear-gradient(180deg, #fafafa, #f4f4f4);\n  color: #6b7280;\n  box-shadow: inset 0 1px 0 #fff;\n}\n.chip.ok {\n  color: #065f46;\n  background: linear-gradient(180deg, #ecfdf5, #d1fae5);\n  border-color: #a7f3d0;\n}\n\n.mk-strip {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  max-height: 140px;\n  overflow: auto;\n}\n.mk-pill {\n  display: inline-flex;\n  gap: 6px;\n  align-items: center;\n  padding: 6px 8px;\n  background: linear-gradient(180deg, #eef2ff, #e0e7ff);\n  color: #4338ca;\n  border: 1px solid #c7d2fe;\n  border-radius: 8px;\n  font-size: 12px;\n}\n.mk-pill.is-null {\n  background: linear-gradient(180deg, #f9fafb, #f3f4f6);\n  color: #6b7280;\n  border-color: #e5e7eb;\n}\n\n.empty {\n  height: 360px;\n  display: grid;\n  place-items: center;\n  color: #6b7280;\n  font-size: 14px;\n  border: 1px dashed rgba(0, 0, 0, 0.08);\n  border-radius: 12px;\n  background: rgba(255, 255, 255, 0.5);\n}\n</style>\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
 
 /***/ }),
 
-/***/ "./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css":
-/*!*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css ***!
-  \*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css":
+/*!***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css ***!
+  \***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -48,7 +48,7 @@ __webpack_require__.r(__webpack_exports__);
 var ___CSS_LOADER_EXPORT___ = _node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `.era-panel[data-v-390dd513]{width:min(960px,60vw);height:min(680px,86vh);display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(255,255,255,0.75),rgba(255,255,255,0.65));border:1px solid rgba(255,255,255,0.6);backdrop-filter:blur(10px);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.18),inset 0 1px 0 rgba(255,255,255,0.6);overflow:hidden;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.panel-top[data-v-390dd513]{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);background:linear-gradient(90deg,rgba(255,255,255,0.65),rgba(255,255,255,0.45))}.panel-title[data-v-390dd513]{font-size:16px;font-weight:800;letter-spacing:0.5px;color:#1f2937}.btn-close[data-v-390dd513]{width:32px;height:32px;line-height:30px;text-align:center;border-radius:8px;border:1px solid rgba(0,0,0,0.08);background:#fff;cursor:pointer;font-size:18px;color:#6b7280;box-shadow:0 2px 8px rgba(0,0,0,0.08)}.btn-close[data-v-390dd513]:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,0.12)}.panel-body[data-v-390dd513]{padding:14px 14px 16px;overflow:auto}.block[data-v-390dd513]{margin:12px 0 4px;padding:10px 12px;background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:12px}.block-title[data-v-390dd513]{margin:0 0 8px;font-size:13px;font-weight:800;color:#374151}.chips[data-v-390dd513]{display:flex;flex-wrap:wrap;gap:8px}.chip[data-v-390dd513]{font-size:12px;padding:6px 8px;border:1px solid rgba(0,0,0,0.06);border-radius:999px;background:linear-gradient(180deg,#fafafa,#f4f4f4);color:#6b7280;box-shadow:inset 0 1px 0 #fff}.chip.ok[data-v-390dd513]{color:#065f46;background:linear-gradient(180deg,#ecfdf5,#d1fae5);border-color:#a7f3d0}.mk-strip[data-v-390dd513]{display:flex;gap:8px;flex-wrap:wrap;max-height:140px;overflow:auto}.mk-pill[data-v-390dd513]{display:inline-flex;gap:6px;align-items:center;padding:6px 8px;background:linear-gradient(180deg,#eef2ff,#e0e7ff);color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;font-size:12px}.mk-pill.is-null[data-v-390dd513]{background:linear-gradient(180deg,#f9fafb,#f3f4f6);color:#6b7280;border-color:#e5e7eb}.empty[data-v-390dd513]{height:360px;display:grid;place-items:center;color:#6b7280;font-size:14px;border:1px dashed rgba(0,0,0,0.08);border-radius:12px;background:rgba(255,255,255,0.5)}
-`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/App.vue"],"names":[],"mappings":"AA6HA,4BACE,qBAAuB,CACvB,sBAAwB,CACxB,YAAa,CACb,qBAAsB,CACtB,gFAAyF,CACzF,sCAA0C,CAC1C,0BAA2B,CAC3B,kBAAmB,CACnB,2EAEwC,CACxC,eAAgB,CAChB,gEACF,CAEA,4BACE,YAAa,CACb,kBAAmB,CACnB,6BAA8B,CAC9B,iBAAkB,CAClB,wCAA4C,CAC5C,+EACF,CACA,8BACE,cAAe,CACf,eAAgB,CAChB,oBAAqB,CACrB,aACF,CACA,4BACE,UAAW,CACX,WAAY,CACZ,gBAAiB,CACjB,iBAAkB,CAClB,iBAAkB,CAClB,iCAAqC,CACrC,eAAgB,CAChB,cAAe,CACf,cAAe,CACf,aAAc,CACd,qCACF,CACA,kCACE,0BAA2B,CAC3B,sCACF,CAEA,6BACE,sBAAuB,CACvB,aACF,CAEA,wBACE,iBAAkB,CAClB,iBAAkB,CAClB,gCAAoC,CACpC,iCAAqC,CACrC,kBACF,CACA,8BACE,cAAe,CACf,cAAe,CACf,eAAgB,CAChB,aACF,CAEA,wBACE,YAAa,CACb,cAAe,CACf,OACF,CACA,uBACE,cAAe,CACf,eAAgB,CAChB,iCAAqC,CACrC,mBAAoB,CACpB,kDAAqD,CACrD,aAAc,CACd,6BACF,CACA,0BACE,aAAc,CACd,kDAAqD,CACrD,oBACF,CAEA,2BACE,YAAa,CACb,OAAQ,CACR,cAAe,CACf,gBAAiB,CACjB,aACF,CACA,0BACE,mBAAoB,CACpB,OAAQ,CACR,kBAAmB,CACnB,eAAgB,CAChB,kDAAqD,CACrD,aAAc,CACd,wBAAyB,CACzB,iBAAkB,CAClB,cACF,CACA,kCACE,kDAAqD,CACrD,aAAc,CACd,oBACF,CAEA,wBACE,YAAa,CACb,YAAa,CACb,kBAAmB,CACnB,aAAc,CACd,cAAe,CACf,kCAAsC,CACtC,kBAAmB,CACnB,gCACF","sourcesContent":["<template>\n  <div class=\"era-app-container\">\n    <FloatingBall v-show=\"currentComponent === 'FloatingBall'\" @click=\"requestSwitchView('ExpandedView')\" />\n    <div v-show=\"currentComponent === 'ExpandedView'\">\n      <!-- EraDataPanel 的内容直接在这里展开 -->\n      <div class=\"era-panel\">\n        <!-- 顶部栏：标题 + 关闭按钮 -->\n        <header class=\"panel-top\">\n          <h3 class=\"panel-title\">ERA 数据面板</h3>\n          <button class=\"btn-close\" aria-label=\"关闭\" @click=\"requestSwitchView('FloatingBall')\">×</button>\n        </header>\n\n        <!-- 内容区 -->\n        <div class=\"panel-body\">\n          <template v-if=\"dataRef\">\n            <!-- 1. 最新消息元数据 -->\n            <MetaHeader :mk=\"dataRef.mk\" :message-id=\"dataRef.message_id\" />\n\n            <!-- 2. 可折叠：ERA 最新操作详情 -->\n            <EraAccordion title=\"ERA 最新操作详情\" :default-open=\"false\">\n              <template #default>\n                <EraAccordion title=\"SelectedMks（数组）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.selectedMks\" :default-collapsed=\"true\" :max-depth=\"3\" />\n                  </template>\n                </EraAccordion>\n                <EraAccordion title=\"EditLogs（对象）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.editLogs\" :default-collapsed=\"true\" :max-depth=\"2\" />\n                  </template>\n                </EraAccordion>\n              </template>\n            </EraAccordion>\n\n            <!-- 3. Tab：状态数据主区 -->\n            <TabSwitch v-model:active=\"activeTab\" :tabs=\"tabs\">\n              <template #pure>\n                <PrettyJsonViewer :value=\"dataRef.statWithoutMeta\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n              <template #full>\n                <PrettyJsonViewer :value=\"dataRef.stat\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n            </TabSwitch>\n          </template>\n\n          <!-- 无数据占位 -->\n          <template v-else>\n            <div class=\"empty\">等待 era:writeDone 事件数据…</div>\n          </template>\n        </div>\n      </div>\n      <ActionButtons />\n    </div>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { computed, ref } from 'vue';\nimport ActionButtons from './components/ActionButtons.vue';\nimport FloatingBall from './components/FloatingBall.vue';\n\n// 从 EraDataPanel 迁移过来的 imports\nimport EraAccordion from './components/era-panel/parts/EraAccordion.vue';\nimport MetaHeader from './components/era-panel/parts/MetaHeader.vue';\nimport PrettyJsonViewer from './components/era-panel/parts/PrettyJsonViewer.vue';\nimport TabSwitch from './components/era-panel/parts/TabSwitch.vue';\n\n// 从 EraDataPanel 迁移过来的类型定义\ntype Actions = { rollback: boolean; apply: boolean; resync: boolean; api: boolean; apiWrite: boolean };\nexport interface WriteDonePayload {\n  mk: string;\n  message_id: number;\n  actions: Actions;\n  selectedMks: (string | null)[];\n  editLogs: Record<string, any[]>;\n  stat: any;\n  statWithoutMeta: any;\n  consecutiveProcessingCount: number;\n}\n\n// TabSwitch 需要的类型\ntype TabItem = { key: 'pure' | 'full'; label: string };\n\n// App.vue 原有的 props\nconst props = defineProps({\n  initialView: {\n    type: String,\n    required: true,\n    default: 'FloatingBall',\n  },\n  eventData: {\n    type: Object as () => WriteDonePayload | null,\n    default: () => null,\n  },\n});\n\n// App.vue 原有的逻辑\nconst currentComponent = ref(props.initialView);\nconst requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {\n  if ((window as any).eraUiSwitchView) {\n    (window as any).eraUiSwitchView(viewName);\n  }\n};\n\n// 从 EraDataPanel 迁移过来的逻辑\nconst dataRef = computed(() => props.eventData || null);\n\nconst tabs: TabItem[] = [\n  { key: 'pure', label: '纯净状态数据' },\n  { key: 'full', label: '完整状态数据' },\n];\nconst activeTab = ref<'pure' | 'full'>('pure');\n</script>\n\n<style>\n/* App.vue 原有样式 */\n.era-app-container {\n  display: flex;\n  flex-direction: column;\n  gap: 10px; /* 为子元素之间添加一些间距 */\n}\n</style>\n\n<style scoped>\n/* 从 EraDataPanel.vue 迁移过来的样式 */\n.era-panel {\n  width: min(960px, 60vw);\n  height: min(680px, 86vh);\n  display: flex;\n  flex-direction: column;\n  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.65));\n  border: 1px solid rgba(255, 255, 255, 0.6);\n  backdrop-filter: blur(10px);\n  border-radius: 16px;\n  box-shadow:\n    0 10px 40px rgba(0, 0, 0, 0.18),\n    inset 0 1px 0 rgba(255, 255, 255, 0.6);\n  overflow: hidden;\n  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n}\n\n.panel-top {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 14px 16px;\n  border-bottom: 1px solid rgba(0, 0, 0, 0.06);\n  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));\n}\n.panel-title {\n  font-size: 16px;\n  font-weight: 800;\n  letter-spacing: 0.5px;\n  color: #1f2937;\n}\n.btn-close {\n  width: 32px;\n  height: 32px;\n  line-height: 30px;\n  text-align: center;\n  border-radius: 8px;\n  border: 1px solid rgba(0, 0, 0, 0.08);\n  background: #fff;\n  cursor: pointer;\n  font-size: 18px;\n  color: #6b7280;\n  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);\n}\n.btn-close:hover {\n  transform: translateY(-1px);\n  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);\n}\n\n.panel-body {\n  padding: 14px 14px 16px;\n  overflow: auto;\n}\n\n.block {\n  margin: 12px 0 4px;\n  padding: 10px 12px;\n  background: rgba(255, 255, 255, 0.6);\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 12px;\n}\n.block-title {\n  margin: 0 0 8px;\n  font-size: 13px;\n  font-weight: 800;\n  color: #374151;\n}\n\n.chips {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n.chip {\n  font-size: 12px;\n  padding: 6px 8px;\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 999px;\n  background: linear-gradient(180deg, #fafafa, #f4f4f4);\n  color: #6b7280;\n  box-shadow: inset 0 1px 0 #fff;\n}\n.chip.ok {\n  color: #065f46;\n  background: linear-gradient(180deg, #ecfdf5, #d1fae5);\n  border-color: #a7f3d0;\n}\n\n.mk-strip {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  max-height: 140px;\n  overflow: auto;\n}\n.mk-pill {\n  display: inline-flex;\n  gap: 6px;\n  align-items: center;\n  padding: 6px 8px;\n  background: linear-gradient(180deg, #eef2ff, #e0e7ff);\n  color: #4338ca;\n  border: 1px solid #c7d2fe;\n  border-radius: 8px;\n  font-size: 12px;\n}\n.mk-pill.is-null {\n  background: linear-gradient(180deg, #f9fafb, #f3f4f6);\n  color: #6b7280;\n  border-color: #e5e7eb;\n}\n\n.empty {\n  height: 360px;\n  display: grid;\n  place-items: center;\n  color: #6b7280;\n  font-size: 14px;\n  border: 1px dashed rgba(0, 0, 0, 0.08);\n  border-radius: 12px;\n  background: rgba(255, 255, 255, 0.5);\n}\n</style>\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/App.vue"],"names":[],"mappings":"AA0JA,4BACE,qBAAuB,CACvB,sBAAwB,CACxB,YAAa,CACb,qBAAsB,CACtB,gFAAyF,CACzF,sCAA0C,CAC1C,0BAA2B,CAC3B,kBAAmB,CACnB,2EAEwC,CACxC,eAAgB,CAChB,gEACF,CAEA,4BACE,YAAa,CACb,kBAAmB,CACnB,6BAA8B,CAC9B,iBAAkB,CAClB,wCAA4C,CAC5C,+EACF,CACA,8BACE,cAAe,CACf,eAAgB,CAChB,oBAAqB,CACrB,aACF,CACA,4BACE,UAAW,CACX,WAAY,CACZ,gBAAiB,CACjB,iBAAkB,CAClB,iBAAkB,CAClB,iCAAqC,CACrC,eAAgB,CAChB,cAAe,CACf,cAAe,CACf,aAAc,CACd,qCACF,CACA,kCACE,0BAA2B,CAC3B,sCACF,CAEA,6BACE,sBAAuB,CACvB,aACF,CAEA,wBACE,iBAAkB,CAClB,iBAAkB,CAClB,gCAAoC,CACpC,iCAAqC,CACrC,kBACF,CACA,8BACE,cAAe,CACf,cAAe,CACf,eAAgB,CAChB,aACF,CAEA,wBACE,YAAa,CACb,cAAe,CACf,OACF,CACA,uBACE,cAAe,CACf,eAAgB,CAChB,iCAAqC,CACrC,mBAAoB,CACpB,kDAAqD,CACrD,aAAc,CACd,6BACF,CACA,0BACE,aAAc,CACd,kDAAqD,CACrD,oBACF,CAEA,2BACE,YAAa,CACb,OAAQ,CACR,cAAe,CACf,gBAAiB,CACjB,aACF,CACA,0BACE,mBAAoB,CACpB,OAAQ,CACR,kBAAmB,CACnB,eAAgB,CAChB,kDAAqD,CACrD,aAAc,CACd,wBAAyB,CACzB,iBAAkB,CAClB,cACF,CACA,kCACE,kDAAqD,CACrD,aAAc,CACd,oBACF,CAEA,wBACE,YAAa,CACb,YAAa,CACb,kBAAmB,CACnB,aAAc,CACd,cAAe,CACf,kCAAsC,CACtC,kBAAmB,CACnB,gCACF","sourcesContent":["<template>\n  <div class=\"era-app-container\">\n    <FloatingBall v-show=\"currentComponent === 'FloatingBall'\" @click=\"requestSwitchView('ExpandedView')\" />\n    <div v-show=\"currentComponent === 'ExpandedView'\">\n      <!-- EraDataPanel 的内容直接在这里展开 -->\n      <div class=\"era-panel\">\n        <!-- 顶部栏：标题 + 关闭按钮 -->\n        <header class=\"panel-top\">\n          <h3 class=\"panel-title\">ERA 数据面板</h3>\n          <button class=\"btn-close\" aria-label=\"关闭\" @click=\"requestSwitchView('FloatingBall')\">×</button>\n        </header>\n\n        <!-- 内容区 -->\n        <div class=\"panel-body\">\n          <template v-if=\"dataRef\">\n            <!-- 1. 最新消息元数据 -->\n            <MetaHeader :mk=\"dataRef.mk\" :message-id=\"dataRef.message_id\" />\n\n            <!-- 2. 可折叠：ERA 最新操作详情 -->\n            <EraAccordion title=\"ERA 最新操作详情\" :default-open=\"false\">\n              <template #default>\n                <EraAccordion title=\"SelectedMks（数组）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.selectedMks\" :default-collapsed=\"true\" :max-depth=\"3\" />\n                  </template>\n                </EraAccordion>\n                <EraAccordion title=\"EditLogs（对象）\" :default-open=\"false\">\n                  <template #default>\n                    <PrettyJsonViewer :value=\"dataRef.editLogs\" :default-collapsed=\"true\" :max-depth=\"2\" />\n                  </template>\n                </EraAccordion>\n              </template>\n            </EraAccordion>\n\n            <!-- 3. Tab：状态数据主区 -->\n            <TabSwitch v-model:active=\"activeTab\" :tabs=\"tabs\">\n              <template #pure>\n                <PrettyJsonViewer :value=\"dataRef.statWithoutMeta\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n              <template #full>\n                <PrettyJsonViewer :value=\"dataRef.stat\" :default-collapsed=\"true\" :max-depth=\"Infinity\" />\n              </template>\n            </TabSwitch>\n          </template>\n\n          <!-- 无数据占位 -->\n          <template v-else>\n            <div class=\"empty\">等待 era:writeDone 事件数据…</div>\n          </template>\n        </div>\n      </div>\n      <ActionButtons />\n    </div>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { computed, onMounted, ref, watch } from 'vue';\nimport { Logger } from '../utils/log';\nimport ActionButtons from './components/ActionButtons.vue';\nimport FloatingBall from './components/FloatingBall.vue';\n\n// 从 EraDataPanel 迁移过来的 imports\nimport EraAccordion from './components/era-panel/parts/EraAccordion.vue';\nimport MetaHeader from './components/era-panel/parts/MetaHeader.vue';\nimport PrettyJsonViewer from './components/era-panel/parts/PrettyJsonViewer.vue';\nimport TabSwitch from './components/era-panel/parts/TabSwitch.vue';\n\n// 从 EraDataPanel 迁移过来的类型定义\ntype Actions = { rollback: boolean; apply: boolean; resync: boolean; api: boolean; apiWrite: boolean };\nexport interface WriteDonePayload {\n  mk: string;\n  message_id: number;\n  actions: Actions;\n  selectedMks: (string | null)[];\n  editLogs: Record<string, any[]>;\n  stat: any;\n  statWithoutMeta: any;\n  consecutiveProcessingCount: number;\n}\n\n// TabSwitch 需要的类型\ntype TabItem = { key: 'pure' | 'full'; label: string };\n\nconst logger = new Logger('ui-App');\n\n// App.vue 原有的 props\nconst props = defineProps({\n  initialView: {\n    type: String,\n    required: true,\n    default: 'FloatingBall',\n  },\n  eventData: {\n    type: Object as () => WriteDonePayload | null,\n    default: () => null,\n  },\n});\n\n// App.vue 原有的逻辑\nconst currentComponent = ref(props.initialView);\nconst requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {\n  logger.debug('requestSwitchView', `请求切换视图到: ${viewName}`);\n  if ((window as any).eraUiSwitchView) {\n    (window as any).eraUiSwitchView(viewName);\n  } else {\n    logger.warn('requestSwitchView', '全局切换函数 eraUiSwitchView 未找到');\n  }\n};\n\n// 从 EraDataPanel 迁移过来的逻辑\nconst dataRef = computed(() => props.eventData || null);\n\nconst tabs: TabItem[] = [\n  { key: 'pure', label: '纯净状态数据' },\n  { key: 'full', label: '完整状态数据' },\n];\nconst activeTab = ref<'pure' | 'full'>('pure');\n\nonMounted(() => {\n  logger.log('onMounted', 'App.vue 组件已挂载', { props: props });\n});\n\nwatch(\n  () => props.eventData,\n  (newData, oldData) => {\n    logger.debug('watch:eventData', 'eventData prop 发生变化', {\n      newData,\n      oldData,\n    });\n  },\n  { deep: true },\n);\n\nwatch(\n  () => props.initialView,\n  newView => {\n    logger.debug('watch:initialView', `initialView prop 发生变化，新视图: ${newView}`);\n    currentComponent.value = newView;\n  },\n);\n</script>\n\n<style>\n/* App.vue 原有样式 */\n.era-app-container {\n  display: flex;\n  flex-direction: column;\n  gap: 10px; /* 为子元素之间添加一些间距 */\n}\n</style>\n\n<style scoped>\n/* 从 EraDataPanel.vue 迁移过来的样式 */\n.era-panel {\n  width: min(960px, 60vw);\n  height: min(680px, 86vh);\n  display: flex;\n  flex-direction: column;\n  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.65));\n  border: 1px solid rgba(255, 255, 255, 0.6);\n  backdrop-filter: blur(10px);\n  border-radius: 16px;\n  box-shadow:\n    0 10px 40px rgba(0, 0, 0, 0.18),\n    inset 0 1px 0 rgba(255, 255, 255, 0.6);\n  overflow: hidden;\n  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n}\n\n.panel-top {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 14px 16px;\n  border-bottom: 1px solid rgba(0, 0, 0, 0.06);\n  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));\n}\n.panel-title {\n  font-size: 16px;\n  font-weight: 800;\n  letter-spacing: 0.5px;\n  color: #1f2937;\n}\n.btn-close {\n  width: 32px;\n  height: 32px;\n  line-height: 30px;\n  text-align: center;\n  border-radius: 8px;\n  border: 1px solid rgba(0, 0, 0, 0.08);\n  background: #fff;\n  cursor: pointer;\n  font-size: 18px;\n  color: #6b7280;\n  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);\n}\n.btn-close:hover {\n  transform: translateY(-1px);\n  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);\n}\n\n.panel-body {\n  padding: 14px 14px 16px;\n  overflow: auto;\n}\n\n.block {\n  margin: 12px 0 4px;\n  padding: 10px 12px;\n  background: rgba(255, 255, 255, 0.6);\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 12px;\n}\n.block-title {\n  margin: 0 0 8px;\n  font-size: 13px;\n  font-weight: 800;\n  color: #374151;\n}\n\n.chips {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n.chip {\n  font-size: 12px;\n  padding: 6px 8px;\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 999px;\n  background: linear-gradient(180deg, #fafafa, #f4f4f4);\n  color: #6b7280;\n  box-shadow: inset 0 1px 0 #fff;\n}\n.chip.ok {\n  color: #065f46;\n  background: linear-gradient(180deg, #ecfdf5, #d1fae5);\n  border-color: #a7f3d0;\n}\n\n.mk-strip {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  max-height: 140px;\n  overflow: auto;\n}\n.mk-pill {\n  display: inline-flex;\n  gap: 6px;\n  align-items: center;\n  padding: 6px 8px;\n  background: linear-gradient(180deg, #eef2ff, #e0e7ff);\n  color: #4338ca;\n  border: 1px solid #c7d2fe;\n  border-radius: 8px;\n  font-size: 12px;\n}\n.mk-pill.is-null {\n  background: linear-gradient(180deg, #f9fafb, #f3f4f6);\n  color: #6b7280;\n  border-color: #e5e7eb;\n}\n\n.empty {\n  height: 360px;\n  display: grid;\n  place-items: center;\n  color: #6b7280;\n  font-size: 14px;\n  border: 1px dashed rgba(0, 0, 0, 0.08);\n  border-radius: 12px;\n  background: rgba(255, 255, 255, 0.5);\n}\n</style>\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -75,7 +75,7 @@ __webpack_require__.r(__webpack_exports__);
 var ___CSS_LOADER_EXPORT___ = _node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `.action-buttons-container[data-v-b1998c20]{display:flex;justify-content:center;padding-top:10px;border-top:1px solid #444;text-align:center}button[data-v-b1998c20]{background:#555;color:white;border:1px solid #777;border-radius:4px;padding:4px 8px;margin:0 5px;cursor:pointer;font-size:12px}button[data-v-b1998c20]:hover{background:#666}
-`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/ActionButtons.vue"],"names":[],"mappings":"AAoBA,2CACE,YAAa,CACb,sBAAuB,CACvB,gBAAiB,CACjB,yBAA0B,CAC1B,iBACF,CAEA,wBACE,eAAgB,CAChB,WAAY,CACZ,qBAAsB,CACtB,iBAAkB,CAClB,eAAgB,CAChB,YAAa,CACb,cAAe,CACf,cACF,CAEA,8BACE,eACF","sourcesContent":["<template>\n  <div class=\"action-buttons-container\">\n    <button @click.stop=\"onFullSync\">完全重算变量</button>\n    <button @click.stop=\"onLastSync\">重算最后一楼变量</button>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nfunction onFullSync() {\n  console.log('点击“完全重算变量”，发送 manual_full_sync 事件。');\n  eventEmit('manual_full_sync');\n}\n\nfunction onLastSync() {\n  console.log('点击“重算最后一楼变量”，发送 manual_sync 事件。');\n  eventEmit('manual_sync');\n}\n</script>\n\n<style scoped>\n.action-buttons-container {\n  display: flex;\n  justify-content: center;\n  padding-top: 10px;\n  border-top: 1px solid #444;\n  text-align: center;\n}\n\nbutton {\n  background: #555;\n  color: white;\n  border: 1px solid #777;\n  border-radius: 4px;\n  padding: 4px 8px;\n  margin: 0 5px;\n  cursor: pointer;\n  font-size: 12px;\n}\n\nbutton:hover {\n  background: #666;\n}\n</style>\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/ActionButtons.vue"],"names":[],"mappings":"AAwBA,2CACE,YAAa,CACb,sBAAuB,CACvB,gBAAiB,CACjB,yBAA0B,CAC1B,iBACF,CAEA,wBACE,eAAgB,CAChB,WAAY,CACZ,qBAAsB,CACtB,iBAAkB,CAClB,eAAgB,CAChB,YAAa,CACb,cAAe,CACf,cACF,CAEA,8BACE,eACF","sourcesContent":["<template>\n  <div class=\"action-buttons-container\">\n    <button @click.stop=\"onFullSync\">完全重算变量</button>\n    <button @click.stop=\"onLastSync\">重算最后一楼变量</button>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { Logger } from '../../utils/log';\n\nconst logger = new Logger('ui-ActionButtons');\n\nfunction onFullSync() {\n  logger.log('onFullSync', '点击“完全重算变量”，发送 manual_full_sync 事件。');\n  eventEmit('manual_full_sync');\n}\n\nfunction onLastSync() {\n  logger.log('onLastSync', '点击“重算最后一楼变量”，发送 manual_sync 事件。');\n  eventEmit('manual_sync');\n}\n</script>\n\n<style scoped>\n.action-buttons-container {\n  display: flex;\n  justify-content: center;\n  padding-top: 10px;\n  border-top: 1px solid #444;\n  text-align: center;\n}\n\nbutton {\n  background: #555;\n  color: white;\n  border: 1px solid #777;\n  border-radius: 4px;\n  padding: 4px 8px;\n  margin: 0 5px;\n  cursor: pointer;\n  font-size: 12px;\n}\n\nbutton:hover {\n  background: #666;\n}\n</style>\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -102,17 +102,17 @@ __webpack_require__.r(__webpack_exports__);
 var ___CSS_LOADER_EXPORT___ = _node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `.floating-ball[data-v-2fa4c130]{--size:50px;--hue:212;--sat:100%;--lum:52%;--surface:hsl(var(--hue) var(--sat) var(--lum));--surface-2:hsl(var(--hue) 95% 64%);--ring:hsl(calc(var(--hue) + 20) 95% 65%);--shadow:rgba(0,123,255,0.36);--glow:rgba(102,200,255,0.55);--inner-shadow:rgba(0,0,0,0.22);--specular:rgba(255,255,255,0.75);--glass:rgba(255,255,255,0.18);width:var(--size);height:var(--size);border-radius:50%;position:relative;display:grid;place-items:center;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;background:radial-gradient(120% 120% at 30% 28%,rgba(255,255,255,0.85) 0%,rgba(255,255,255,0.22) 18%,rgba(255,255,255,0) 36%),radial-gradient(120% 120% at 70% 72%,rgba(0,0,0,0.18) 0%,rgba(0,0,0,0) 38%),conic-gradient(from 210deg at 50% 50%,var(--surface),var(--surface-2),var(--surface));box-shadow:inset 0 2px 6px var(--inner-shadow),0 2px 4px rgba(0,0,0,0.08),0 10px 22px var(--shadow);transition:transform 0.28s ease,box-shadow 0.28s ease,filter 0.28s ease;will-change:transform,box-shadow,filter;animation:ball-bob-2fa4c130 3.2s ease-in-out infinite}.floating-ball[data-v-2fa4c130]::after{content:'';position:absolute;inset:-8px;border-radius:50%;background:conic-gradient(from 0deg,var(--ring),transparent 30%,transparent 70%,var(--ring));filter:blur(6px);opacity:0.55;pointer-events:none;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 0);animation:ring-spin-2fa4c130 12s linear infinite}.floating-ball[data-v-2fa4c130]::before{content:'';position:absolute;inset:2px;border-radius:50%;background:radial-gradient(120% 80% at 26% 24%,var(--specular) 0%,rgba(255,255,255,0.2) 26%,rgba(255,255,255,0) 46%),linear-gradient(160deg,var(--glass) 0%,rgba(255,255,255,0) 50%);mix-blend-mode:screen;pointer-events:none;transition:opacity 0.28s ease,transform 0.28s ease}.floating-ball[data-v-2fa4c130]:hover{transform:translateY(-2px) scale(1.04);box-shadow:inset 0 2px 8px rgba(0,0,0,0.22),0 4px 10px rgba(0,0,0,0.12),0 16px 36px rgba(0,123,255,0.45);filter:saturate(1.08)}.floating-ball[data-v-2fa4c130]:hover::before{opacity:0.95;animation:shimmer-2fa4c130 1.2s ease-out}.floating-ball[data-v-2fa4c130]:active{transform:translateY(0) scale(0.98);box-shadow:inset 0 2px 10px rgba(0,0,0,0.28),0 2px 6px rgba(0,0,0,0.12),0 10px 22px rgba(0,123,255,0.35)}.floating-ball[data-v-2fa4c130]:focus-visible{outline:2px solid rgba(102,200,255,0.85);outline-offset:2px}@media (prefers-reduced-motion:reduce){.floating-ball[data-v-2fa4c130]{animation:none}.floating-ball[data-v-2fa4c130]::after{animation:none}}@keyframes ball-bob-2fa4c130{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}@keyframes ring-spin-2fa4c130{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes shimmer-2fa4c130{0%{transform:translateY(-1px) scale(0.98);opacity:0.6}50%{transform:translateY(-2px) scale(1.02);opacity:1}100%{transform:translateY(-1px) scale(0.99);opacity:0.85}}.floating-ball[data-v-2fa4c130]{--logo-scale:0.38}.era-logo[data-v-2fa4c130]{font-weight:800;font-size:calc(var(--size) * var(--logo-scale));letter-spacing:0.02em;line-height:1;transform:translateY(-1px);white-space:nowrap;-webkit-user-select:none;user-select:none;pointer-events:none;z-index:1;background:linear-gradient(180deg,rgba(255,255,255,0.96) 0%,rgba(255,255,255,0.55) 45%,rgba(220,240,255,0.4) 65%,rgba(120,195,255,0.55) 100%),linear-gradient(180deg,rgba(0,0,0,0.38),rgba(0,0,0,0) 60%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 1px 0 rgba(255,255,255,0.75),0 2px 4px rgba(0,0,0,0.25),0 8px 18px rgba(0,123,255,0.35);filter:drop-shadow(0 0 2px rgba(102,200,255,0.25));animation:era-sheen-2fa4c130 4s ease-in-out infinite}.floating-ball:hover .era-logo[data-v-2fa4c130]{text-shadow:0 1px 0 rgba(255,255,255,0.85),0 3px 8px rgba(0,0,0,0.28),0 10px 26px rgba(0,123,255,0.55);filter:drop-shadow(0 0 3px rgba(102,200,255,0.38))}@keyframes era-sheen-2fa4c130{0%,100%{background-position:0% 0%,0% 0%}50%{background-position:0% 40%,0% 0%}}
-`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/FloatingBall.vue"],"names":[],"mappings":"AAeA,gCACE,WAAY,CACZ,SAAU,CACV,UAAW,CACX,SAAU,CACV,+CAAgD,CAChD,mCAAoC,CACpC,yCAA0C,CAC1C,6BAAiC,CACjC,6BAAiC,CACjC,+BAAmC,CACnC,iCAAqC,CACrC,8BAAkC,CAClC,iBAAkB,CAClB,kBAAmB,CACnB,iBAAkB,CAClB,iBAAkB,CAClB,YAAa,CACb,kBAAmB,CACnB,cAAe,CACf,wBAAiB,CAAjB,gBAAiB,CACjB,uCAAwC,CACxC,+RAQ0G,CAC1G,mGAG0C,CAC1C,uEAGmB,CACnB,uCAA0C,CAC1C,qDACF,CAGA,uCACE,UAAW,CACX,iBAAkB,CAClB,UAAW,CACX,iBAAkB,CAClB,4FAMC,CACD,gBAAiB,CACjB,YAAa,CACb,mBAAoB,CACpB,gFAA2E,CAA3E,wEAA2E,CAC3E,gDACF,CAGA,wCACE,UAAW,CACX,iBAAkB,CAClB,SAAU,CACV,iBAAkB,CAClB,oLAE+E,CAC/E,qBAAsB,CACtB,mBAAoB,CACpB,kDAGF,CAGA,sCACE,sCAAuC,CACvC,wGAGgD,CAChD,qBACF,CAGA,8CACE,YAAa,CACb,wCACF,CAGA,uCACE,mCAAoC,CACpC,wGAIF,CAGA,8CACE,wCAA4C,CAC5C,kBACF,CAGA,uCACE,gCACE,cACF,CACA,uCACE,cACF,CACF,CAGA,6BACE,QAEE,uBACF,CACA,IACE,0BACF,CACF,CAGA,8BACE,GACE,sBACF,CACA,KACE,wBACF,CACF,CAGA,4BACE,GACE,sCAAuC,CACvC,WACF,CACA,IACE,sCAAuC,CACvC,SACF,CACA,KACE,sCAAuC,CACvC,YACF,CACF,CAGA,gCACE,iBACF,CAEA,2BACE,eAAgB,CAChB,+CAAgD,CAChD,qBAAsB,CACtB,aAAc,CACd,0BAA2B,CAC3B,kBAAmB,CACnB,wBAAiB,CAAjB,gBAAiB,CACjB,mBAAoB,CACpB,SAAU,CAGV,wMAQmF,CACnF,4BAA6B,CAC7B,oBAAqB,CACrB,iBAAkB,CAClB,qGAG8C,CAC9C,kDAAsD,CACtD,oDACF,CAEA,gDACE,sGAGqC,CACrC,kDACF,CAGA,8BACE,QAEE,+BAGF,CACA,IACE,gCAGF,CACF","sourcesContent":["<template>\n  <div class=\"floating-ball\" @click=\"$emit('click')\">\n    <span class=\"era-logo\" aria-hidden=\"true\">ERA</span>\n    <!-- 仅显示用；不拦截事件 -->\n  </div>\n</template>\n\n<script setup lang=\"ts\">\ndefineEmits(['click']);\n</script>\n\n<style scoped>\n/* =========================\n   可调外观变量（局部作用域）\n   ========================= */\n.floating-ball {\n  --size: 50px; /* 直径：保持默认 50px，与原始一致 */\n  --hue: 212; /* 主色相：212≈#007bff，方便全局协调色相 */\n  --sat: 100%; /* 饱和度：更鲜亮 */\n  --lum: 52%; /* 明度：主色的明度 */\n  --surface: hsl(var(--hue) var(--sat) var(--lum)); /* 主表面色 */\n  --surface-2: hsl(var(--hue) 95% 64%); /* 渐变第二色，略亮 */\n  --ring: hsl(calc(var(--hue) + 20) 95% 65%); /* 外环的点缀色，偏青一点 */\n  --shadow: rgba(0, 123, 255, 0.36); /* 阴影颜色（与主色相近） */\n  --glow: rgba(102, 200, 255, 0.55); /* 外发光颜色 */\n  --inner-shadow: rgba(0, 0, 0, 0.22); /* 内阴影增强体积感 */\n  --specular: rgba(255, 255, 255, 0.75); /* 高光 */\n  --glass: rgba(255, 255, 255, 0.18); /* 玻璃质感覆盖层 */\n  width: var(--size); /* 宽度设为可变量 */\n  height: var(--size); /* 高度设为可变量 */\n  border-radius: 50%; /* 圆形 */\n  position: relative; /* 作为伪元素定位参照 */\n  display: grid; /* 用 grid 实现精确居中 */\n  place-items: center; /* 居中对齐 */\n  cursor: pointer; /* 手型光标（仅视觉，不改逻辑） */\n  user-select: none; /* 防止误选中文本 */\n  -webkit-tap-highlight-color: transparent; /* 移动端点击高亮去除 */\n  background:\n    radial-gradient(\n      120% 120% at 30% 28%,\n      rgba(255, 255, 255, 0.85) 0%,\n      rgba(255, 255, 255, 0.22) 18%,\n      rgba(255, 255, 255, 0) 36%\n    ),\n    /* 玻璃高光 */ radial-gradient(120% 120% at 70% 72%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0) 38%),\n    /* 微内阴影，增加体积 */ conic-gradient(from 210deg at 50% 50%, var(--surface), var(--surface-2), var(--surface)); /* 主表面渐变：柔和流动感 */\n  box-shadow:\n    inset 0 2px 6px var(--inner-shadow),\n    /* 内阴影：球体边缘收束 */ 0 2px 4px rgba(0, 0, 0, 0.08),\n    /* 基础投影：贴地感 */ 0 10px 22px var(--shadow); /* 远投影：悬浮感 */\n  transition:\n    transform 0.28s ease,\n    box-shadow 0.28s ease,\n    filter 0.28s ease; /* 悬停时的平滑过渡 */\n  will-change: transform, box-shadow, filter; /* 提示浏览器优化 */\n  animation: ball-bob 3.2s ease-in-out infinite; /* 轻微上下浮动 */\n}\n\n/* 光晕外环（纯视觉层），不占点击区域 */\n.floating-ball::after {\n  content: ''; /* 生成外环层 */\n  position: absolute; /* 绝对定位贴合父元素 */\n  inset: -8px; /* 向外延展 8px，制造发光边缘 */\n  border-radius: 50%; /* 保持圆形 */\n  background: conic-gradient(\n    from 0deg,\n    var(--ring),\n    transparent 30%,\n    transparent 70%,\n    var(--ring)\n  ); /* 细腻的色环闪烁 */\n  filter: blur(6px); /* 模糊成柔和光晕 */\n  opacity: 0.55; /* 半透明，避免喧宾 */\n  pointer-events: none; /* 不拦截鼠标事件 */\n  mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 0); /* 掏空中心形成环 */\n  animation: ring-spin 12s linear infinite; /* 慢速旋转，低侵扰 */\n}\n\n/* 玻璃高光层（更立体） */\n.floating-ball::before {\n  content: ''; /* 生成高光层 */\n  position: absolute; /* 绝对定位 */\n  inset: 2px; /* 缩进一点，保留边缘 */\n  border-radius: 50%; /* 圆形 */\n  background:\n    radial-gradient(120% 80% at 26% 24%, var(--specular) 0%, rgba(255, 255, 255, 0.2) 26%, rgba(255, 255, 255, 0) 46%),\n    /* 亮斑 */ linear-gradient(160deg, var(--glass) 0%, rgba(255, 255, 255, 0) 50%); /* 玻璃蒙层 */\n  mix-blend-mode: screen; /* 与底色叠加更自然 */\n  pointer-events: none; /* 不拦截事件 */\n  transition:\n    opacity 0.28s ease,\n    transform 0.28s ease; /* 悬停联动 */\n}\n\n/* 悬停态：轻微抬升+增强光影 */\n.floating-ball:hover {\n  transform: translateY(-2px) scale(1.04); /* 轻微升起并放大 */\n  box-shadow:\n    inset 0 2px 8px rgba(0, 0, 0, 0.22),\n    /* 内阴影略加强 */ 0 4px 10px rgba(0, 0, 0, 0.12),\n    /* 近影增强 */ 0 16px 36px rgba(0, 123, 255, 0.45); /* 远影更亮，呈现发光 */\n  filter: saturate(1.08); /* 提升饱和度一点点 */\n}\n\n/* 悬停时的微光扫过效果 */\n.floating-ball:hover::before {\n  opacity: 0.95; /* 高光更显著 */\n  animation: shimmer 1.2s ease-out; /* 一次性高光掠过 */\n}\n\n/* 按下态：略压低 */\n.floating-ball:active {\n  transform: translateY(0) scale(0.98); /* 回落一点并轻微压扁 */\n  box-shadow:\n    inset 0 2px 10px rgba(0, 0, 0, 0.28),\n    0 2px 6px rgba(0, 0, 0, 0.12),\n    0 10px 22px rgba(0, 123, 255, 0.35); /* 回到接近初始的阴影 */\n}\n\n/* 可达性：键盘聚焦时的可见描边（不改变布局） */\n.floating-ball:focus-visible {\n  outline: 2px solid rgba(102, 200, 255, 0.85); /* 高亮描边 */\n  outline-offset: 2px; /* 外移 2px，避免遮挡球体 */\n}\n\n/* 减少动态偏好：关闭动画保持静态优雅 */\n@media (prefers-reduced-motion: reduce) {\n  .floating-ball {\n    animation: none;\n  } /* 去除上下浮动 */\n  .floating-ball::after {\n    animation: none;\n  } /* 停止外环旋转 */\n}\n\n/* 轻微上下浮动（循环） */\n@keyframes ball-bob {\n  0%,\n  100% {\n    transform: translateY(0);\n  } /* 起点/终点：原位 */\n  50% {\n    transform: translateY(-2px);\n  } /* 中点：上浮 2px */\n}\n\n/* 外环慢速旋转（不刺眼） */\n@keyframes ring-spin {\n  0% {\n    transform: rotate(0deg);\n  } /* 起点：0 度 */\n  100% {\n    transform: rotate(360deg);\n  } /* 终点：整周旋转 */\n}\n\n/* 悬停时的高光扫过 */\n@keyframes shimmer {\n  0% {\n    transform: translateY(-1px) scale(0.98);\n    opacity: 0.6;\n  } /* 初始：弱一点的高光 */\n  50% {\n    transform: translateY(-2px) scale(1.02);\n    opacity: 1;\n  } /* 中段：最亮最大 */\n  100% {\n    transform: translateY(-1px) scale(0.99);\n    opacity: 0.85;\n  } /* 结束：回落 */\n}\n\n/* ======= ERA 内标（仅视觉层） ======= */\n.floating-ball {\n  --logo-scale: 0.38;\n} /* 可调：字体占球直径比例 */\n\n.era-logo {\n  font-weight: 800; /* 粗体，增强刻感 */\n  font-size: calc(var(--size) * var(--logo-scale)); /* 跟随球大小缩放 */\n  letter-spacing: 0.02em; /* 轻微字距，避免糊 */\n  line-height: 1; /* 紧凑对齐 */\n  transform: translateY(-1px); /* 视觉微调居中 */\n  white-space: nowrap; /* 防止换行 */\n  user-select: none;\n  pointer-events: none; /* 不抢事件、不选中 */\n  z-index: 1; /* 位于背景之上（仍在 ::after 光环之下） */\n\n  /* 渐变镂空字 + 立体阴影 */\n  background:\n    linear-gradient(\n      180deg,\n      rgba(255, 255, 255, 0.96) 0%,\n      rgba(255, 255, 255, 0.55) 45%,\n      rgba(220, 240, 255, 0.4) 65%,\n      rgba(120, 195, 255, 0.55) 100%\n    ),\n    /* 高光到冷蓝的层次 */ linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 60%); /* 轻内阴影 */\n  -webkit-background-clip: text;\n  background-clip: text; /* 渐变裁剪到文字 */\n  color: transparent; /* 镂空填充由背景提供 */\n  text-shadow:\n    0 1px 0 rgba(255, 255, 255, 0.75),\n    /* 顶部掣光 */ 0 2px 4px rgba(0, 0, 0, 0.25),\n    /* 近阴影 */ 0 8px 18px rgba(0, 123, 255, 0.35); /* 远发光阴影 */\n  filter: drop-shadow(0 0 2px rgba(102, 200, 255, 0.25)); /* 柔光晕 */\n  animation: era-sheen 4s ease-in-out infinite; /* 轻微高光流动 */\n}\n\n.floating-ball:hover .era-logo {\n  text-shadow:\n    0 1px 0 rgba(255, 255, 255, 0.85),\n    0 3px 8px rgba(0, 0, 0, 0.28),\n    0 10px 26px rgba(0, 123, 255, 0.55); /* 悬停增强立体感 */\n  filter: drop-shadow(0 0 3px rgba(102, 200, 255, 0.38)); /* 发光略加强 */\n}\n\n/* 高光缓慢上移，制造玻璃流光感（低侵扰） */\n@keyframes era-sheen {\n  0%,\n  100% {\n    background-position:\n      0% 0%,\n      0% 0%;\n  }\n  50% {\n    background-position:\n      0% 40%,\n      0% 0%;\n  }\n}\n</style>\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/FloatingBall.vue"],"names":[],"mappings":"AAuBA,gCACE,WAAY,CACZ,SAAU,CACV,UAAW,CACX,SAAU,CACV,+CAAgD,CAChD,mCAAoC,CACpC,yCAA0C,CAC1C,6BAAiC,CACjC,6BAAiC,CACjC,+BAAmC,CACnC,iCAAqC,CACrC,8BAAkC,CAClC,iBAAkB,CAClB,kBAAmB,CACnB,iBAAkB,CAClB,iBAAkB,CAClB,YAAa,CACb,kBAAmB,CACnB,cAAe,CACf,wBAAiB,CAAjB,gBAAiB,CACjB,uCAAwC,CACxC,+RAQ0G,CAC1G,mGAG0C,CAC1C,uEAGmB,CACnB,uCAA0C,CAC1C,qDACF,CAGA,uCACE,UAAW,CACX,iBAAkB,CAClB,UAAW,CACX,iBAAkB,CAClB,4FAMC,CACD,gBAAiB,CACjB,YAAa,CACb,mBAAoB,CACpB,gFAA2E,CAA3E,wEAA2E,CAC3E,gDACF,CAGA,wCACE,UAAW,CACX,iBAAkB,CAClB,SAAU,CACV,iBAAkB,CAClB,oLAE+E,CAC/E,qBAAsB,CACtB,mBAAoB,CACpB,kDAGF,CAGA,sCACE,sCAAuC,CACvC,wGAGgD,CAChD,qBACF,CAGA,8CACE,YAAa,CACb,wCACF,CAGA,uCACE,mCAAoC,CACpC,wGAIF,CAGA,8CACE,wCAA4C,CAC5C,kBACF,CAGA,uCACE,gCACE,cACF,CACA,uCACE,cACF,CACF,CAGA,6BACE,QAEE,uBACF,CACA,IACE,0BACF,CACF,CAGA,8BACE,GACE,sBACF,CACA,KACE,wBACF,CACF,CAGA,4BACE,GACE,sCAAuC,CACvC,WACF,CACA,IACE,sCAAuC,CACvC,SACF,CACA,KACE,sCAAuC,CACvC,YACF,CACF,CAGA,gCACE,iBACF,CAEA,2BACE,eAAgB,CAChB,+CAAgD,CAChD,qBAAsB,CACtB,aAAc,CACd,0BAA2B,CAC3B,kBAAmB,CACnB,wBAAiB,CAAjB,gBAAiB,CACjB,mBAAoB,CACpB,SAAU,CAGV,wMAQmF,CACnF,4BAA6B,CAC7B,oBAAqB,CACrB,iBAAkB,CAClB,qGAG8C,CAC9C,kDAAsD,CACtD,oDACF,CAEA,gDACE,sGAGqC,CACrC,kDACF,CAGA,8BACE,QAEE,+BAGF,CACA,IACE,gCAGF,CACF","sourcesContent":["<template>\n  <div class=\"floating-ball\" @click=\"$emit('click')\">\n    <span class=\"era-logo\" aria-hidden=\"true\">ERA</span>\n    <!-- 仅显示用；不拦截事件 -->\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { onMounted } from 'vue';\nimport { Logger } from '../../utils/log';\n\nconst logger = new Logger('ui-FloatingBall');\ndefineEmits(['click']);\n\nonMounted(() => {\n  logger.log('onMounted', 'FloatingBall.vue 组件已挂载');\n});\n</script>\n\n<style scoped>\n/* =========================\n   可调外观变量（局部作用域）\n   ========================= */\n.floating-ball {\n  --size: 50px; /* 直径：保持默认 50px，与原始一致 */\n  --hue: 212; /* 主色相：212≈#007bff，方便全局协调色相 */\n  --sat: 100%; /* 饱和度：更鲜亮 */\n  --lum: 52%; /* 明度：主色的明度 */\n  --surface: hsl(var(--hue) var(--sat) var(--lum)); /* 主表面色 */\n  --surface-2: hsl(var(--hue) 95% 64%); /* 渐变第二色，略亮 */\n  --ring: hsl(calc(var(--hue) + 20) 95% 65%); /* 外环的点缀色，偏青一点 */\n  --shadow: rgba(0, 123, 255, 0.36); /* 阴影颜色（与主色相近） */\n  --glow: rgba(102, 200, 255, 0.55); /* 外发光颜色 */\n  --inner-shadow: rgba(0, 0, 0, 0.22); /* 内阴影增强体积感 */\n  --specular: rgba(255, 255, 255, 0.75); /* 高光 */\n  --glass: rgba(255, 255, 255, 0.18); /* 玻璃质感覆盖层 */\n  width: var(--size); /* 宽度设为可变量 */\n  height: var(--size); /* 高度设为可变量 */\n  border-radius: 50%; /* 圆形 */\n  position: relative; /* 作为伪元素定位参照 */\n  display: grid; /* 用 grid 实现精确居中 */\n  place-items: center; /* 居中对齐 */\n  cursor: pointer; /* 手型光标（仅视觉，不改逻辑） */\n  user-select: none; /* 防止误选中文本 */\n  -webkit-tap-highlight-color: transparent; /* 移动端点击高亮去除 */\n  background:\n    radial-gradient(\n      120% 120% at 30% 28%,\n      rgba(255, 255, 255, 0.85) 0%,\n      rgba(255, 255, 255, 0.22) 18%,\n      rgba(255, 255, 255, 0) 36%\n    ),\n    /* 玻璃高光 */ radial-gradient(120% 120% at 70% 72%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0) 38%),\n    /* 微内阴影，增加体积 */ conic-gradient(from 210deg at 50% 50%, var(--surface), var(--surface-2), var(--surface)); /* 主表面渐变：柔和流动感 */\n  box-shadow:\n    inset 0 2px 6px var(--inner-shadow),\n    /* 内阴影：球体边缘收束 */ 0 2px 4px rgba(0, 0, 0, 0.08),\n    /* 基础投影：贴地感 */ 0 10px 22px var(--shadow); /* 远投影：悬浮感 */\n  transition:\n    transform 0.28s ease,\n    box-shadow 0.28s ease,\n    filter 0.28s ease; /* 悬停时的平滑过渡 */\n  will-change: transform, box-shadow, filter; /* 提示浏览器优化 */\n  animation: ball-bob 3.2s ease-in-out infinite; /* 轻微上下浮动 */\n}\n\n/* 光晕外环（纯视觉层），不占点击区域 */\n.floating-ball::after {\n  content: ''; /* 生成外环层 */\n  position: absolute; /* 绝对定位贴合父元素 */\n  inset: -8px; /* 向外延展 8px，制造发光边缘 */\n  border-radius: 50%; /* 保持圆形 */\n  background: conic-gradient(\n    from 0deg,\n    var(--ring),\n    transparent 30%,\n    transparent 70%,\n    var(--ring)\n  ); /* 细腻的色环闪烁 */\n  filter: blur(6px); /* 模糊成柔和光晕 */\n  opacity: 0.55; /* 半透明，避免喧宾 */\n  pointer-events: none; /* 不拦截鼠标事件 */\n  mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 0); /* 掏空中心形成环 */\n  animation: ring-spin 12s linear infinite; /* 慢速旋转，低侵扰 */\n}\n\n/* 玻璃高光层（更立体） */\n.floating-ball::before {\n  content: ''; /* 生成高光层 */\n  position: absolute; /* 绝对定位 */\n  inset: 2px; /* 缩进一点，保留边缘 */\n  border-radius: 50%; /* 圆形 */\n  background:\n    radial-gradient(120% 80% at 26% 24%, var(--specular) 0%, rgba(255, 255, 255, 0.2) 26%, rgba(255, 255, 255, 0) 46%),\n    /* 亮斑 */ linear-gradient(160deg, var(--glass) 0%, rgba(255, 255, 255, 0) 50%); /* 玻璃蒙层 */\n  mix-blend-mode: screen; /* 与底色叠加更自然 */\n  pointer-events: none; /* 不拦截事件 */\n  transition:\n    opacity 0.28s ease,\n    transform 0.28s ease; /* 悬停联动 */\n}\n\n/* 悬停态：轻微抬升+增强光影 */\n.floating-ball:hover {\n  transform: translateY(-2px) scale(1.04); /* 轻微升起并放大 */\n  box-shadow:\n    inset 0 2px 8px rgba(0, 0, 0, 0.22),\n    /* 内阴影略加强 */ 0 4px 10px rgba(0, 0, 0, 0.12),\n    /* 近影增强 */ 0 16px 36px rgba(0, 123, 255, 0.45); /* 远影更亮，呈现发光 */\n  filter: saturate(1.08); /* 提升饱和度一点点 */\n}\n\n/* 悬停时的微光扫过效果 */\n.floating-ball:hover::before {\n  opacity: 0.95; /* 高光更显著 */\n  animation: shimmer 1.2s ease-out; /* 一次性高光掠过 */\n}\n\n/* 按下态：略压低 */\n.floating-ball:active {\n  transform: translateY(0) scale(0.98); /* 回落一点并轻微压扁 */\n  box-shadow:\n    inset 0 2px 10px rgba(0, 0, 0, 0.28),\n    0 2px 6px rgba(0, 0, 0, 0.12),\n    0 10px 22px rgba(0, 123, 255, 0.35); /* 回到接近初始的阴影 */\n}\n\n/* 可达性：键盘聚焦时的可见描边（不改变布局） */\n.floating-ball:focus-visible {\n  outline: 2px solid rgba(102, 200, 255, 0.85); /* 高亮描边 */\n  outline-offset: 2px; /* 外移 2px，避免遮挡球体 */\n}\n\n/* 减少动态偏好：关闭动画保持静态优雅 */\n@media (prefers-reduced-motion: reduce) {\n  .floating-ball {\n    animation: none;\n  } /* 去除上下浮动 */\n  .floating-ball::after {\n    animation: none;\n  } /* 停止外环旋转 */\n}\n\n/* 轻微上下浮动（循环） */\n@keyframes ball-bob {\n  0%,\n  100% {\n    transform: translateY(0);\n  } /* 起点/终点：原位 */\n  50% {\n    transform: translateY(-2px);\n  } /* 中点：上浮 2px */\n}\n\n/* 外环慢速旋转（不刺眼） */\n@keyframes ring-spin {\n  0% {\n    transform: rotate(0deg);\n  } /* 起点：0 度 */\n  100% {\n    transform: rotate(360deg);\n  } /* 终点：整周旋转 */\n}\n\n/* 悬停时的高光扫过 */\n@keyframes shimmer {\n  0% {\n    transform: translateY(-1px) scale(0.98);\n    opacity: 0.6;\n  } /* 初始：弱一点的高光 */\n  50% {\n    transform: translateY(-2px) scale(1.02);\n    opacity: 1;\n  } /* 中段：最亮最大 */\n  100% {\n    transform: translateY(-1px) scale(0.99);\n    opacity: 0.85;\n  } /* 结束：回落 */\n}\n\n/* ======= ERA 内标（仅视觉层） ======= */\n.floating-ball {\n  --logo-scale: 0.38;\n} /* 可调：字体占球直径比例 */\n\n.era-logo {\n  font-weight: 800; /* 粗体，增强刻感 */\n  font-size: calc(var(--size) * var(--logo-scale)); /* 跟随球大小缩放 */\n  letter-spacing: 0.02em; /* 轻微字距，避免糊 */\n  line-height: 1; /* 紧凑对齐 */\n  transform: translateY(-1px); /* 视觉微调居中 */\n  white-space: nowrap; /* 防止换行 */\n  user-select: none;\n  pointer-events: none; /* 不抢事件、不选中 */\n  z-index: 1; /* 位于背景之上（仍在 ::after 光环之下） */\n\n  /* 渐变镂空字 + 立体阴影 */\n  background:\n    linear-gradient(\n      180deg,\n      rgba(255, 255, 255, 0.96) 0%,\n      rgba(255, 255, 255, 0.55) 45%,\n      rgba(220, 240, 255, 0.4) 65%,\n      rgba(120, 195, 255, 0.55) 100%\n    ),\n    /* 高光到冷蓝的层次 */ linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 60%); /* 轻内阴影 */\n  -webkit-background-clip: text;\n  background-clip: text; /* 渐变裁剪到文字 */\n  color: transparent; /* 镂空填充由背景提供 */\n  text-shadow:\n    0 1px 0 rgba(255, 255, 255, 0.75),\n    /* 顶部掣光 */ 0 2px 4px rgba(0, 0, 0, 0.25),\n    /* 近阴影 */ 0 8px 18px rgba(0, 123, 255, 0.35); /* 远发光阴影 */\n  filter: drop-shadow(0 0 2px rgba(102, 200, 255, 0.25)); /* 柔光晕 */\n  animation: era-sheen 4s ease-in-out infinite; /* 轻微高光流动 */\n}\n\n.floating-ball:hover .era-logo {\n  text-shadow:\n    0 1px 0 rgba(255, 255, 255, 0.85),\n    0 3px 8px rgba(0, 0, 0, 0.28),\n    0 10px 26px rgba(0, 123, 255, 0.55); /* 悬停增强立体感 */\n  filter: drop-shadow(0 0 3px rgba(102, 200, 255, 0.38)); /* 发光略加强 */\n}\n\n/* 高光缓慢上移，制造玻璃流光感（低侵扰） */\n@keyframes era-sheen {\n  0%,\n  100% {\n    background-position:\n      0% 0%,\n      0% 0%;\n  }\n  50% {\n    background-position:\n      0% 40%,\n      0% 0%;\n  }\n}\n</style>\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
 
 /***/ }),
 
-/***/ "./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css":
-/*!*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css ***!
-  \*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css":
+/*!***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css ***!
+  \***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -129,7 +129,7 @@ __webpack_require__.r(__webpack_exports__);
 var ___CSS_LOADER_EXPORT___ = _node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `.acc[data-v-525cff1c]{border:1px solid rgba(0,0,0,0.06);border-radius:12px;background:linear-gradient(180deg,#fff,#fafafa);overflow:hidden}.acc-head[data-v-525cff1c]{width:100%;display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,#f9fafb,#f3f4f6);border-bottom:1px solid rgba(0,0,0,0.06);padding:10px 12px;cursor:pointer;font-weight:800;color:#374151}.caret[data-v-525cff1c]{transition:transform 0.18s ease}.caret.open[data-v-525cff1c]{transform:rotate(90deg)}.title[data-v-525cff1c]{font-size:13px}.spacer[data-v-525cff1c]{flex:1}.hint[data-v-525cff1c]{font-size:12px;color:#6b7280}.acc-body[data-v-525cff1c]{overflow:hidden;transition:max-height 0.28s ease;background:rgba(255,255,255,0.82)}.inner[data-v-525cff1c]{padding:10px 12px}
-`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue"],"names":[],"mappings":"AAgEA,sBACE,iCAAqC,CACrC,kBAAmB,CACnB,+CAAkD,CAClD,eACF,CAEA,2BACE,UAAW,CACX,YAAa,CACb,kBAAmB,CACnB,QAAS,CACT,kDAAqD,CACrD,wCAA4C,CAC5C,iBAAkB,CAClB,cAAe,CACf,eAAgB,CAChB,aACF,CACA,wBACE,+BACF,CACA,6BACE,uBACF,CACA,wBACE,cACF,CACA,yBACE,MACF,CACA,uBACE,cAAe,CACf,aACF,CAEA,2BACE,eAAgB,CAChB,gCAAiC,CACjC,iCACF,CAEA,wBACE,iBACF","sourcesContent":["<template>\n  <section class=\"acc\">\n    <!-- 折叠头：点击切换 -->\n    <button class=\"acc-head\" :aria-expanded=\"open ? 'true' : 'false'\" @click=\"open = !open\">\n      <span class=\"caret\" :class=\"{ open }\">▸</span>\n      <!-- 指示箭头 -->\n      <span class=\"title\">{{ title }}</span>\n      <!-- 标题文本 -->\n      <span class=\"spacer\"></span>\n      <!-- 弹性空隙 -->\n      <span class=\"hint\">{{ open ? '收起' : '展开' }}</span>\n      <!-- 右侧提示 -->\n    </button>\n\n    <!-- 内容：高度过渡 -->\n    <div ref=\"bodyRef\" class=\"acc-body\" :style=\"{ maxHeight: bodyMaxHeight }\">\n      <div v-show=\"open\" class=\"inner\">\n        <!-- v-show：不销毁子树，只隐藏 -->\n        <slot />\n        <!-- 插槽内容 -->\n      </div>\n    </div>\n  </section>\n</template>\n\n<script setup lang=\"ts\">\nimport { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'; // 引入生命周期与异步刷新\n\nconst props = withDefaults(defineProps<{ title: string; defaultOpen?: boolean }>(), {\n  defaultOpen: false, // 默认收起\n}); // props 定义\nconst open = ref<boolean>(props.defaultOpen); // 折叠状态\nconst bodyRef = ref<HTMLElement | null>(null); // 内容容器引用\nconst bodyMaxHeight = ref<string>('0px'); // 当前 maxHeight\n\n// 重新测量内容高度并写入样式变量\nasync function recalc() {\n  // 定义重测函数\n  await nextTick(); // 等待 DOM 更新\n  const el = bodyRef.value; // 取到容器\n  if (!el) {\n    bodyMaxHeight.value = '0px';\n    return;\n  } // 容器不存在则归零\n  if (open.value) {\n    // 若展开\n    const h = el.scrollHeight; // 读取实际内容高度\n    bodyMaxHeight.value = h + 'px'; // 应用到样式\n  } else {\n    bodyMaxHeight.value = '0px'; // 收起设为 0\n  }\n}\n\n// 监听开合状态变化时重测\nwatch(open, () => recalc()); // 状态变化→重测\nonMounted(() => {\n  // 挂载后\n  recalc(); // 立即测一次\n  window.addEventListener('resize', recalc); // 监听窗口大小变化\n});\nonBeforeUnmount(() => window.removeEventListener('resize', recalc)); // 清理监听\n</script>\n\n<style scoped>\n.acc {\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 12px;\n  background: linear-gradient(180deg, #fff, #fafafa);\n  overflow: hidden;\n}\n\n.acc-head {\n  width: 100%;\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  background: linear-gradient(180deg, #f9fafb, #f3f4f6);\n  border-bottom: 1px solid rgba(0, 0, 0, 0.06);\n  padding: 10px 12px;\n  cursor: pointer;\n  font-weight: 800;\n  color: #374151;\n}\n.caret {\n  transition: transform 0.18s ease;\n}\n.caret.open {\n  transform: rotate(90deg);\n}\n.title {\n  font-size: 13px;\n}\n.spacer {\n  flex: 1;\n}\n.hint {\n  font-size: 12px;\n  color: #6b7280;\n}\n\n.acc-body {\n  overflow: hidden;\n  transition: max-height 0.28s ease; /* 略增时长更顺滑 */\n  background: rgba(255, 255, 255, 0.82);\n}\n\n.inner {\n  padding: 10px 12px;\n}\n</style>\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue"],"names":[],"mappings":"AA6EA,sBACE,iCAAqC,CACrC,kBAAmB,CACnB,+CAAkD,CAClD,eACF,CAEA,2BACE,UAAW,CACX,YAAa,CACb,kBAAmB,CACnB,QAAS,CACT,kDAAqD,CACrD,wCAA4C,CAC5C,iBAAkB,CAClB,cAAe,CACf,eAAgB,CAChB,aACF,CACA,wBACE,+BACF,CACA,6BACE,uBACF,CACA,wBACE,cACF,CACA,yBACE,MACF,CACA,uBACE,cAAe,CACf,aACF,CAEA,2BACE,eAAgB,CAChB,gCAAiC,CACjC,iCACF,CAEA,wBACE,iBACF","sourcesContent":["<template>\n  <section class=\"acc\">\n    <!-- 折叠头：点击切换 -->\n    <button class=\"acc-head\" :aria-expanded=\"open ? 'true' : 'false'\" @click=\"open = !open\">\n      <span class=\"caret\" :class=\"{ open }\">▸</span>\n      <!-- 指示箭头 -->\n      <span class=\"title\">{{ title }}</span>\n      <!-- 标题文本 -->\n      <span class=\"spacer\"></span>\n      <!-- 弹性空隙 -->\n      <span class=\"hint\">{{ open ? '收起' : '展开' }}</span>\n      <!-- 右侧提示 -->\n    </button>\n\n    <!-- 内容：高度过渡 -->\n    <div ref=\"bodyRef\" class=\"acc-body\" :style=\"{ maxHeight: bodyMaxHeight }\">\n      <div v-show=\"open\" class=\"inner\">\n        <!-- v-show：不销毁子树，只隐藏 -->\n        <slot />\n        <!-- 插槽内容 -->\n      </div>\n    </div>\n  </section>\n</template>\n\n<script setup lang=\"ts\">\nimport { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'; // 引入生命周期与异步刷新\nimport { Logger } from '../../../../utils/log';\n\nconst props = withDefaults(defineProps<{ title: string; defaultOpen?: boolean }>(), {\n  defaultOpen: false, // 默认收起\n}); // props 定义\n\nconst logger = new Logger(`ui-EraAccordion[${props.title}]`);\nconst open = ref<boolean>(props.defaultOpen); // 折叠状态\nconst bodyRef = ref<HTMLElement | null>(null); // 内容容器引用\nconst bodyMaxHeight = ref<string>('0px'); // 当前 maxHeight\n\n// 重新测量内容高度并写入样式变量\nasync function recalc() {\n  // 定义重测函数\n  await nextTick(); // 等待 DOM 更新\n  const el = bodyRef.value; // 取到容器\n  if (!el) {\n    logger.warn('recalc', '内容容器 bodyRef 不存在，无法重测高度');\n    bodyMaxHeight.value = '0px';\n    return;\n  } // 容器不存在则归零\n  if (open.value) {\n    // 若展开\n    const h = el.scrollHeight; // 读取实际内容高度\n    bodyMaxHeight.value = h + 'px'; // 应用到样式\n    logger.debug('recalc', `展开状态，计算高度为: ${h}px`);\n  } else {\n    bodyMaxHeight.value = '0px'; // 收起设为 0\n    logger.debug('recalc', `收起状态，高度设为 0px`);\n  }\n}\n\n// 监听开合状态变化时重测\nwatch(open, newOpenState => {\n  logger.log('watch:open', `折叠状态改变为: ${newOpenState ? '展开' : '收起'}`);\n  recalc();\n}); // 状态变化→重测\nonMounted(() => {\n  // 挂载后\n  logger.log('onMounted', '组件已挂载', { props });\n  recalc(); // 立即测一次\n  window.addEventListener('resize', recalc); // 监听窗口大小变化\n});\nonBeforeUnmount(() => {\n  logger.log('onBeforeUnmount', '组件即将卸载，移除 resize 监听器');\n  window.removeEventListener('resize', recalc);\n}); // 清理监听\n</script>\n\n<style scoped>\n.acc {\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 12px;\n  background: linear-gradient(180deg, #fff, #fafafa);\n  overflow: hidden;\n}\n\n.acc-head {\n  width: 100%;\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  background: linear-gradient(180deg, #f9fafb, #f3f4f6);\n  border-bottom: 1px solid rgba(0, 0, 0, 0.06);\n  padding: 10px 12px;\n  cursor: pointer;\n  font-weight: 800;\n  color: #374151;\n}\n.caret {\n  transition: transform 0.18s ease;\n}\n.caret.open {\n  transform: rotate(90deg);\n}\n.title {\n  font-size: 13px;\n}\n.spacer {\n  flex: 1;\n}\n.hint {\n  font-size: 12px;\n  color: #6b7280;\n}\n\n.acc-body {\n  overflow: hidden;\n  transition: max-height 0.28s ease; /* 略增时长更顺滑 */\n  background: rgba(255, 255, 255, 0.82);\n}\n\n.inner {\n  padding: 10px 12px;\n}\n</style>\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -156,7 +156,7 @@ __webpack_require__.r(__webpack_exports__);
 var ___CSS_LOADER_EXPORT___ = _node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `.json-line[data-v-24d5a928]{position:relative;display:flex;align-items:center;gap:6px;padding:2px 6px;border-radius:6px}.json-line[data-v-24d5a928]:hover{background:rgba(59,130,246,0.06)}.json-children[data-v-24d5a928]{border-left:1px dashed rgba(107,114,128,0.25)}.key[data-v-24d5a928]{color:#1f2937;font-weight:700}.colon[data-v-24d5a928]{color:#6b7280}.brace[data-v-24d5a928]{color:#9ca3af}.summary[data-v-24d5a928]{color:#6b7280;margin-left:4px}.val.string[data-v-24d5a928]{color:#047857}.val.number[data-v-24d5a928]{color:#7c3aed}.val.boolean[data-v-24d5a928]{color:#0369a1}.val.null[data-v-24d5a928]{color:#9ca3af}.val.undefined[data-v-24d5a928]{color:#9ca3af}.caret[data-v-24d5a928]{width:18px;height:18px;border:1px solid rgba(0,0,0,0.06);border-radius:4px;background:#fff;line-height:16px;text-align:center;font-size:10px;color:#6b7280;cursor:pointer;box-shadow:0 1px 0 #fff,0 2px 6px rgba(0,0,0,0.06);transition:transform 0.18s ease,box-shadow 0.18s ease}.caret.open[data-v-24d5a928]{transform:rotate(90deg);box-shadow:0 3px 10px rgba(0,0,0,0.12)}
-`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/era-panel/parts/JsonNode.vue"],"names":[],"mappings":"AAyIA,4BACE,iBAAkB,CAClB,YAAa,CACb,kBAAmB,CACnB,OAAQ,CACR,eAAgB,CAChB,iBACF,CACA,kCACE,gCACF,CACA,gCACE,6CACF,CAGA,sBACE,aAAc,CACd,eACF,CACA,wBACE,aACF,CACA,wBACE,aACF,CACA,0BACE,aAAc,CACd,eACF,CACA,6BACE,aACF,CACA,6BACE,aACF,CACA,8BACE,aACF,CACA,2BACE,aACF,CACA,gCACE,aACF,CAGA,wBACE,UAAW,CACX,WAAY,CACZ,iCAAqC,CACrC,iBAAkB,CAClB,eAAgB,CAChB,gBAAiB,CACjB,iBAAkB,CAClB,cAAe,CACf,aAAc,CACd,cAAe,CACf,kDAE+B,CAC/B,qDAGF,CACA,6BACE,uBAAwB,CACxB,sCACF","sourcesContent":["<template>\n  <!-- 单条节点（支持递归） -->\n  <div class=\"node\">\n    <!-- 每个键值对 / 数组项的容器 -->\n    <div class=\"json-line\" :style=\"{ paddingLeft: level * 14 + 'px' }\">\n      <!-- 行+缩进 -->\n      <button v-if=\"foldable\" class=\"caret\" :class=\"{ open }\" aria-label=\"toggle\" @click=\"open = !open\">▸</button>\n      <!-- 折叠箭头按钮 -->\n\n      <span class=\"key\">{{ k }}</span\n      ><span class=\"colon\">:</span>\n      <!-- 键与冒号 -->\n\n      <!-- 可折叠容器：只显示括号与摘要；展开后由下方 children 区域递归渲染 -->\n      <template v-if=\"foldable\">\n        <span class=\"brace\">{{ isArray ? '[' : '{' }}</span>\n        <!-- 容器起始括号 -->\n        <span v-if=\"!open\" class=\"summary\">{{ summary }}</span>\n        <!-- 收起时的摘要 -->\n      </template>\n\n      <!-- 原始值：直接着色渲染 -->\n      <template v-else>\n        <span class=\"val\" :class=\"type\">{{ primitiveText }}</span>\n        <!-- 原始值文本 -->\n      </template>\n    </div>\n\n    <!-- 子元素区域：仅当可折叠且处于展开态时显示 -->\n    <template v-if=\"foldable\">\n      <div v-show=\"open\" class=\"json-children\">\n        <!-- 递归：自引用同名组件 JsonNode（依赖 name: 'JsonNode' 实现自递归） -->\n        <JsonNode\n          v-for=\"(childVal, childKey) in childEntries\"\n          :key=\"path + '/' + String(childKey)\"\n          :k=\"String(childKey)\"\n          :v=\"childVal\"\n          :path=\"path + '/' + String(childKey)\"\n          :level=\"level + 1\"\n          :default-collapsed=\"defaultCollapsed\"\n          :max-depth=\"maxDepth\"\n        />\n        <div class=\"json-line\" :style=\"{ paddingLeft: level * 14 + 'px' }\">\n          <span class=\"brace\">{{ isArray ? ']' : '}' }}</span>\n          <!-- 容器闭合括号 -->\n        </div>\n      </div>\n    </template>\n  </div>\n</template>\n\n<script lang=\"ts\">\nimport { computed, defineComponent, ref } from 'vue'; // 引入响应式/组件工具\n\nexport default defineComponent({\n  name: 'JsonNode', // 关键：为自递归提供组件名\n  props: {\n    k: { type: [String, Number], required: true }, // 当前键（或数组下标）\n    v: { required: true }, // 当前值\n    path: { type: String, required: true }, // 路径（仅用于 key/调试）\n    level: { type: Number, required: true }, // 层级（用于缩进）\n    defaultCollapsed: { type: Boolean, default: true }, // 默认是否折叠\n    maxDepth: { type: Number, default: 3 }, // 初次展开的最大深度\n  },\n  setup(p) {\n    // 节点类型判定\n    const type = computed(() => {\n      const val = p.v;\n      if (val === null) return 'null';\n      if (Array.isArray(val)) return 'array';\n      const t = typeof val;\n      if (t === 'object') return 'object';\n      if (t === 'undefined') return 'undefined';\n      return t as 'string' | 'number' | 'boolean' | 'bigint' | 'symbol' | 'function';\n    });\n\n    // 是否数组/对象\n    const isArray = computed(() => type.value === 'array');\n    const isObject = computed(() => type.value === 'object');\n\n    // 是否可折叠\n    const foldable = computed(() => isArray.value || isObject.value);\n\n    // 初始开合：不超过 maxDepth 的层级默认展开；否则遵循 defaultCollapsed\n    const open = ref<boolean>(p.level <= (p.maxDepth ?? 3) ? true : !p.defaultCollapsed);\n\n    // 原始值渲染文本（补足 undefined / bigint / symbol）\n    const primitiveText = computed(() => {\n      const val = p.v as any;\n      switch (type.value) {\n        case 'string':\n          return JSON.stringify(val);\n        case 'number':\n          return String(val);\n        case 'boolean':\n          return val ? 'true' : 'false';\n        case 'null':\n          return 'null';\n        case 'undefined':\n          return 'undefined';\n        case 'bigint':\n          return String(val) + 'n';\n        case 'symbol':\n          return String(val);\n        case 'function':\n          return 'ƒ()';\n        default:\n          return '';\n      }\n    });\n\n    // 收起时的摘要信息\n    const summary = computed(() => {\n      if (isArray.value) return `Array[${(p.v as any[]).length}]`;\n      if (isObject.value) return `Object{${Object.keys(p.v || {}).length}}`;\n      return '';\n    });\n\n    // 子项列表：对象 → 其 entries；数组 → 直接枚举索引和值\n    const childEntries = computed<Record<string, any>>(() => {\n      if (isObject.value) return p.v as Record<string, any>;\n      if (isArray.value) {\n        const out: Record<string, any> = {};\n        (p.v as any[]).forEach((cv, idx) => {\n          out[String(idx)] = cv;\n        });\n        return out;\n      }\n      return {};\n    });\n\n    return { type, isArray, foldable, open, primitiveText, summary, childEntries };\n  },\n});\n</script>\n\n<style scoped>\n.json-line {\n  position: relative;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 2px 6px;\n  border-radius: 6px;\n}\n.json-line:hover {\n  background: rgba(59, 130, 246, 0.06);\n}\n.json-children {\n  border-left: 1px dashed rgba(107, 114, 128, 0.25);\n}\n\n/* 结构元素与着色 */\n.key {\n  color: #1f2937;\n  font-weight: 700;\n}\n.colon {\n  color: #6b7280;\n}\n.brace {\n  color: #9ca3af;\n}\n.summary {\n  color: #6b7280;\n  margin-left: 4px;\n}\n.val.string {\n  color: #047857;\n}\n.val.number {\n  color: #7c3aed;\n}\n.val.boolean {\n  color: #0369a1;\n}\n.val.null {\n  color: #9ca3af;\n}\n.val.undefined {\n  color: #9ca3af;\n}\n\n/* 折叠箭头 */\n.caret {\n  width: 18px;\n  height: 18px;\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 4px;\n  background: #fff;\n  line-height: 16px;\n  text-align: center;\n  font-size: 10px;\n  color: #6b7280;\n  cursor: pointer;\n  box-shadow:\n    0 1px 0 #fff,\n    0 2px 6px rgba(0, 0, 0, 0.06);\n  transition:\n    transform 0.18s ease,\n    box-shadow 0.18s ease;\n}\n.caret.open {\n  transform: rotate(90deg);\n  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);\n}\n</style>\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/era-panel/parts/JsonNode.vue"],"names":[],"mappings":"AAoJA,4BACE,iBAAkB,CAClB,YAAa,CACb,kBAAmB,CACnB,OAAQ,CACR,eAAgB,CAChB,iBACF,CACA,kCACE,gCACF,CACA,gCACE,6CACF,CAGA,sBACE,aAAc,CACd,eACF,CACA,wBACE,aACF,CACA,wBACE,aACF,CACA,0BACE,aAAc,CACd,eACF,CACA,6BACE,aACF,CACA,6BACE,aACF,CACA,8BACE,aACF,CACA,2BACE,aACF,CACA,gCACE,aACF,CAGA,wBACE,UAAW,CACX,WAAY,CACZ,iCAAqC,CACrC,iBAAkB,CAClB,eAAgB,CAChB,gBAAiB,CACjB,iBAAkB,CAClB,cAAe,CACf,aAAc,CACd,cAAe,CACf,kDAE+B,CAC/B,qDAGF,CACA,6BACE,uBAAwB,CACxB,sCACF","sourcesContent":["<template>\n  <!-- 单条节点（支持递归） -->\n  <div class=\"node\">\n    <!-- 每个键值对 / 数组项的容器 -->\n    <div class=\"json-line\" :style=\"{ paddingLeft: level * 14 + 'px' }\">\n      <!-- 行+缩进 -->\n      <button v-if=\"foldable\" class=\"caret\" :class=\"{ open }\" aria-label=\"toggle\" @click=\"open = !open\">▸</button>\n      <!-- 折叠箭头按钮 -->\n\n      <span class=\"key\">{{ k }}</span\n      ><span class=\"colon\">:</span>\n      <!-- 键与冒号 -->\n\n      <!-- 可折叠容器：只显示括号与摘要；展开后由下方 children 区域递归渲染 -->\n      <template v-if=\"foldable\">\n        <span class=\"brace\">{{ isArray ? '[' : '{' }}</span>\n        <!-- 容器起始括号 -->\n        <span v-if=\"!open\" class=\"summary\">{{ summary }}</span>\n        <!-- 收起时的摘要 -->\n      </template>\n\n      <!-- 原始值：直接着色渲染 -->\n      <template v-else>\n        <span class=\"val\" :class=\"type\">{{ primitiveText }}</span>\n        <!-- 原始值文本 -->\n      </template>\n    </div>\n\n    <!-- 子元素区域：仅当可折叠且处于展开态时显示 -->\n    <template v-if=\"foldable\">\n      <div v-show=\"open\" class=\"json-children\">\n        <!-- 递归：自引用同名组件 JsonNode（依赖 name: 'JsonNode' 实现自递归） -->\n        <JsonNode\n          v-for=\"(childVal, childKey) in childEntries\"\n          :key=\"path + '/' + String(childKey)\"\n          :k=\"String(childKey)\"\n          :v=\"childVal\"\n          :path=\"path + '/' + String(childKey)\"\n          :level=\"level + 1\"\n          :default-collapsed=\"defaultCollapsed\"\n          :max-depth=\"maxDepth\"\n        />\n        <div class=\"json-line\" :style=\"{ paddingLeft: level * 14 + 'px' }\">\n          <span class=\"brace\">{{ isArray ? ']' : '}' }}</span>\n          <!-- 容器闭合括号 -->\n        </div>\n      </div>\n    </template>\n  </div>\n</template>\n\n<script lang=\"ts\">\nimport { computed, defineComponent, onMounted, ref, watch } from 'vue'; // 引入响应式/组件工具\nimport { Logger } from '../../../../utils/log';\n\nexport default defineComponent({\n  name: 'JsonNode', // 关键：为自递归提供组件名\n  props: {\n    k: { type: [String, Number], required: true }, // 当前键（或数组下标）\n    v: { required: true }, // 当前值\n    path: { type: String, required: true }, // 路径（仅用于 key/调试）\n    level: { type: Number, required: true }, // 层级（用于缩进）\n    defaultCollapsed: { type: Boolean, default: true }, // 默认是否折叠\n    maxDepth: { type: Number, default: 3 }, // 初次展开的最大深度\n  },\n  setup(p) {\n    const logger = new Logger(`ui-JsonNode[${p.path}]`);\n\n    onMounted(() => {\n      logger.log('onMounted', '组件已挂载', { props: p });\n    });\n\n    // 节点类型判定\n    const type = computed(() => {\n      const val = p.v;\n      if (val === null) return 'null';\n      if (Array.isArray(val)) return 'array';\n      const t = typeof val;\n      if (t === 'object') return 'object';\n      if (t === 'undefined') return 'undefined';\n      return t as 'string' | 'number' | 'boolean' | 'bigint' | 'symbol' | 'function';\n    });\n\n    // 是否数组/对象\n    const isArray = computed(() => type.value === 'array');\n    const isObject = computed(() => type.value === 'object');\n\n    // 是否可折叠\n    const foldable = computed(() => isArray.value || isObject.value);\n\n    // 初始开合：不超过 maxDepth 的层级默认展开；否则遵循 defaultCollapsed\n    const open = ref<boolean>(p.level <= (p.maxDepth ?? 3) ? true : !p.defaultCollapsed);\n\n    watch(open, newOpenState => {\n      logger.debug('watch:open', `折叠状态改变为: ${newOpenState ? '展开' : '收起'}`);\n    });\n\n    // 原始值渲染文本（补足 undefined / bigint / symbol）\n    const primitiveText = computed(() => {\n      const val = p.v as any;\n      switch (type.value) {\n        case 'string':\n          return JSON.stringify(val);\n        case 'number':\n          return String(val);\n        case 'boolean':\n          return val ? 'true' : 'false';\n        case 'null':\n          return 'null';\n        case 'undefined':\n          return 'undefined';\n        case 'bigint':\n          return String(val) + 'n';\n        case 'symbol':\n          return String(val);\n        case 'function':\n          return 'ƒ()';\n        default:\n          return '';\n      }\n    });\n\n    // 收起时的摘要信息\n    const summary = computed(() => {\n      if (isArray.value) return `Array[${(p.v as any[]).length}]`;\n      if (isObject.value) return `Object{${Object.keys(p.v || {}).length}}`;\n      return '';\n    });\n\n    // 子项列表：对象 → 其 entries；数组 → 直接枚举索引和值\n    const childEntries = computed<Record<string, any>>(() => {\n      if (isObject.value) return p.v as Record<string, any>;\n      if (isArray.value) {\n        const out: Record<string, any> = {};\n        (p.v as any[]).forEach((cv, idx) => {\n          out[String(idx)] = cv;\n        });\n        return out;\n      }\n      return {};\n    });\n\n    return { type, isArray, foldable, open, primitiveText, summary, childEntries };\n  },\n});\n</script>\n\n<style scoped>\n.json-line {\n  position: relative;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 2px 6px;\n  border-radius: 6px;\n}\n.json-line:hover {\n  background: rgba(59, 130, 246, 0.06);\n}\n.json-children {\n  border-left: 1px dashed rgba(107, 114, 128, 0.25);\n}\n\n/* 结构元素与着色 */\n.key {\n  color: #1f2937;\n  font-weight: 700;\n}\n.colon {\n  color: #6b7280;\n}\n.brace {\n  color: #9ca3af;\n}\n.summary {\n  color: #6b7280;\n  margin-left: 4px;\n}\n.val.string {\n  color: #047857;\n}\n.val.number {\n  color: #7c3aed;\n}\n.val.boolean {\n  color: #0369a1;\n}\n.val.null {\n  color: #9ca3af;\n}\n.val.undefined {\n  color: #9ca3af;\n}\n\n/* 折叠箭头 */\n.caret {\n  width: 18px;\n  height: 18px;\n  border: 1px solid rgba(0, 0, 0, 0.06);\n  border-radius: 4px;\n  background: #fff;\n  line-height: 16px;\n  text-align: center;\n  font-size: 10px;\n  color: #6b7280;\n  cursor: pointer;\n  box-shadow:\n    0 1px 0 #fff,\n    0 2px 6px rgba(0, 0, 0, 0.06);\n  transition:\n    transform 0.18s ease,\n    box-shadow 0.18s ease;\n}\n.caret.open {\n  transform: rotate(90deg);\n  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);\n}\n</style>\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -210,7 +210,7 @@ __webpack_require__.r(__webpack_exports__);
 var ___CSS_LOADER_EXPORT___ = _node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `.json-root[data-v-15c94b4e]{font-size:12px;color:#111827}.json-line[data-v-15c94b4e]{position:relative;display:flex;align-items:center;gap:6px;padding:2px 6px;border-radius:6px}.json-line[data-v-15c94b4e]:hover{background:rgba(59,130,246,0.06)}.json-children[data-v-15c94b4e]{border-left:1px dashed rgba(107,114,128,0.25)}.key[data-v-15c94b4e]{color:#1f2937;font-weight:700}.colon[data-v-15c94b4e]{color:#6b7280}.brace[data-v-15c94b4e]{color:#9ca3af}.val.string[data-v-15c94b4e]{color:#047857}.val.number[data-v-15c94b4e]{color:#7c3aed}.val.boolean[data-v-15c94b4e]{color:#0369a1}.val.null[data-v-15c94b4e]{color:#9ca3af}.val.undefined[data-v-15c94b4e]{color:#9ca3af}
-`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/era-panel/parts/PrettyJsonViewer.vue"],"names":[],"mappings":"AAkHA,4BACE,cAAe,CACf,aACF,CACA,4BACE,iBAAkB,CAClB,YAAa,CACb,kBAAmB,CACnB,OAAQ,CACR,eAAgB,CAChB,iBACF,CACA,kCACE,gCACF,CACA,gCACE,6CACF,CAEA,sBACE,aAAc,CACd,eACF,CACA,wBACE,aACF,CACA,wBACE,aACF,CAEA,6BACE,aACF,CACA,6BACE,aACF,CACA,8BACE,aACF,CACA,2BACE,aACF,CACA,gCACE,aACF","sourcesContent":["<template>\n  <div class=\"json-root\">\n    <div class=\"json-line\">\n      <span class=\"brace\">{{ rootOpen }}</span>\n      <!-- 根开括号：对象{ / 数组[ -->\n    </div>\n\n    <div class=\"json-children\">\n      <template v-if=\"isPlainObjectOrArray\">\n        <!-- 对象根：按键枚举 -->\n        <template v-if=\"!isArrayRoot\">\n          <JsonNode\n            v-for=\"(v, k) in value\"\n            :key=\"String(k)\"\n            :k=\"String(k)\"\n            :v=\"v\"\n            :path=\"String(k)\"\n            :level=\"1\"\n            :default-collapsed=\"defaultCollapsed\"\n            :max-depth=\"maxDepth\"\n          />\n        </template>\n\n        <!-- 数组根：按索引枚举 -->\n        <template v-else>\n          <JsonNode\n            v-for=\"(v, i) in value\"\n            :key=\"String(i)\"\n            :k=\"String(i)\"\n            :v=\"v\"\n            :path=\"String(i)\"\n            :level=\"1\"\n            :default-collapsed=\"defaultCollapsed\"\n            :max-depth=\"maxDepth\"\n          />\n        </template>\n      </template>\n\n      <template v-else>\n        <div class=\"json-line\" :style=\"{ paddingLeft: 1 * 14 + 'px' }\">\n          <span class=\"key\">value</span><span class=\"colon\">:</span>\n          <span class=\"val\" :class=\"primitiveType\">{{ primitiveText }}</span>\n        </div>\n      </template>\n    </div>\n\n    <div class=\"json-line\">\n      <span class=\"brace\">{{ rootClose }}</span>\n      <!-- 根闭括号：对象} / 数组] -->\n    </div>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { computed } from 'vue'; // 计算属性工具\nimport JsonNode from './JsonNode.vue'; // ✅ 改为导入独立 SFC 的递归节点组件\n\nconst props = withDefaults(\n  defineProps<{\n    value: any; // 要展示的 JSON 值\n    defaultCollapsed?: boolean; // 默认是否折叠\n    maxDepth?: number; // 初次展开最大层数\n  }>(),\n  {\n    defaultCollapsed: true, // 默认折叠\n    maxDepth: 3, // 默认展开到 3 层\n  },\n);\n\nconst isPlainObjectOrArray = computed(() => {\n  const v = props.value; // 取入参值\n  return v !== null && typeof v === 'object'; // 仅对象/数组才进入逐键渲染\n}); // 是否对象/数组\n\nconst primitiveType = computed(() => {\n  const v = props.value; // 取入参值\n  if (v === null) return 'null'; // null\n  if (Array.isArray(v)) return 'array'; // 数组（不会走到该分支，因为上面判断过）\n  const t = typeof v; // 原始类型\n  return (t === 'undefined' ? 'undefined' : t) as string;\n}); // 原始值类型名（用于着色）\n\nconst primitiveText = computed(() => {\n  const v = props.value; // 取入参值\n  switch (\n    primitiveType.value // 按类型格式化文本\n  ) {\n    case 'string':\n      return JSON.stringify(v); // 字符串带引号\n    case 'number':\n      return String(v); // 数字\n    case 'boolean':\n      return v ? 'true' : 'false'; // 布尔\n    case 'null':\n      return 'null'; // null\n    case 'undefined':\n      return 'undefined'; // undefined\n    case 'bigint':\n      return String(v) + 'n'; // bigint\n    case 'symbol':\n      return String(v); // symbol\n    case 'function':\n      return 'ƒ()'; // 函数\n    default:\n      return ''; // 兜底\n  }\n}); // 原始值文本\n\nconst isArrayRoot = computed(() => Array.isArray(props.value)); // 根是否数组\nconst rootOpen = computed(() => (isArrayRoot.value ? '[' : '{')); // 根开括号\nconst rootClose = computed(() => (isArrayRoot.value ? ']' : '}')); // 根闭括号\n</script>\n\n<style scoped>\n.json-root {\n  font-size: 12px;\n  color: #111827;\n}\n.json-line {\n  position: relative;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 2px 6px;\n  border-radius: 6px;\n}\n.json-line:hover {\n  background: rgba(59, 130, 246, 0.06);\n}\n.json-children {\n  border-left: 1px dashed rgba(107, 114, 128, 0.25);\n}\n\n.key {\n  color: #1f2937;\n  font-weight: 700;\n}\n.colon {\n  color: #6b7280;\n}\n.brace {\n  color: #9ca3af;\n}\n\n.val.string {\n  color: #047857;\n}\n.val.number {\n  color: #7c3aed;\n}\n.val.boolean {\n  color: #0369a1;\n}\n.val.null {\n  color: #9ca3af;\n}\n.val.undefined {\n  color: #9ca3af;\n}\n</style>\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/ERA变量框架/ui/components/era-panel/parts/PrettyJsonViewer.vue"],"names":[],"mappings":"AAkIA,4BACE,cAAe,CACf,aACF,CACA,4BACE,iBAAkB,CAClB,YAAa,CACb,kBAAmB,CACnB,OAAQ,CACR,eAAgB,CAChB,iBACF,CACA,kCACE,gCACF,CACA,gCACE,6CACF,CAEA,sBACE,aAAc,CACd,eACF,CACA,wBACE,aACF,CACA,wBACE,aACF,CAEA,6BACE,aACF,CACA,6BACE,aACF,CACA,8BACE,aACF,CACA,2BACE,aACF,CACA,gCACE,aACF","sourcesContent":["<template>\n  <div class=\"json-root\">\n    <div class=\"json-line\">\n      <span class=\"brace\">{{ rootOpen }}</span>\n      <!-- 根开括号：对象{ / 数组[ -->\n    </div>\n\n    <div class=\"json-children\">\n      <template v-if=\"isPlainObjectOrArray\">\n        <JsonNode\n          v-for=\"(v, k) in value\"\n          :key=\"String(k)\"\n          :k=\"String(k)\"\n          :v=\"v\"\n          :path=\"String(k)\"\n          :level=\"1\"\n          :default-collapsed=\"defaultCollapsed\"\n          :max-depth=\"maxDepth\"\n        />\n      </template>\n\n      <template v-else>\n        <div class=\"json-line\" :style=\"{ paddingLeft: 1 * 14 + 'px' }\">\n          <span class=\"key\">value</span><span class=\"colon\">:</span>\n          <span class=\"val\" :class=\"primitiveType\">{{ primitiveText }}</span>\n        </div>\n      </template>\n    </div>\n\n    <div class=\"json-line\">\n      <span class=\"brace\">{{ rootClose }}</span>\n      <!-- 根闭括号：对象} / 数组] -->\n    </div>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\nimport { computed } from 'vue'; // 计算属性工具\nimport { Logger } from '../../../../utils/log';\nimport JsonNode from './JsonNode.vue'; // ✅ 改为导入独立 SFC 的递归节点组件\n\nconst logger = new Logger();\n\nconst props = withDefaults(\n  defineProps<{\n    value: any; // 要展示的 JSON 值\n    defaultCollapsed?: boolean; // 默认是否折叠\n    maxDepth?: number; // 初次展开最大层数\n  }>(),\n  {\n    defaultCollapsed: true, // 默认折叠\n    maxDepth: 3, // 默认展开到 3 层\n  },\n);\n\nconst isPlainObjectOrArray = computed(() => {\n  const v = props.value; // 取入参值\n  const result = v !== null && typeof v === 'object'; // 仅对象/数组才进入逐键渲染\n  logger.debug('isPlainObjectOrArray', `计算结果: ${result}。该值${result ? '是' : '不是'}普通对象或数组。`, {\n    传入值: v,\n  });\n  return result;\n}); // 是否对象/数组\n\nconst primitiveType = computed(() => {\n  const v = props.value; // 取入参值\n  let result: string;\n  if (v === null) {\n    result = 'null';\n  } else if (Array.isArray(v)) {\n    result = 'array'; // 数组（不会走到该分支，因为上面 isPlainObjectOrArray 判断过）\n  } else {\n    const t = typeof v; // 原始类型\n    result = t === 'undefined' ? 'undefined' : t;\n  }\n  logger.debug('primitiveType', `计算原始值类型: ${result}`, { 传入值: v });\n  return result;\n}); // 原始值类型名（用于着色）\n\nconst primitiveText = computed(() => {\n  const v = props.value; // 取入参值\n  let result: string;\n  switch (\n    primitiveType.value // 按类型格式化文本\n  ) {\n    case 'string':\n      result = JSON.stringify(v); // 字符串带引号\n      break;\n    case 'number':\n      result = String(v); // 数字\n      break;\n    case 'boolean':\n      result = v ? 'true' : 'false'; // 布尔\n      break;\n    case 'null':\n      result = 'null'; // null\n      break;\n    case 'undefined':\n      result = 'undefined'; // undefined\n      break;\n    case 'bigint':\n      result = String(v) + 'n'; // bigint\n      break;\n    case 'symbol':\n      result = String(v); // symbol\n      break;\n    case 'function':\n      result = 'ƒ()'; // 函数\n      break;\n    default:\n      result = ''; // 兜底\n      break;\n  }\n  logger.debug('primitiveText', `格式化原始值文本: \"${result}\"`, {\n    传入值: v,\n    类型: primitiveType.value,\n  });\n  return result;\n}); // 原始值文本\n\nconst isArrayRoot = computed(() => {\n  const result = Array.isArray(props.value);\n  logger.debug('isArrayRoot', `计算根节点是否为数组: ${result}`, { 传入值: props.value });\n  return result;\n}); // 根是否数组\nconst rootOpen = computed(() => (isArrayRoot.value ? '[' : '{')); // 根开括号\nconst rootClose = computed(() => (isArrayRoot.value ? ']' : '}')); // 根闭括号\n</script>\n\n<style scoped>\n.json-root {\n  font-size: 12px;\n  color: #111827;\n}\n.json-line {\n  position: relative;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 2px 6px;\n  border-radius: 6px;\n}\n.json-line:hover {\n  background: rgba(59, 130, 246, 0.06);\n}\n.json-children {\n  border-left: 1px dashed rgba(107, 114, 128, 0.25);\n}\n\n.key {\n  color: #1f2937;\n  font-weight: 700;\n}\n.colon {\n  color: #6b7280;\n}\n.brace {\n  color: #9ca3af;\n}\n\n.val.string {\n  color: #047857;\n}\n.val.number {\n  color: #7c3aed;\n}\n.val.boolean {\n  color: #0369a1;\n}\n.val.null {\n  color: #9ca3af;\n}\n.val.undefined {\n  color: #9ca3af;\n}\n</style>\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -375,13 +375,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _components_ActionButtons_vue__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./components/ActionButtons.vue */ "./src/ERA变量框架/ui/components/ActionButtons.vue");
-/* harmony import */ var _components_FloatingBall_vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/FloatingBall.vue */ "./src/ERA变量框架/ui/components/FloatingBall.vue");
-/* harmony import */ var _components_era_panel_parts_EraAccordion_vue__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/era-panel/parts/EraAccordion.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue");
-/* harmony import */ var _components_era_panel_parts_MetaHeader_vue__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./components/era-panel/parts/MetaHeader.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/MetaHeader.vue");
-/* harmony import */ var _components_era_panel_parts_PrettyJsonViewer_vue__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./components/era-panel/parts/PrettyJsonViewer.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/PrettyJsonViewer.vue");
-/* harmony import */ var _components_era_panel_parts_TabSwitch_vue__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/era-panel/parts/TabSwitch.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/TabSwitch.vue");
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../utils/log */ "./src/ERA变量框架/utils/log.ts");
+/* harmony import */ var _components_ActionButtons_vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/ActionButtons.vue */ "./src/ERA变量框架/ui/components/ActionButtons.vue");
+/* harmony import */ var _components_FloatingBall_vue__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/FloatingBall.vue */ "./src/ERA变量框架/ui/components/FloatingBall.vue");
+/* harmony import */ var _components_era_panel_parts_EraAccordion_vue__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./components/era-panel/parts/EraAccordion.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue");
+/* harmony import */ var _components_era_panel_parts_MetaHeader_vue__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./components/era-panel/parts/MetaHeader.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/MetaHeader.vue");
+/* harmony import */ var _components_era_panel_parts_PrettyJsonViewer_vue__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/era-panel/parts/PrettyJsonViewer.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/PrettyJsonViewer.vue");
+/* harmony import */ var _components_era_panel_parts_TabSwitch_vue__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/era-panel/parts/TabSwitch.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/TabSwitch.vue");
 /* unplugin-vue-components disabled */
+
 
 
 
@@ -390,7 +392,6 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-// App.vue 原有的 props
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (/*@__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     __name: 'App',
     props: {
@@ -406,12 +407,18 @@ __webpack_require__.r(__webpack_exports__);
     },
     setup(__props, { expose: __expose }) {
         __expose();
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger('ui-App');
+        // App.vue 原有的 props
         const props = __props;
         // App.vue 原有的逻辑
         const currentComponent = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(props.initialView);
         const requestSwitchView = (viewName) => {
+            logger.debug('requestSwitchView', `请求切换视图到: ${viewName}`);
             if (window.eraUiSwitchView) {
                 window.eraUiSwitchView(viewName);
+            }
+            else {
+                logger.warn('requestSwitchView', '全局切换函数 eraUiSwitchView 未找到');
             }
         };
         // 从 EraDataPanel 迁移过来的逻辑
@@ -421,7 +428,20 @@ __webpack_require__.r(__webpack_exports__);
             { key: 'full', label: '完整状态数据' },
         ];
         const activeTab = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)('pure');
-        const __returned__ = { props, currentComponent, requestSwitchView, dataRef, tabs, activeTab, ActionButtons: _components_ActionButtons_vue__WEBPACK_IMPORTED_MODULE_1__["default"], FloatingBall: _components_FloatingBall_vue__WEBPACK_IMPORTED_MODULE_2__["default"], EraAccordion: _components_era_panel_parts_EraAccordion_vue__WEBPACK_IMPORTED_MODULE_3__["default"], MetaHeader: _components_era_panel_parts_MetaHeader_vue__WEBPACK_IMPORTED_MODULE_4__["default"], PrettyJsonViewer: _components_era_panel_parts_PrettyJsonViewer_vue__WEBPACK_IMPORTED_MODULE_5__["default"], TabSwitch: _components_era_panel_parts_TabSwitch_vue__WEBPACK_IMPORTED_MODULE_6__["default"] };
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+            logger.log('onMounted', 'App.vue 组件已挂载', { props: props });
+        });
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(() => props.eventData, (newData, oldData) => {
+            logger.debug('watch:eventData', 'eventData prop 发生变化', {
+                newData,
+                oldData,
+            });
+        }, { deep: true });
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(() => props.initialView, newView => {
+            logger.debug('watch:initialView', `initialView prop 发生变化，新视图: ${newView}`);
+            currentComponent.value = newView;
+        });
+        const __returned__ = { logger, props, currentComponent, requestSwitchView, dataRef, tabs, activeTab, ActionButtons: _components_ActionButtons_vue__WEBPACK_IMPORTED_MODULE_2__["default"], FloatingBall: _components_FloatingBall_vue__WEBPACK_IMPORTED_MODULE_3__["default"], EraAccordion: _components_era_panel_parts_EraAccordion_vue__WEBPACK_IMPORTED_MODULE_4__["default"], MetaHeader: _components_era_panel_parts_MetaHeader_vue__WEBPACK_IMPORTED_MODULE_5__["default"], PrettyJsonViewer: _components_era_panel_parts_PrettyJsonViewer_vue__WEBPACK_IMPORTED_MODULE_6__["default"], TabSwitch: _components_era_panel_parts_TabSwitch_vue__WEBPACK_IMPORTED_MODULE_7__["default"] };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -442,20 +462,23 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/log */ "./src/ERA变量框架/utils/log.ts");
 /* unplugin-vue-components disabled */
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (/*@__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     __name: 'ActionButtons',
     setup(__props, { expose: __expose }) {
         __expose();
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger('ui-ActionButtons');
         function onFullSync() {
-            console.log('点击“完全重算变量”，发送 manual_full_sync 事件。');
+            logger.log('onFullSync', '点击“完全重算变量”，发送 manual_full_sync 事件。');
             eventEmit('manual_full_sync');
         }
         function onLastSync() {
-            console.log('点击“重算最后一楼变量”，发送 manual_sync 事件。');
+            logger.log('onLastSync', '点击“重算最后一楼变量”，发送 manual_sync 事件。');
             eventEmit('manual_sync');
         }
-        const __returned__ = { onFullSync, onLastSync };
+        const __returned__ = { logger, onFullSync, onLastSync };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -476,13 +499,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/log */ "./src/ERA变量框架/utils/log.ts");
 /* unplugin-vue-components disabled */
+
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (/*@__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     __name: 'FloatingBall',
     emits: ['click'],
     setup(__props, { expose: __expose }) {
         __expose();
-        const __returned__ = {};
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger('ui-FloatingBall');
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+            logger.log('onMounted', 'FloatingBall.vue 组件已挂载');
+        });
+        const __returned__ = { logger };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -491,10 +521,10 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
-/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=script&setup=true&lang=ts":
-/*!********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=script&setup=true&lang=ts ***!
-  \********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=script&setup=true&lang=ts":
+/*!****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=script&setup=true&lang=ts ***!
+  \****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -503,8 +533,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../../utils/log */ "./src/ERA变量框架/utils/log.ts");
 /* unplugin-vue-components disabled */
  // 引入生命周期与异步刷新
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (/*@__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     __name: 'EraAccordion',
     props: {
@@ -514,6 +546,7 @@ __webpack_require__.r(__webpack_exports__);
     setup(__props, { expose: __expose }) {
         __expose();
         const props = __props; // props 定义
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger(`ui-EraAccordion[${props.title}]`);
         const open = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(props.defaultOpen); // 折叠状态
         const bodyRef = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null); // 内容容器引用
         const bodyMaxHeight = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)('0px'); // 当前 maxHeight
@@ -523,6 +556,7 @@ __webpack_require__.r(__webpack_exports__);
             await (0,vue__WEBPACK_IMPORTED_MODULE_0__.nextTick)(); // 等待 DOM 更新
             const el = bodyRef.value; // 取到容器
             if (!el) {
+                logger.warn('recalc', '内容容器 bodyRef 不存在，无法重测高度');
                 bodyMaxHeight.value = '0px';
                 return;
             } // 容器不存在则归零
@@ -530,20 +564,29 @@ __webpack_require__.r(__webpack_exports__);
                 // 若展开
                 const h = el.scrollHeight; // 读取实际内容高度
                 bodyMaxHeight.value = h + 'px'; // 应用到样式
+                logger.debug('recalc', `展开状态，计算高度为: ${h}px`);
             }
             else {
                 bodyMaxHeight.value = '0px'; // 收起设为 0
+                logger.debug('recalc', `收起状态，高度设为 0px`);
             }
         }
         // 监听开合状态变化时重测
-        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(open, () => recalc()); // 状态变化→重测
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(open, newOpenState => {
+            logger.log('watch:open', `折叠状态改变为: ${newOpenState ? '展开' : '收起'}`);
+            recalc();
+        }); // 状态变化→重测
         (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
             // 挂载后
+            logger.log('onMounted', '组件已挂载', { props });
             recalc(); // 立即测一次
             window.addEventListener('resize', recalc); // 监听窗口大小变化
         });
-        (0,vue__WEBPACK_IMPORTED_MODULE_0__.onBeforeUnmount)(() => window.removeEventListener('resize', recalc)); // 清理监听
-        const __returned__ = { props, open, bodyRef, bodyMaxHeight, recalc };
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.onBeforeUnmount)(() => {
+            logger.log('onBeforeUnmount', '组件即将卸载，移除 resize 监听器');
+            window.removeEventListener('resize', recalc);
+        }); // 清理监听
+        const __returned__ = { props, logger, open, bodyRef, bodyMaxHeight, recalc };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -564,7 +607,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../../utils/log */ "./src/ERA变量框架/utils/log.ts");
 /* unplugin-vue-components disabled */ // 引入响应式/组件工具
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     name: 'JsonNode', // 关键：为自递归提供组件名
     props: {
@@ -576,6 +621,10 @@ __webpack_require__.r(__webpack_exports__);
         maxDepth: { type: Number, default: 3 }, // 初次展开的最大深度
     },
     setup(p) {
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger(`ui-JsonNode[${p.path}]`);
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+            logger.log('onMounted', '组件已挂载', { props: p });
+        });
         // 节点类型判定
         const type = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
             const val = p.v;
@@ -597,6 +646,9 @@ __webpack_require__.r(__webpack_exports__);
         const foldable = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => isArray.value || isObject.value);
         // 初始开合：不超过 maxDepth 的层级默认展开；否则遵循 defaultCollapsed
         const open = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(p.level <= (p.maxDepth ?? 3) ? true : !p.defaultCollapsed);
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(open, newOpenState => {
+            logger.debug('watch:open', `折叠状态改变为: ${newOpenState ? '展开' : '收起'}`);
+        });
         // 原始值渲染文本（补足 undefined / bigint / symbol）
         const primitiveText = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
             const val = p.v;
@@ -661,7 +713,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../../utils/log */ "./src/ERA变量框架/utils/log.ts");
 /* unplugin-vue-components disabled */
+
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (/*@__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     __name: 'MetaHeader',
     props: {
@@ -670,9 +725,16 @@ __webpack_require__.r(__webpack_exports__);
     },
     setup(__props, { expose: __expose }) {
         __expose();
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger('ui-MetaHeader');
         // 接收父组件传入的两个字段
-        // 简单的只读展示
-        const __returned__ = {};
+        const props = __props; // 简单的只读展示
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+            logger.log('onMounted', '组件已挂载', { props });
+        });
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(() => props, newProps => {
+            logger.debug('watch:props', 'Props 发生变化', { newProps });
+        }, { deep: true });
+        const __returned__ = { logger, props };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -693,9 +755,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _JsonNode_vue__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./JsonNode.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/JsonNode.vue");
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../../utils/log */ "./src/ERA变量框架/utils/log.ts");
+/* harmony import */ var _JsonNode_vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./JsonNode.vue */ "./src/ERA变量框架/ui/components/era-panel/parts/JsonNode.vue");
 /* unplugin-vue-components disabled */
  // 计算属性工具
+
  // ✅ 改为导入独立 SFC 的递归节点组件
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (/*@__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     __name: 'PrettyJsonViewer',
@@ -706,48 +770,79 @@ __webpack_require__.r(__webpack_exports__);
     },
     setup(__props, { expose: __expose }) {
         __expose();
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger();
         const props = __props;
         const isPlainObjectOrArray = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
             const v = props.value; // 取入参值
-            return v !== null && typeof v === 'object'; // 仅对象/数组才进入逐键渲染
+            const result = v !== null && typeof v === 'object'; // 仅对象/数组才进入逐键渲染
+            logger.debug('isPlainObjectOrArray', `计算结果: ${result}。该值${result ? '是' : '不是'}普通对象或数组。`, {
+                传入值: v,
+            });
+            return result;
         }); // 是否对象/数组
         const primitiveType = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
             const v = props.value; // 取入参值
-            if (v === null)
-                return 'null'; // null
-            if (Array.isArray(v))
-                return 'array'; // 数组（不会走到该分支，因为上面判断过）
-            const t = typeof v; // 原始类型
-            return (t === 'undefined' ? 'undefined' : t);
+            let result;
+            if (v === null) {
+                result = 'null';
+            }
+            else if (Array.isArray(v)) {
+                result = 'array'; // 数组（不会走到该分支，因为上面 isPlainObjectOrArray 判断过）
+            }
+            else {
+                const t = typeof v; // 原始类型
+                result = t === 'undefined' ? 'undefined' : t;
+            }
+            logger.debug('primitiveType', `计算原始值类型: ${result}`, { 传入值: v });
+            return result;
         }); // 原始值类型名（用于着色）
         const primitiveText = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
             const v = props.value; // 取入参值
+            let result;
             switch (primitiveType.value // 按类型格式化文本
             ) {
                 case 'string':
-                    return JSON.stringify(v); // 字符串带引号
+                    result = JSON.stringify(v); // 字符串带引号
+                    break;
                 case 'number':
-                    return String(v); // 数字
+                    result = String(v); // 数字
+                    break;
                 case 'boolean':
-                    return v ? 'true' : 'false'; // 布尔
+                    result = v ? 'true' : 'false'; // 布尔
+                    break;
                 case 'null':
-                    return 'null'; // null
+                    result = 'null'; // null
+                    break;
                 case 'undefined':
-                    return 'undefined'; // undefined
+                    result = 'undefined'; // undefined
+                    break;
                 case 'bigint':
-                    return String(v) + 'n'; // bigint
+                    result = String(v) + 'n'; // bigint
+                    break;
                 case 'symbol':
-                    return String(v); // symbol
+                    result = String(v); // symbol
+                    break;
                 case 'function':
-                    return 'ƒ()'; // 函数
+                    result = 'ƒ()'; // 函数
+                    break;
                 default:
-                    return ''; // 兜底
+                    result = ''; // 兜底
+                    break;
             }
+            logger.debug('primitiveText', `格式化原始值文本: "${result}"`, {
+                传入值: v,
+                类型: primitiveType.value,
+            });
+            return result;
         }); // 原始值文本
-        const isArrayRoot = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => Array.isArray(props.value)); // 根是否数组
+        const isArrayRoot = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+            const result = Array.isArray(props.value);
+            logger.debug('isArrayRoot', `计算根节点是否为数组: ${result}`, { 传入值: props.value });
+            return result;
+        }); // 根是否数组
         const rootOpen = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => (isArrayRoot.value ? '[' : '{')); // 根开括号
         const rootClose = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => (isArrayRoot.value ? ']' : '}')); // 根闭括号
-        const __returned__ = { props, isPlainObjectOrArray, primitiveType, primitiveText, isArrayRoot, rootOpen, rootClose, JsonNode: _JsonNode_vue__WEBPACK_IMPORTED_MODULE_1__["default"] };
+        const __returned__ = { logger, props, isPlainObjectOrArray, primitiveType, primitiveText, isArrayRoot, rootOpen, rootClose, JsonNode: _JsonNode_vue__WEBPACK_IMPORTED_MODULE_2__["default"] };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -768,8 +863,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../../utils/log */ "./src/ERA变量框架/utils/log.ts");
 /* unplugin-vue-components disabled */
  // 引入响应式工具
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (/*@__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
     __name: 'TabSwitch',
     props: {
@@ -779,18 +876,25 @@ __webpack_require__.r(__webpack_exports__);
     emits: ["update:active"],
     setup(__props, { expose: __expose, emit: __emit }) {
         __expose();
+        const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_1__.Logger('ui-TabSwitch');
         const props = __props; // 输入 tabs 与可选 active
         const emit = __emit; // v-model:active
         const innerActive = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(props.active ?? 'pure'); // 内部活动键
         (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(() => props.active, v => {
-            if (v)
+            if (v) {
+                logger.debug('watch:active', `外部同步 active tab 为: ${v}`);
                 innerActive.value = v;
+            }
         }); // 外部变更时同步
         function setActive(k) {
+            logger.log('setActive', `用户点击，切换 tab 到: ${k}`);
             innerActive.value = k;
             emit('update:active', k);
         } // 切换并抛出
-        const __returned__ = { props, emit, innerActive, setActive };
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+            logger.log('onMounted', '组件已挂载', { props });
+        });
+        const __returned__ = { logger, props, emit, innerActive, setActive };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -799,10 +903,10 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
-/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=template&id=390dd513&scoped=true&ts=true":
-/*!********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=template&id=390dd513&scoped=true&ts=true ***!
-  \********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=template&id=390dd513&scoped=true&ts=true":
+/*!*************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=template&id=390dd513&scoped=true&ts=true ***!
+  \*************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -975,10 +1079,10 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
 
 /***/ }),
 
-/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=template&id=525cff1c&scoped=true&ts=true":
-/*!********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=template&id=525cff1c&scoped=true&ts=true ***!
-  \********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=template&id=525cff1c&scoped=true&ts=true":
+/*!*************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=template&id=525cff1c&scoped=true&ts=true ***!
+  \*************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -1211,35 +1315,17 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
         ]),
         (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_4, [
             ($setup.isPlainObjectOrArray)
-                ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 0 }, [
-                    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)(" 对象根：按键枚举 "),
-                    (!$setup.isArrayRoot)
-                        ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 0 }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)($props.value, (v, k) => {
-                            return ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)($setup["JsonNode"], {
-                                key: String(k),
-                                k: String(k),
-                                v: v,
-                                path: String(k),
-                                level: 1,
-                                "default-collapsed": $props.defaultCollapsed,
-                                "max-depth": $props.maxDepth
-                            }, null, 8 /* PROPS */, ["k", "v", "path", "default-collapsed", "max-depth"]));
-                        }), 128 /* KEYED_FRAGMENT */))
-                        : ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 1 }, [
-                            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)(" 数组根：按索引枚举 "),
-                            ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)($props.value, (v, i) => {
-                                return ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)($setup["JsonNode"], {
-                                    key: String(i),
-                                    k: String(i),
-                                    v: v,
-                                    path: String(i),
-                                    level: 1,
-                                    "default-collapsed": $props.defaultCollapsed,
-                                    "max-depth": $props.maxDepth
-                                }, null, 8 /* PROPS */, ["k", "v", "path", "default-collapsed", "max-depth"]));
-                            }), 128 /* KEYED_FRAGMENT */))
-                        ], 64 /* STABLE_FRAGMENT */))
-                ], 64 /* STABLE_FRAGMENT */))
+                ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 0 }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)($props.value, (v, k) => {
+                    return ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)($setup["JsonNode"], {
+                        key: String(k),
+                        k: String(k),
+                        v: v,
+                        path: String(k),
+                        level: 1,
+                        "default-collapsed": $props.defaultCollapsed,
+                        "max-depth": $props.maxDepth
+                    }, null, 8 /* PROPS */, ["k", "v", "path", "default-collapsed", "max-depth"]));
+                }), 128 /* KEYED_FRAGMENT */))
                 : ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_5, [
                     _cache[0] || (_cache[0] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", { class: "key" }, "value", -1 /* CACHED */)),
                     _cache[1] || (_cache[1] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", { class: "colon" }, ":", -1 /* CACHED */)),
@@ -1333,32 +1419,10 @@ if(false) // removed by dead control flow
 
 /***/ }),
 
-/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css":
-/*!**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css ***!
-  \**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-/* unplugin-vue-components disabled */// style-loader: Adds some css to the DOM by adding a <style> tag
-
-// load the styles
-var content = __webpack_require__(/*! !!../../../node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!../../../node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css */ "./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css");
-if(content.__esModule) content = content.default;
-if(typeof content === 'string') content = [[module.id, content, '']];
-if(content.locals) module.exports = content.locals;
-// add the styles to the DOM
-var add = (__webpack_require__(/*! !../../../node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/lib/addStylesClient.js */ "./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/lib/addStylesClient.js")["default"])
-var update = add("1d42499c", content, false, {"ssrId":true});
-// Hot Module Replacement
-if(false) // removed by dead control flow
-{}
-
-/***/ }),
-
-/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/ActionButtons.vue?vue&type=style&index=0&id=b1998c20&scoped=true&lang=css":
-/*!*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/ActionButtons.vue?vue&type=style&index=0&id=b1998c20&scoped=true&lang=css ***!
-  \*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css":
+/*!********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css ***!
+  \********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* unplugin-vue-components disabled */// style-loader: Adds some css to the DOM by adding a <style> tag
@@ -1399,16 +1463,16 @@ if(false) // removed by dead control flow
 
 /***/ }),
 
-/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css":
-/*!**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css ***!
-  \**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css":
+/*!********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css ***!
+  \********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* unplugin-vue-components disabled */// style-loader: Adds some css to the DOM by adding a <style> tag
 
 // load the styles
-var content = __webpack_require__(/*! !!../../../../../../node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!../../../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!../../../../../../node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!../../../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css */ "./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css");
+var content = __webpack_require__(/*! !!../../../../../../node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!../../../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!../../../../../../node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!../../../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css */ "./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/era-panel/parts/EraAccordion.vue?vue&type=style&index=0&id=525cff1c&scoped=true&lang=css");
 if(content.__esModule) content = content.default;
 if(typeof content === 'string') content = [[module.id, content, '']];
 if(content.locals) module.exports = content.locals;
@@ -3184,13 +3248,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _core_key_mk__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../core/key/mk */ "./src/ERA变量框架/core/key/mk.ts");
 /* harmony import */ var _scriptIniter_settings__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../scriptIniter/settings */ "./src/ERA变量框架/scriptIniter/settings.ts");
-/* harmony import */ var _utils_constants__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils/constants */ "./src/ERA变量框架/utils/constants.ts");
-/* harmony import */ var _utils_era_data__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../utils/era_data */ "./src/ERA变量框架/utils/era_data.ts");
-/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../utils/log */ "./src/ERA变量框架/utils/log.ts");
-/* harmony import */ var _handlers_api_dispatcher__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./handlers/api/dispatcher */ "./src/ERA变量框架/events/handlers/api/dispatcher.ts");
-/* harmony import */ var _handlers_sync__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./handlers/sync */ "./src/ERA变量框架/events/handlers/sync.ts");
-/* harmony import */ var _handlers_updateMkOnly__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./handlers/updateMkOnly */ "./src/ERA变量框架/events/handlers/updateMkOnly.ts");
-/* harmony import */ var _merger__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./merger */ "./src/ERA变量框架/events/merger.ts");
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils/log */ "./src/ERA变量框架/utils/log.ts");
+/* harmony import */ var _handlers_api_dispatcher__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./handlers/api/dispatcher */ "./src/ERA变量框架/events/handlers/api/dispatcher.ts");
+/* harmony import */ var _handlers_sync__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./handlers/sync */ "./src/ERA变量框架/events/handlers/sync.ts");
+/* harmony import */ var _handlers_updateMkOnly__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./handlers/updateMkOnly */ "./src/ERA变量框架/events/handlers/updateMkOnly.ts");
+/* harmony import */ var _merger__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./merger */ "./src/ERA变量框架/events/merger.ts");
 
 
 
@@ -3199,9 +3261,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-
-
-const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_4__.Logger();
+const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_2__.Logger();
 /**
  * @constant {number} RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION
  * @description 当 `ensureMessageKey` 注入一个新的 MK 后，需要忽略的由该操作触发的 `character_message_rendered` 事件的数量。
@@ -3238,7 +3298,7 @@ function handleRedundantRenderEvent(eventType, currentMk, mkToIgnore) {
  * @returns {number} - 返回更新后的连续处理次数。
  */
 function updateConsecutiveMkCount() {
-    const mk = _utils_log__WEBPACK_IMPORTED_MODULE_4__.logContext.mk;
+    const mk = _utils_log__WEBPACK_IMPORTED_MODULE_2__.logContext.mk;
     if (mk && consecutiveMkState && consecutiveMkState.mk === mk) {
         logger.debug('updateConsecutiveMkCount', `连续处理写入/同步操作的 MK: ${mk}。旧计数: ${consecutiveMkState.count}，新计数: ${consecutiveMkState.count + 1}`);
         consecutiveMkState.count++;
@@ -3258,7 +3318,7 @@ function updateConsecutiveMkCount() {
  */
 async function dispatchAndExecuteTask(job, mkToIgnore) {
     const { type: eventType } = job;
-    const eventGroup = (0,_merger__WEBPACK_IMPORTED_MODULE_8__.getEventGroup)(eventType);
+    const eventGroup = (0,_merger__WEBPACK_IMPORTED_MODULE_6__.getEventGroup)(eventType);
     let message_id = null;
     // 在每轮任务开始时，初始化操作记录器
     const actionsTaken = { rollback: false, apply: false, resync: false, api: false, apiWrite: false };
@@ -3269,7 +3329,7 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
             logger.warn('dispatchAndExecuteTask', '无法获取有效的 MK 或消息 ID，跳过任务执行。');
             return mkToIgnore;
         }
-        _utils_log__WEBPACK_IMPORTED_MODULE_4__.logContext.mk = mk;
+        _utils_log__WEBPACK_IMPORTED_MODULE_2__.logContext.mk = mk;
         message_id = msgId;
         // 如果 ensureMkForLatestMessage 刚刚注入了一个新的 MK，就创建或更新忽略规则。
         if (isNewKey && mk) {
@@ -3287,16 +3347,11 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
         }
         logger.log('dispatchAndExecuteTask', `执行任务: ${eventType} (分组: ${eventGroup})`);
         // **任务分发**
-        // 在分发前，准备好可能需要发送 writeDone 事件的 payload
-        const { meta: metaData, stat: statData } = (0,_utils_era_data__WEBPACK_IMPORTED_MODULE_3__.getEraData)();
+        // v3.1 优化：payload 仅包含最核心的上下文，其他数据由下游函数自行获取。
         const payload = {
             mk: mk,
             message_id: message_id,
             actions: actionsTaken,
-            selectedMks: _.get(metaData, _utils_constants__WEBPACK_IMPORTED_MODULE_2__.SEL_PATH, []),
-            editLogs: _.get(metaData, _utils_constants__WEBPACK_IMPORTED_MODULE_2__.LOGS_PATH, {}),
-            stat: statData,
-            statWithoutMeta: (0,_utils_era_data__WEBPACK_IMPORTED_MODULE_3__.removeMetaFields)(statData),
             consecutiveProcessingCount: 1, // 初始值
         };
         switch (eventGroup) {
@@ -3304,17 +3359,17 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
                 (0,_scriptIniter_settings__WEBPACK_IMPORTED_MODULE_1__.initializeExternalSettings)();
                 // 为了兼容旧版酒馆的swipe逻辑，这里也调用同步
                 payload.consecutiveProcessingCount = updateConsecutiveMkCount();
-                await (0,_handlers_sync__WEBPACK_IMPORTED_MODULE_6__.handleSyncEvent)(job, actionsTaken, payload);
+                await (0,_handlers_sync__WEBPACK_IMPORTED_MODULE_4__.handleSyncEvent)(job, actionsTaken, payload);
                 break;
             case 'SYNC':
                 payload.consecutiveProcessingCount = updateConsecutiveMkCount();
-                await (0,_handlers_sync__WEBPACK_IMPORTED_MODULE_6__.handleSyncEvent)(job, actionsTaken, payload);
+                await (0,_handlers_sync__WEBPACK_IMPORTED_MODULE_4__.handleSyncEvent)(job, actionsTaken, payload);
                 break;
             case 'API':
-                (0,_handlers_api_dispatcher__WEBPACK_IMPORTED_MODULE_5__.handleApiEvent)(job, actionsTaken, payload);
+                (0,_handlers_api_dispatcher__WEBPACK_IMPORTED_MODULE_3__.handleApiEvent)(job, actionsTaken, payload);
                 break;
             case 'UPDATE_MK_ONLY':
-                await (0,_handlers_updateMkOnly__WEBPACK_IMPORTED_MODULE_7__.handleUpdateMkOnlyEvent)();
+                await (0,_handlers_updateMkOnly__WEBPACK_IMPORTED_MODULE_5__.handleUpdateMkOnlyEvent)();
                 break;
         }
     }
@@ -3323,7 +3378,7 @@ async function dispatchAndExecuteTask(job, mkToIgnore) {
     }
     finally {
         // 清理日志上下文，为下一个事件做准备
-        _utils_log__WEBPACK_IMPORTED_MODULE_4__.logContext.mk = '';
+        _utils_log__WEBPACK_IMPORTED_MODULE_2__.logContext.mk = '';
         // **节流**: 在每个独立任务后都进行短暂等待，确保酒馆底层有时间完成其异步操作。
         //暂时取消等待逻辑，提高即时性。
         //await new Promise(resolve => setTimeout(resolve, 50));
@@ -3347,12 +3402,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _utils_constants__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/constants */ "./src/ERA变量框架/utils/constants.ts");
 /* harmony import */ var _utils_data__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/data */ "./src/ERA变量框架/utils/data.ts");
-/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/log */ "./src/ERA变量框架/utils/log.ts");
+/* harmony import */ var _utils_era_data__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../utils/era_data */ "./src/ERA变量框架/utils/era_data.ts");
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../utils/log */ "./src/ERA变量框架/utils/log.ts");
 
 
 
 
-const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_2__.Logger();
+
+const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_3__.Logger();
 // ==================================================================
 // API 事件广播器
 // ==================================================================
@@ -3373,20 +3430,28 @@ const debouncedEmitApiWrite = _.debounce(() => {
  * 当一次完整的变量写入操作（包括增、删、改）成功完成后，应调用此函数。
  * 它向外部脚本广播一个事件，通知它们变量状态已发生改变，并提供详细的上下文。
  *
- * @param {WriteDonePayload} payload - 包含写入操作关键信息的事件负载。
+ * @param {DispatcherPayload} payload - 包含核心上下文信息的内部载荷。
  */
 function emitWriteDoneEvent(payload) {
-    // 在广播前，对需要暴露给外部的数据进行反转义
-    const unescapedPayload = {
+    // 在广播前，获取最新的全量 ERA 数据
+    const { stat, meta } = (0,_utils_era_data__WEBPACK_IMPORTED_MODULE_2__.getEraData)();
+    const statWithoutMeta = (0,_utils_era_data__WEBPACK_IMPORTED_MODULE_2__.removeMetaFields)(stat);
+    const { selectedMks, editLogs } = meta;
+    logger.debug('emitWriteDoneEvent', '获取了最新的 ERA 数据并生成了纯净版', { stat, meta, statWithoutMeta });
+    // 动态构建完整的 WriteDonePayload
+    const fullPayload = {
         ...payload,
-        stat: (0,_utils_data__WEBPACK_IMPORTED_MODULE_1__.unescapeEraData)(payload.stat),
-        statWithoutMeta: (0,_utils_data__WEBPACK_IMPORTED_MODULE_1__.unescapeEraData)(payload.statWithoutMeta),
+        stat: (0,_utils_data__WEBPACK_IMPORTED_MODULE_1__.unescapeEraData)(stat),
+        statWithoutMeta: (0,_utils_data__WEBPACK_IMPORTED_MODULE_1__.unescapeEraData)(statWithoutMeta),
+        meta: meta,
+        selectedMks: selectedMks || [],
+        editLogs: editLogs || {},
     };
-    logger.debug('emitWriteDoneEvent', 'writeDone事件广播数据反转义', {
-        before: { stat: payload.stat, statWithoutMeta: payload.statWithoutMeta },
-        after: { stat: unescapedPayload.stat, statWithoutMeta: unescapedPayload.statWithoutMeta },
+    logger.debug('emitWriteDoneEvent', '动态构建了完整的事件载荷', {
+        inputPayload: payload,
+        fullPayload: fullPayload,
     });
-    eventEmit(_utils_constants__WEBPACK_IMPORTED_MODULE_0__.ERA_EVENT_EMITTER.WRITE_DONE, unescapedPayload);
+    eventEmit(_utils_constants__WEBPACK_IMPORTED_MODULE_0__.ERA_EVENT_EMITTER.WRITE_DONE, fullPayload);
     logger.log('emitWriteDoneEvent', `已触发 ${_utils_constants__WEBPACK_IMPORTED_MODULE_0__.ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(payload.actions)}, MK: ${payload.mk}, MsgID: ${payload.message_id}, 连续处理次数: ${payload.consecutiveProcessingCount}`);
 }
 
@@ -4206,7 +4271,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _App_vue_vue_type_script_setup_true_lang_ts__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./App.vue?vue&type=script&setup=true&lang=ts */ "./src/ERA变量框架/ui/App.vue?vue&type=script&setup=true&lang=ts");
 /* harmony import */ var _App_vue_vue_type_style_index_0_id_390dd513_lang_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./App.vue?vue&type=style&index=0&id=390dd513&lang=css */ "./src/ERA变量框架/ui/App.vue?vue&type=style&index=0&id=390dd513&lang=css");
 /* harmony import */ var _App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css */ "./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css");
-/* harmony import */ var _node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_exportHelper_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/exportHelper.js */ "./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/exportHelper.js");
+/* harmony import */ var _node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_exportHelper_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/exportHelper.js */ "./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/exportHelper.js");
 /* unplugin-vue-components disabled */
 
 
@@ -4215,7 +4280,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-const __exports__ = /*#__PURE__*/(0,_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_exportHelper_js__WEBPACK_IMPORTED_MODULE_4__["default"])(_App_vue_vue_type_script_setup_true_lang_ts__WEBPACK_IMPORTED_MODULE_1__["default"], [['render',_App_vue_vue_type_template_id_390dd513_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__.render],['__scopeId',"data-v-390dd513"],['__file',"src/ERA变量框架/ui/App.vue"]])
+const __exports__ = /*#__PURE__*/(0,_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_exportHelper_js__WEBPACK_IMPORTED_MODULE_4__["default"])(_App_vue_vue_type_script_setup_true_lang_ts__WEBPACK_IMPORTED_MODULE_1__["default"], [['render',_App_vue_vue_type_template_id_390dd513_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__.render],['__scopeId',"data-v-390dd513"],['__file',"src/ERA变量框架/ui/App.vue"]])
 /* hot reload */
 if (false) // removed by dead control flow
 {}
@@ -4263,10 +4328,10 @@ __webpack_require__.r(__webpack_exports__);
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcss_8_5_6_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!../../../node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!../../../node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!../../../node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css */ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcss@8.5.6_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css");
-/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcss_8_5_6_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcss_8_5_6_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcs_37bafd025248bbddf6b8842180147e3c_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!../../../node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!../../../node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!../../../node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css */ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/vue-style-loader@4.1.3/node_modules/vue-style-loader/index.js??clonedRuleSet-43.use[0]!./node_modules/.pnpm/css-loader@7.1.2_webpack@5.102.1/node_modules/css-loader/dist/cjs.js??clonedRuleSet-43.use[1]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/stylePostLoader.js!./node_modules/.pnpm/postcss-loader@8.2.0_postcs_37bafd025248bbddf6b8842180147e3c/node_modules/postcss-loader/dist/cjs.js!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=style&index=1&id=390dd513&scoped=true&lang=css");
+/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcs_37bafd025248bbddf6b8842180147e3c_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcs_37bafd025248bbddf6b8842180147e3c_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony reexport (unknown) */ var __WEBPACK_REEXPORT_OBJECT__ = {};
-/* harmony reexport (unknown) */ for(const __WEBPACK_IMPORT_KEY__ in _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcss_8_5_6_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__) if(__WEBPACK_IMPORT_KEY__ !== "default") __WEBPACK_REEXPORT_OBJECT__[__WEBPACK_IMPORT_KEY__] = () => _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcss_8_5_6_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__[__WEBPACK_IMPORT_KEY__]
+/* harmony reexport (unknown) */ for(const __WEBPACK_IMPORT_KEY__ in _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcs_37bafd025248bbddf6b8842180147e3c_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__) if(__WEBPACK_IMPORT_KEY__ !== "default") __WEBPACK_REEXPORT_OBJECT__[__WEBPACK_IMPORT_KEY__] = () => _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_vue_style_loader_4_1_3_node_modules_vue_style_loader_index_js_clonedRuleSet_43_use_0_node_modules_pnpm_css_loader_7_1_2_webpack_5_102_1_node_modules_css_loader_dist_cjs_js_clonedRuleSet_43_use_1_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_stylePostLoader_js_node_modules_pnpm_postcss_loader_8_2_0_postcs_37bafd025248bbddf6b8842180147e3c_node_modules_postcss_loader_dist_cjs_js_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_style_index_1_id_390dd513_scoped_true_lang_css__WEBPACK_IMPORTED_MODULE_0__[__WEBPACK_IMPORT_KEY__]
 /* harmony reexport (unknown) */ __webpack_require__.d(__webpack_exports__, __WEBPACK_REEXPORT_OBJECT__);
 /* unplugin-vue-components disabled */
 
@@ -4280,9 +4345,9 @@ __webpack_require__.r(__webpack_exports__);
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   render: () => (/* reexport safe */ _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_ts_loader_9_5_4_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_ts_loader_index_js_clonedRuleSet_40_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_4_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_template_id_390dd513_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_ts_loader_9_5_4_typescript_a9147556e0c963c2f14f4c9e8ccef76f_node_modules_ts_loader_index_js_clonedRuleSet_40_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_4_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_template_id_390dd513_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__.render)
 /* harmony export */ });
-/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_ts_loader_9_5_4_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_ts_loader_index_js_clonedRuleSet_40_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_4_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_template_id_390dd513_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!../../../node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./App.vue?vue&type=template&id=390dd513&scoped=true&ts=true */ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=template&id=390dd513&scoped=true&ts=true");
+/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_ts_loader_9_5_4_typescript_a9147556e0c963c2f14f4c9e8ccef76f_node_modules_ts_loader_index_js_clonedRuleSet_40_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_4_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_App_vue_vue_type_template_id_390dd513_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!../../../node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./App.vue?vue&type=template&id=390dd513&scoped=true&ts=true */ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/App.vue?vue&type=template&id=390dd513&scoped=true&ts=true");
 /* unplugin-vue-components disabled */
 
 /***/ }),
@@ -4436,7 +4501,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   render: () => (/* reexport safe */ _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_ts_loader_9_5_4_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_ts_loader_index_js_clonedRuleSet_40_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_4_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_FloatingBall_vue_vue_type_template_id_2fa4c130_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__.render)
 /* harmony export */ });
-/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_ts_loader_9_5_4_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_ts_loader_index_js_clonedRuleSet_40_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_4_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_22_typescript_6_0_0_dev_20250807_webpack_5_102_1_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_FloatingBall_vue_vue_type_template_id_2fa4c130_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!../../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!../../../../node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./FloatingBall.vue?vue&type=template&id=2fa4c130&scoped=true&ts=true */ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@6.0.0-dev.20250807_webpack@5.102.1/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.22_typescript@6.0.0-dev.20250807__webpack@5.102.1/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/FloatingBall.vue?vue&type=template&id=2fa4c130&scoped=true&ts=true");
+/* harmony import */ var _node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_vue_components_node_modules_pnpm_unplugin_2_3_10_node_modules_unplugin_dist_webpack_loaders_transform_js_unplugin_auto_import_node_modules_pnpm_ts_loader_9_5_4_typescript_a9147556e0c963c2f14f4c9e8ccef76f_node_modules_ts_loader_index_js_clonedRuleSet_40_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_4_node_modules_pnpm_vue_loader_17_4_2_vue_3_5_2_96d39c74a8c06e57a334244d199e36ff_node_modules_vue_loader_dist_index_js_ruleSet_1_rules_6_use_0_FloatingBall_vue_vue_type_template_id_2fa4c130_scoped_true_ts_true__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!../../../../node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!../../../../node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!../../../../node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./FloatingBall.vue?vue&type=template&id=2fa4c130&scoped=true&ts=true */ "./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-vue-components!./node_modules/.pnpm/unplugin@2.3.10/node_modules/unplugin/dist/webpack/loaders/transform.js??unplugin-auto-import!./node_modules/.pnpm/ts-loader@9.5.4_typescript@_a9147556e0c963c2f14f4c9e8ccef76f/node_modules/ts-loader/index.js??clonedRuleSet-40!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[4]!./node_modules/.pnpm/vue-loader@17.4.2_vue@3.5.2_96d39c74a8c06e57a334244d199e36ff/node_modules/vue-loader/dist/index.js??ruleSet[1].rules[6].use[0]!./src/ERA变量框架/ui/components/FloatingBall.vue?vue&type=template&id=2fa4c130&scoped=true&ts=true");
 /* unplugin-vue-components disabled */
 
 /***/ }),
@@ -4836,12 +4901,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var pinia__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! pinia */ "pinia");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! vue */ "vue");
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _App_vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./App.vue */ "./src/ERA变量框架/ui/App.vue");
-/* harmony import */ var _utils_dom__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./utils/dom */ "./src/ERA变量框架/ui/utils/dom.ts");
+/* harmony import */ var _utils_log__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils/log */ "./src/ERA变量框架/utils/log.ts");
+/* harmony import */ var _App_vue__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./App.vue */ "./src/ERA变量框架/ui/App.vue");
+/* harmony import */ var _utils_dom__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./utils/dom */ "./src/ERA变量框架/ui/utils/dom.ts");
 
 
 
 
+
+const logger = new _utils_log__WEBPACK_IMPORTED_MODULE_2__.Logger('ui-index');
 let vueApp = null;
 let mountPoint = null;
 let currentView = 'FloatingBall';
@@ -4851,58 +4919,77 @@ let lastEventData = null;
  * @param viewToShow 要在 App 内部初始显示的视图
  */
 function renderApp(viewToShow, dataToPass) {
-    if (!mountPoint)
+    logger.debug('renderApp', `开始渲染 App，视图: ${viewToShow}`, { dataToPass });
+    if (!mountPoint) {
+        logger.warn('renderApp', '挂载点不存在，渲染中止');
         return;
+    }
     // 1. 卸载当前 app
     if (vueApp) {
+        logger.debug('renderApp', '卸载旧的 Vue 实例');
         vueApp.unmount();
     }
     // 2. 创建并挂载新的 app 实例，并通过 props 传递初始视图和数据
-    vueApp = (0,vue__WEBPACK_IMPORTED_MODULE_1__.createApp)(_App_vue__WEBPACK_IMPORTED_MODULE_2__["default"], {
+    vueApp = (0,vue__WEBPACK_IMPORTED_MODULE_1__.createApp)(_App_vue__WEBPACK_IMPORTED_MODULE_3__["default"], {
         initialView: viewToShow,
         eventData: dataToPass,
     });
     vueApp.use((0,pinia__WEBPACK_IMPORTED_MODULE_0__.createPinia)());
     vueApp.mount(mountPoint[0]);
     // 3. 重新传送样式，以确保新组件的样式被加载
-    (0,_utils_dom__WEBPACK_IMPORTED_MODULE_3__.teleportStyle)();
+    (0,_utils_dom__WEBPACK_IMPORTED_MODULE_4__.teleportStyle)();
+    logger.debug('renderApp', '渲染完成');
 }
 /**
  * 切换视图的全局函数
  * @param viewName 要切换到的视图名称
  */
 function switchView(viewName) {
+    logger.debug('switchView', `请求切换视图到: ${viewName}`);
     if (currentView !== viewName) {
         currentView = viewName;
+        logger.log('switchView', `视图已切换，重新渲染 App`);
         renderApp(viewName, lastEventData);
+    }
+    else {
+        logger.debug('switchView', `视图已经是 ${viewName}，无需切换`);
     }
 }
 // 暴露切换函数到 window
 window.eraUiSwitchView = switchView;
 // 在加载时执行
 $(() => {
+    logger.log('$(document).ready', 'UI 脚本开始初始化');
     // 创建挂载点
-    mountPoint = (0,_utils_dom__WEBPACK_IMPORTED_MODULE_3__.createMountPoint)();
+    mountPoint = (0,_utils_dom__WEBPACK_IMPORTED_MODULE_4__.createMountPoint)();
+    logger.debug('$(document).ready', '创建挂载点', mountPoint);
     // 将挂载点添加到 body
     $('body').append(mountPoint);
+    logger.debug('$(document).ready', '挂载点已添加到 body');
     // 初始加载 App
     renderApp(currentView, lastEventData);
     // 监听 era:writeDone 事件
     eventOn('era:writeDone', (data) => {
+        logger.log('era:writeDone', '接收到 era:writeDone 事件，准备刷新 UI', data);
         lastEventData = data;
         // 无论当前视图是什么，都强制刷新
         renderApp(currentView, lastEventData);
     });
+    logger.debug('$(document).ready', '已设置 era:writeDone 事件监听器');
 });
 // 在卸载时执行
 $(window).on('pagehide', () => {
+    logger.log('pagehide', 'UI 脚本开始卸载');
     if (vueApp) {
+        logger.debug('pagehide', '卸载 Vue 实例');
         vueApp.unmount();
     }
-    (0,_utils_dom__WEBPACK_IMPORTED_MODULE_3__.deteleportStyle)();
+    (0,_utils_dom__WEBPACK_IMPORTED_MODULE_4__.deteleportStyle)();
     if (mountPoint) {
-        (0,_utils_dom__WEBPACK_IMPORTED_MODULE_3__.destroyMountPoint)();
+        logger.debug('pagehide', '销毁挂载点');
+        (0,_utils_dom__WEBPACK_IMPORTED_MODULE_4__.destroyMountPoint)();
     }
+    logger.log('pagehide', 'UI 脚本卸载完成');
 });
 
 
@@ -5594,38 +5681,38 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   logContext: () => (/* binding */ logContext)
 /* harmony export */ });
 /**
- * @file ERA 变量框架 - 日志记录模块 (V2 - 动态配置版)
+ * @file ERA 变量框架 - 日志记录模块 (V3 - 规则分离版)
  */
 
-// --- 新的运行时调试配置系统 ---
+// --- 新的运行时调试配置系统 (V3) ---
 /**
- * @constant {string} DEBUG_LS_KEY
- * @description 用于在 localStorage 中存储调试模式的键名。
+ * @constant {string} DEBUG_CONFIG_LS_KEY
+ * @description 用于在 localStorage 中存储调试配置的键名。
  */
-const DEBUG_LS_KEY = 'era_debug';
-let activeNamespaces;
-let skippedNamespaces;
+const DEBUG_CONFIG_LS_KEY = 'era_debug_config';
+let enabledPatterns = [];
+let disabledPatterns = [];
 /**
- * 将用户输入的调试模式字符串（支持通配符 *）转换为正则表达式数组。
- * @param {string} pattern - 例如 'core-*,events-*,-core-key'
+ * @typedef {object} DebugConfig
+ * @property {string[]} enabled - 启用的模式列表。
+ * @property {string[]} disabled - 禁用的模式列表。
  */
-function parseDebugPattern(pattern) {
-    const patterns = pattern.split(/[\s,]+/);
-    activeNamespaces = [];
-    skippedNamespaces = [];
-    for (const p of patterns) {
-        if (!p)
-            continue;
-        // 将通配符 * 转换为正则表达式的 .*?
-        const regexPattern = p.replace(/\*/g, '.*?');
-        if (regexPattern.startsWith('-')) {
-            // 如果以 - 开头，表示排除该模式
-            skippedNamespaces.push(new RegExp(`^${regexPattern.slice(1)}$`));
-        }
-        else {
-            // 否则，为激活模式
-            activeNamespaces.push(new RegExp(`^${regexPattern}$`));
-        }
+/**
+ * 从 localStorage 加载并解析调试配置。
+ */
+function loadDebugConfig() {
+    try {
+        const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+        /** @type {DebugConfig} */
+        const config = JSON.parse(configStr);
+        const toRegex = (p) => new RegExp(`^${p.replace(/\*/g, '.*?')}$`);
+        enabledPatterns = (config.enabled || []).map(toRegex);
+        disabledPatterns = (config.disabled || []).map(toRegex);
+    }
+    catch (e) {
+        console.error('《ERA-Log》: 加载调试配置失败。', e);
+        enabledPatterns = [];
+        disabledPatterns = [];
     }
 }
 /**
@@ -5636,49 +5723,91 @@ function parseDebugPattern(pattern) {
 function isDebugEnabled(moduleName) {
     if (!moduleName)
         return false;
-    // 如果模块名匹配任何一个“排除”模式，则禁用
-    if (skippedNamespaces.some(re => re.test(moduleName))) {
+    // 规则 1: 如果匹配任何一个“禁用”模式，则绝对禁用。
+    if (disabledPatterns.some(re => re.test(moduleName))) {
         return false;
     }
-    // 如果“激活”模式列表为空（即没有设置任何模式），则全部禁用
-    if (activeNamespaces.length === 0) {
+    // 规则 2: 如果“启用”列表为空，则全部禁用。
+    if (enabledPatterns.length === 0) {
         return false;
     }
-    // 如果模块名匹配任何一个“激活”模式，则启用
-    // 如果设置了 'all' 或 '*'，则全部启用
-    if (activeNamespaces.some(re => re.test('all') || re.test(moduleName))) {
+    // 规则 3: 如果匹配任何一个“启用”模式，则启用。
+    if (enabledPatterns.some(re => re.test(moduleName))) {
         return true;
     }
     return false;
 }
 /**
- * 从 localStorage 加载并解析调试模式。
+ * 更新并保存调试配置。
+ * @param {{ enabled: string[], disabled: string[] }} newConfig
  */
-function loadDebugConfig() {
-    const pattern = globalThis.localStorage?.getItem(DEBUG_LS_KEY) || '';
-    parseDebugPattern(pattern);
-}
-/**
- * 设置新的调试模式，并将其保存到 localStorage。
- * @param {string} pattern - 新的调试模式字符串。
- * @example
- * // 开启所有 core 和 ui 开头的模块
- * eraDebug('core-*,ui-*')
- * // 开启所有模块，但排除 core-key
- * eraDebug('*,-core-key')
- * // 关闭所有调试日志
- * eraDebug('')
- */
-function setDebug(pattern) {
-    globalThis.localStorage?.setItem(DEBUG_LS_KEY, pattern);
+function updateConfig(newConfig) {
+    const uniqueConfig = {
+        enabled: [...new Set(newConfig.enabled)],
+        disabled: [...new Set(newConfig.disabled)],
+    };
+    globalThis.localStorage?.setItem(DEBUG_CONFIG_LS_KEY, JSON.stringify(uniqueConfig));
     loadDebugConfig();
-    console.log(`%c《ERA-Log》调试模式已更新: %c${pattern || '(已禁用)'}%c。部分模块可能需刷新页面生效。`, 'color: #3498db; font-weight: bold;', 'color: #f39c12; font-style: italic;', 'color: #3498db; font-weight: bold;');
+    console.log(`%c《ERA-Log》调试模式已更新。`, 'color: #3498db; font-weight: bold;', {
+        '启用 (Enabled)': uniqueConfig.enabled,
+        '禁用 (Disabled)': uniqueConfig.disabled,
+    });
 }
 // 初始化配置
 loadDebugConfig();
-// 将设置函数暴露到全局，方便在浏览器控制台调用
+// 将控制对象暴露到全局
 if (typeof globalThis !== 'undefined') {
-    globalThis.eraDebug = setDebug;
+    const eraDebug = {
+        /**
+         * 将一个模式添加到“启用列表”，使其匹配的模块显示日志。
+         * 这也会从“禁用列表”中移除该模式。
+         * @param {string} pattern - 要启用的模式，支持 * 通配符。
+         * @example
+         * // 开启所有 core 开头的模块
+         * eraDebug.add('core*')
+         */
+        add(pattern) {
+            const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+            const config = JSON.parse(configStr);
+            const enabled = new Set(config.enabled || []);
+            const disabled = new Set(config.disabled || []);
+            enabled.add(pattern);
+            disabled.delete(pattern);
+            updateConfig({ enabled: Array.from(enabled), disabled: Array.from(disabled) });
+        },
+        /**
+         * 将一个模式添加到“禁用列表”，使其匹配的模块不显示日志。
+         * 这也会从“启用列表”中移除该模式。
+         * @param {string} pattern - 要禁用的模式，支持 * 通配符。
+         * @example
+         * // 禁用 core-key 模块
+         * eraDebug.remove('core-key')
+         */
+        remove(pattern) {
+            const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+            const config = JSON.parse(configStr);
+            const enabled = new Set(config.enabled || []);
+            const disabled = new Set(config.disabled || []);
+            disabled.add(pattern);
+            enabled.delete(pattern);
+            updateConfig({ enabled: Array.from(enabled), disabled: Array.from(disabled) });
+        },
+        /**
+         * 查看当前的调试配置。
+         */
+        status() {
+            const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+            const config = JSON.parse(configStr);
+            console.log(`%c《ERA-Log》当前调试配置:`, 'color: #3498db; font-weight: bold;', config);
+        },
+        /**
+         * 清空所有调试规则。
+         */
+        clear() {
+            updateConfig({ enabled: [], disabled: [] });
+        },
+    };
+    globalThis.eraDebug = eraDebug;
 }
 // --- Logger 类 ---
 /**
@@ -5713,15 +5842,13 @@ class Logger {
                 .split('\n')
                 .find(line => line.includes('/src/ERA变量框架/') && !line.includes('/utils/log.ts'));
             if (!callerLine) {
-                // 如果找不到，打印调试信息并优雅降级
-                console.warn('《ERA-Log-Debug》:无法从堆栈中确定模块名，将使用 "unknown"。堆栈:', stack);
+                // 如果找不到，优雅降级
                 return null;
             }
             // 更鲁棒的正则，用于从不同格式的堆栈行中提取路径
             const match = callerLine.match(/src\/ERA变量框架\/([^?:\s)]+)/);
             if (!match || !match[1]) {
-                // 如果正则匹配失败，打印调试信息
-                console.warn('《ERA-Log-Debug》: 正则表达式无法从调用行中提取路径。调用行:', callerLine);
+                // 如果正则匹配失败，优雅降级
                 return null;
             }
             let path = match[1];

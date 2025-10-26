@@ -55,7 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { Logger } from '../utils/log';
 import ActionButtons from './components/ActionButtons.vue';
 import FloatingBall from './components/FloatingBall.vue';
 
@@ -81,6 +82,8 @@ export interface WriteDonePayload {
 // TabSwitch 需要的类型
 type TabItem = { key: 'pure' | 'full'; label: string };
 
+const logger = new Logger('ui-App');
+
 // App.vue 原有的 props
 const props = defineProps({
   initialView: {
@@ -97,8 +100,11 @@ const props = defineProps({
 // App.vue 原有的逻辑
 const currentComponent = ref(props.initialView);
 const requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {
+  logger.debug('requestSwitchView', `请求切换视图到: ${viewName}`);
   if ((window as any).eraUiSwitchView) {
     (window as any).eraUiSwitchView(viewName);
+  } else {
+    logger.warn('requestSwitchView', '全局切换函数 eraUiSwitchView 未找到');
   }
 };
 
@@ -110,6 +116,29 @@ const tabs: TabItem[] = [
   { key: 'full', label: '完整状态数据' },
 ];
 const activeTab = ref<'pure' | 'full'>('pure');
+
+onMounted(() => {
+  logger.log('onMounted', 'App.vue 组件已挂载', { props: props });
+});
+
+watch(
+  () => props.eventData,
+  (newData, oldData) => {
+    logger.debug('watch:eventData', 'eventData prop 发生变化', {
+      newData,
+      oldData,
+    });
+  },
+  { deep: true },
+);
+
+watch(
+  () => props.initialView,
+  newView => {
+    logger.debug('watch:initialView', `initialView prop 发生变化，新视图: ${newView}`);
+    currentComponent.value = newView;
+  },
+);
 </script>
 
 <style>

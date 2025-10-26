@@ -16,11 +16,11 @@
  * 从而将 API 调用无缝地整合到 ERA 的原生解析和同步流程中。
  */
 
-import { WriteDonePayload } from '../../../utils/constants';
 import { J } from '../../../utils/data';
 import { Logger } from '../../../utils/log';
 import { findLastAiMessage, getMessageContent, updateMessageContent } from '../../../utils/message';
 import { debouncedEmitApiWrite, emitWriteDoneEvent } from '../../emitters/events';
+import { DispatcherPayload } from '../../types';
 
 const logger = new Logger();
 
@@ -208,6 +208,6 @@ export function deleteByPath(path: string) {
  * **【处理器】** 处理 `era:getCurrentVars` 事件。
  * 这个函数是空的，因为它的目的只是为了触发 writeDone 事件，以便其他组件能通过这种方式获取到最新变量。
  */
-export function getCurrentVars(payload: WriteDonePayload) {
+export function getCurrentVars(payload: DispatcherPayload) {
   emitWriteDoneEvent(payload);
 }

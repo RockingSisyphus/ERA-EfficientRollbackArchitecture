@@ -1,42 +1,42 @@
 /**
- * @file ERA 变量框架 - 日志记录模块 (V2 - 动态配置版)
+ * @file ERA 变量框架 - 日志记录模块 (V3 - 规则分离版)
  */
 
 'use strict';
 
-// --- 新的运行时调试配置系统 ---
+// --- 新的运行时调试配置系统 (V3) ---
 
 /**
- * @constant {string} DEBUG_LS_KEY
- * @description 用于在 localStorage 中存储调试模式的键名。
+ * @constant {string} DEBUG_CONFIG_LS_KEY
+ * @description 用于在 localStorage 中存储调试配置的键名。
  */
-const DEBUG_LS_KEY = 'era_debug';
+const DEBUG_CONFIG_LS_KEY = 'era_debug_config';
 
-let activeNamespaces: RegExp[];
-let skippedNamespaces: RegExp[];
+let enabledPatterns: RegExp[] = [];
+let disabledPatterns: RegExp[] = [];
 
 /**
- * 将用户输入的调试模式字符串（支持通配符 *）转换为正则表达式数组。
- * @param {string} pattern - 例如 'core-*,events-*,-core-key'
+ * @typedef {object} DebugConfig
+ * @property {string[]} enabled - 启用的模式列表。
+ * @property {string[]} disabled - 禁用的模式列表。
  */
-function parseDebugPattern(pattern: string) {
-  const patterns = pattern.split(/[\s,]+/);
-  activeNamespaces = [];
-  skippedNamespaces = [];
 
-  for (const p of patterns) {
-    if (!p) continue;
+/**
+ * 从 localStorage 加载并解析调试配置。
+ */
+function loadDebugConfig() {
+  try {
+    const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+    /** @type {DebugConfig} */
+    const config = JSON.parse(configStr);
 
-    // 将通配符 * 转换为正则表达式的 .*?
-    const regexPattern = p.replace(/\*/g, '.*?');
-
-    if (regexPattern.startsWith('-')) {
-      // 如果以 - 开头，表示排除该模式
-      skippedNamespaces.push(new RegExp(`^${regexPattern.slice(1)}$`));
-    } else {
-      // 否则，为激活模式
-      activeNamespaces.push(new RegExp(`^${regexPattern}$`));
-    }
+    const toRegex = (p: string) => new RegExp(`^${p.replace(/\*/g, '.*?')}$`);
+    enabledPatterns = (config.enabled || []).map(toRegex);
+    disabledPatterns = (config.disabled || []).map(toRegex);
+  } catch (e) {
+    console.error('《ERA-Log》: 加载调试配置失败。', e);
+    enabledPatterns = [];
+    disabledPatterns = [];
   }
 }
 
@@ -47,58 +47,110 @@ function parseDebugPattern(pattern: string) {
  */
 function isDebugEnabled(moduleName: string): boolean {
   if (!moduleName) return false;
-  // 如果模块名匹配任何一个“排除”模式，则禁用
-  if (skippedNamespaces.some(re => re.test(moduleName))) {
+
+  // 规则 1: 如果匹配任何一个“禁用”模式，则绝对禁用。
+  if (disabledPatterns.some(re => re.test(moduleName))) {
     return false;
   }
-  // 如果“激活”模式列表为空（即没有设置任何模式），则全部禁用
-  if (activeNamespaces.length === 0) {
+
+  // 规则 2: 如果“启用”列表为空，则全部禁用。
+  if (enabledPatterns.length === 0) {
     return false;
   }
-  // 如果模块名匹配任何一个“激活”模式，则启用
-  // 如果设置了 'all' 或 '*'，则全部启用
-  if (activeNamespaces.some(re => re.test('all') || re.test(moduleName))) {
+
+  // 规则 3: 如果匹配任何一个“启用”模式，则启用。
+  if (enabledPatterns.some(re => re.test(moduleName))) {
     return true;
   }
+
   return false;
 }
 
 /**
- * 从 localStorage 加载并解析调试模式。
+ * 更新并保存调试配置。
+ * @param {{ enabled: string[], disabled: string[] }} newConfig
  */
-function loadDebugConfig() {
-  const pattern = globalThis.localStorage?.getItem(DEBUG_LS_KEY) || '';
-  parseDebugPattern(pattern);
-}
-
-/**
- * 设置新的调试模式，并将其保存到 localStorage。
- * @param {string} pattern - 新的调试模式字符串。
- * @example
- * // 开启所有 core 和 ui 开头的模块
- * eraDebug('core-*,ui-*')
- * // 开启所有模块，但排除 core-key
- * eraDebug('*,-core-key')
- * // 关闭所有调试日志
- * eraDebug('')
- */
-function setDebug(pattern: string) {
-  globalThis.localStorage?.setItem(DEBUG_LS_KEY, pattern);
+function updateConfig(newConfig: { enabled: string[]; disabled: string[] }) {
+  const uniqueConfig = {
+    enabled: [...new Set(newConfig.enabled)],
+    disabled: [...new Set(newConfig.disabled)],
+  };
+  globalThis.localStorage?.setItem(DEBUG_CONFIG_LS_KEY, JSON.stringify(uniqueConfig));
   loadDebugConfig();
   console.log(
-    `%c《ERA-Log》调试模式已更新: %c${pattern || '(已禁用)'}%c。部分模块可能需刷新页面生效。`,
+    `%c《ERA-Log》调试模式已更新。`,
     'color: #3498db; font-weight: bold;',
-    'color: #f39c12; font-style: italic;',
-    'color: #3498db; font-weight: bold;',
+    {
+      '启用 (Enabled)': uniqueConfig.enabled,
+      '禁用 (Disabled)': uniqueConfig.disabled,
+    },
   );
 }
 
 // 初始化配置
 loadDebugConfig();
 
-// 将设置函数暴露到全局，方便在浏览器控制台调用
+// 将控制对象暴露到全局
 if (typeof globalThis !== 'undefined') {
-  (globalThis as any).eraDebug = setDebug;
+  const eraDebug = {
+    /**
+     * 将一个模式添加到“启用列表”，使其匹配的模块显示日志。
+     * 这也会从“禁用列表”中移除该模式。
+     * @param {string} pattern - 要启用的模式，支持 * 通配符。
+     * @example
+     * // 开启所有 core 开头的模块
+     * eraDebug.add('core*')
+     */
+    add(pattern: string) {
+      const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+      const config: { enabled: string[]; disabled: string[] } = JSON.parse(configStr);
+      const enabled = new Set(config.enabled || []);
+      const disabled = new Set(config.disabled || []);
+
+      enabled.add(pattern);
+      disabled.delete(pattern);
+
+      updateConfig({ enabled: Array.from(enabled), disabled: Array.from(disabled) });
+    },
+
+    /**
+     * 将一个模式添加到“禁用列表”，使其匹配的模块不显示日志。
+     * 这也会从“启用列表”中移除该模式。
+     * @param {string} pattern - 要禁用的模式，支持 * 通配符。
+     * @example
+     * // 禁用 core-key 模块
+     * eraDebug.remove('core-key')
+     */
+    remove(pattern: string) {
+      const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+      const config: { enabled: string[]; disabled: string[] } = JSON.parse(configStr);
+      const enabled = new Set(config.enabled || []);
+      const disabled = new Set(config.disabled || []);
+
+      disabled.add(pattern);
+      enabled.delete(pattern);
+
+      updateConfig({ enabled: Array.from(enabled), disabled: Array.from(disabled) });
+    },
+
+    /**
+     * 查看当前的调试配置。
+     */
+    status() {
+      const configStr = globalThis.localStorage?.getItem(DEBUG_CONFIG_LS_KEY) || '{"enabled":[],"disabled":[]}';
+      const config = JSON.parse(configStr);
+      console.log(`%c《ERA-Log》当前调试配置:`, 'color: #3498db; font-weight: bold;', config);
+    },
+
+    /**
+     * 清空所有调试规则。
+     */
+    clear() {
+      updateConfig({ enabled: [], disabled: [] });
+    },
+  };
+
+  (globalThis as any).eraDebug = eraDebug;
 }
 
 // --- Logger 类 ---
@@ -138,8 +190,7 @@ export class Logger {
         .find(line => line.includes('/src/ERA变量框架/') && !line.includes('/utils/log.ts'));
 
       if (!callerLine) {
-        // 如果找不到，打印调试信息并优雅降级
-        console.warn('《ERA-Log-Debug》:无法从堆栈中确定模块名，将使用 "unknown"。堆栈:', stack);
+        // 如果找不到，优雅降级
         return null;
       }
 
@@ -147,8 +198,7 @@ export class Logger {
       const match = callerLine.match(/src\/ERA变量框架\/([^?:\s)]+)/);
 
       if (!match || !match[1]) {
-        // 如果正则匹配失败，打印调试信息
-        console.warn('《ERA-Log-Debug》: 正则表达式无法从调用行中提取路径。调用行:', callerLine);
+        // 如果正则匹配失败，优雅降级
         return null;
       }
 

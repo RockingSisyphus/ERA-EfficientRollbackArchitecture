@@ -6,13 +6,17 @@
 </template>
 
 <script setup lang="ts">
+import { Logger } from '../../utils/log';
+
+const logger = new Logger('ui-ActionButtons');
+
 function onFullSync() {
-  console.log('点击“完全重算变量”，发送 manual_full_sync 事件。');
+  logger.log('onFullSync', '点击“完全重算变量”，发送 manual_full_sync 事件。');
   eventEmit('manual_full_sync');
 }
 
 function onLastSync() {
-  console.log('点击“重算最后一楼变量”，发送 manual_sync 事件。');
+  logger.log('onLastSync', '点击“重算最后一楼变量”，发送 manual_sync 事件。');
   eventEmit('manual_sync');
 }
 </script>

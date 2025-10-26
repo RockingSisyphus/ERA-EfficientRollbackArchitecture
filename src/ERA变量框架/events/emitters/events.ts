@@ -1,8 +1,10 @@
 'use strict';
 
-import { ERA_EVENT_EMITTER, WriteDonePayload } from '../../utils/constants';
+import { ERA_EVENT_EMITTER } from '../../utils/constants';
 import { unescapeEraData } from '../../utils/data';
+import { getEraData, removeMetaFields } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
+import { DispatcherPayload } from '../types';
 
 const logger = new Logger();
 
@@ -32,22 +34,31 @@ export const debouncedEmitApiWrite = _.debounce(
  * 当一次完整的变量写入操作（包括增、删、改）成功完成后，应调用此函数。
  * 它向外部脚本广播一个事件，通知它们变量状态已发生改变，并提供详细的上下文。
  *
- * @param {WriteDonePayload} payload - 包含写入操作关键信息的事件负载。
+ * @param {DispatcherPayload} payload - 包含核心上下文信息的内部载荷。
  */
-export function emitWriteDoneEvent(payload: WriteDonePayload) {
-  // 在广播前，对需要暴露给外部的数据进行反转义
-  const unescapedPayload = {
+export function emitWriteDoneEvent(payload: DispatcherPayload) {
+  // 在广播前，获取最新的全量 ERA 数据
+  const { stat, meta } = getEraData();
+  const statWithoutMeta = removeMetaFields(stat);
+  const { selectedMks, editLogs } = meta;
+  logger.debug('emitWriteDoneEvent', '获取了最新的 ERA 数据并生成了纯净版', { stat, meta, statWithoutMeta });
+
+  // 动态构建完整的 WriteDonePayload
+  const fullPayload = {
     ...payload,
-    stat: unescapeEraData(payload.stat),
-    statWithoutMeta: unescapeEraData(payload.statWithoutMeta),
+    stat: unescapeEraData(stat),
+    statWithoutMeta: unescapeEraData(statWithoutMeta),
+    meta: meta,
+    selectedMks: selectedMks || [],
+    editLogs: editLogs || {},
   };
 
-  logger.debug('emitWriteDoneEvent', 'writeDone事件广播数据反转义', {
-    before: { stat: payload.stat, statWithoutMeta: payload.statWithoutMeta },
-    after: { stat: unescapedPayload.stat, statWithoutMeta: unescapedPayload.statWithoutMeta },
+  logger.debug('emitWriteDoneEvent', '动态构建了完整的事件载荷', {
+    inputPayload: payload,
+    fullPayload: fullPayload,
   });
 
-  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, unescapedPayload);
+  eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, fullPayload);
   logger.log(
     'emitWriteDoneEvent',
     `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(

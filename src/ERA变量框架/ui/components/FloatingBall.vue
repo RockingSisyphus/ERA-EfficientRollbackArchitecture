@@ -6,7 +6,15 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue';
+import { Logger } from '../../utils/log';
+
+const logger = new Logger('ui-FloatingBall');
 defineEmits(['click']);
+
+onMounted(() => {
+  logger.log('onMounted', 'FloatingBall.vue 组件已挂载');
+});
 </script>
 
 <style scoped>

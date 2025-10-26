@@ -22,8 +22,25 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, watch } from 'vue';
+import { Logger } from '../../../../utils/log';
+
+const logger = new Logger('ui-MetaHeader');
+
 // 接收父组件传入的两个字段
-defineProps<{ mk: string; messageId: number }>(); // 简单的只读展示
+const props = defineProps<{ mk: string; messageId: number }>(); // 简单的只读展示
+
+onMounted(() => {
+  logger.log('onMounted', '组件已挂载', { props });
+});
+
+watch(
+  () => props,
+  newProps => {
+    logger.debug('watch:props', 'Props 发生变化', { newProps });
+  },
+  { deep: true },
+);
 </script>
 
 <style scoped>

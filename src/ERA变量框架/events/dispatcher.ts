@@ -2,14 +2,12 @@
 
 import { ensureMkForLatestMessage } from '../core/key/mk';
 import { initializeExternalSettings } from '../scriptIniter/settings';
-import { LOGS_PATH, SEL_PATH } from '../utils/constants';
-import { getEraData, removeMetaFields } from '../utils/era_data';
 import { logContext, Logger } from '../utils/log';
 import { handleApiEvent } from './handlers/api/dispatcher';
 import { handleSyncEvent } from './handlers/sync';
 import { handleUpdateMkOnlyEvent } from './handlers/updateMkOnly';
 import { EventJob, getEventGroup } from './merger';
-import { ActionsTaken } from './types';
+import { ActionsTaken, DispatcherPayload } from './types';
 
 const logger = new Logger();
 
@@ -138,16 +136,11 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     logger.log('dispatchAndExecuteTask', `执行任务: ${eventType} (分组: ${eventGroup})`);
 
     // **任务分发**
-    // 在分发前，准备好可能需要发送 writeDone 事件的 payload
-    const { meta: metaData, stat: statData } = getEraData();
-    const payload = {
+    // v3.1 优化：payload 仅包含最核心的上下文，其他数据由下游函数自行获取。
+    const payload: DispatcherPayload = {
       mk: mk,
       message_id: message_id,
       actions: actionsTaken,
-      selectedMks: _.get(metaData, SEL_PATH, []),
-      editLogs: _.get(metaData, LOGS_PATH, {}),
-      stat: statData,
-      statWithoutMeta: removeMetaFields(statData),
       consecutiveProcessingCount: 1, // 初始值
     };
 

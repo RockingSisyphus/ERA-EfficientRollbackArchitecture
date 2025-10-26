@@ -9,11 +9,11 @@ import {
   updateByObject,
   updateByPath,
 } from './handler';
-import { ERA_API_EVENTS, WriteDonePayload } from '../../../utils/constants';
+import { ERA_API_EVENTS } from '../../../utils/constants';
 import { EventJob } from '../../merger';
-import { ActionsTaken } from '../../types';
+import { ActionsTaken, DispatcherPayload } from '../../types';
 
-export function handleApiEvent(job: EventJob, actionsTaken: ActionsTaken, payload: WriteDonePayload): void {
+export function handleApiEvent(job: EventJob, actionsTaken: ActionsTaken, payload: DispatcherPayload): void {
   const { type: eventType, detail } = job;
   actionsTaken.api = true;
 

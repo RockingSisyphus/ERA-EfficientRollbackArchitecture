@@ -3,18 +3,17 @@
 import { updateLatestSelectedMk } from '../../core/key/mk';
 import { resyncStateOnHistoryChange } from '../../core/sync';
 import { forceRenderRecentMessages } from '../../ui/patch';
-import { WriteDonePayload } from '../../utils/constants';
 import { Logger } from '../../utils/log';
 import { emitWriteDoneEvent } from '../emitters/events';
 import { EventJob } from '../merger';
-import { ActionsTaken } from '../types';
+import { ActionsTaken, DispatcherPayload } from '../types';
 
 const logger = new Logger();
 
 export async function handleSyncEvent(
   job: EventJob,
   actionsTaken: ActionsTaken,
-  payload: WriteDonePayload,
+  payload: DispatcherPayload,
 ): Promise<void> {
   const { type: eventType } = job;
   logger.debug('handleSyncEvent', `事件 ${eventType} 触发状态同步流程...`);
