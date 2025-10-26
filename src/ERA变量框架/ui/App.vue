@@ -1,58 +1,60 @@
 <template>
   <div class="era-app-container">
     <FloatingBall v-show="currentComponent === 'FloatingBall'" @click="requestSwitchView('ExpandedView')" />
-    <div v-show="currentComponent === 'ExpandedView'">
-      <!-- EraDataPanel 的内容直接在这里展开 -->
-      <div class="era-panel">
-        <!-- 顶部栏：标题 + 关闭按钮 -->
-        <header class="panel-top">
-          <h3 class="panel-title">ERA 数据面板</h3>
-          <button class="btn-close" aria-label="关闭" @click="requestSwitchView('FloatingBall')">×</button>
-        </header>
+    <div v-show="currentComponent === 'ExpandedView'"> <!-- 仅在展开视图时显示 --> <!-- 中文注释：视图切换容器 -->
+      <div class="era-shell"> <!-- 新增横向壳容器：左面板 + 右侧栏 --> <!-- 中文注释：横向布局容器 -->
+        <div class="era-panel"> <!-- 保持面板原有结构不变 --> <!-- 中文注释：左侧 ERA 面板 -->
+          <!-- 顶部栏：标题 + 关闭按钮 --> <!-- 中文注释：面板顶部 -->
+          <header class="panel-top"> <!-- 中文注释：顶栏 -->
+            <h3 class="panel-title">ERA 数据面板</h3> <!-- 中文注释：标题 -->
+            <button class="btn-close" aria-label="关闭" @click="requestSwitchView('FloatingBall')">×</button> <!-- 中文注释：关闭按钮 -->
+          </header>
 
-        <!-- 内容区 -->
-        <div class="panel-body">
-          <template v-if="dataRef">
-            <!-- 1. 最新消息元数据 -->
-            <MetaHeader :mk="dataRef.mk" :message-id="dataRef.message_id" />
+          <!-- 内容区（原样保留） --> <!-- 中文注释：面板主体 -->
+          <div class="panel-body"> <!-- 中文注释：可滚动内容 -->
+            <template v-if="dataRef"> <!-- 中文注释：有数据则渲染 -->
+              <MetaHeader :mk="dataRef.mk" :message-id="dataRef.message_id" /> <!-- 中文注释：最新消息元数据 -->
 
-            <!-- 2. 可折叠：ERA 最新操作详情 -->
-            <EraAccordion title="ERA 最新操作详情" :default-open="false">
-              <template #default>
-                <div style="display: flex; flex-direction: column; gap: 8px">
-                  <EraAccordion title="SelectedMks（数组）" :default-open="false">
-                    <template #default>
-                      <PrettyJsonViewer :value="dataRef.selectedMks" :default-collapsed="true" :max-depth="3" />
-                    </template>
-                  </EraAccordion>
-                  <EraAccordion title="EditLogs（对象）" :default-open="false">
-                    <template #default>
-                      <PrettyJsonViewer :value="dataRef.editLogs" :default-collapsed="true" :max-depth="2" />
-                    </template>
-                  </EraAccordion>
-                </div>
-              </template>
-            </EraAccordion>
+              <EraAccordion title="ERA 最新操作详情" :default-open="false"> <!-- 中文注释：外层折叠 -->
+                <template #default> <!-- 中文注释：插槽 -->
+                  <div style="display: flex; flex-direction: column; gap: 8px"> <!-- 中文注释：堆叠两个子折叠 -->
+                    <EraAccordion title="SelectedMks（数组）" :default-open="false"> <!-- 中文注释：子折叠1 -->
+                      <template #default> <!-- 中文注释：插槽 -->
+                        <PrettyJsonViewer :value="dataRef.selectedMks" :default-collapsed="true" :max-depth="3" /> <!-- 中文注释：JSON 视图 -->
+                      </template>
+                    </EraAccordion>
+                    <EraAccordion title="EditLogs（对象）" :default-open="false"> <!-- 中文注释：子折叠2 -->
+                      <template #default> <!-- 中文注释：插槽 -->
+                        <PrettyJsonViewer :value="dataRef.editLogs" :default-collapsed="true" :max-depth="2" /> <!-- 中文注释：JSON 视图 -->
+                      </template>
+                    </EraAccordion>
+                  </div>
+                </template>
+              </EraAccordion>
 
-            <!-- 3. Tab：状态数据主区 -->
-            <TabSwitch v-model:active="activeTab" :tabs="tabs">
-              <template #pure>
-                <PrettyJsonViewer :value="dataRef.statWithoutMeta" :default-collapsed="true" :max-depth="Infinity" />
-              </template>
-              <template #full>
-                <PrettyJsonViewer :value="dataRef.stat" :default-collapsed="true" :max-depth="Infinity" />
-              </template>
-            </TabSwitch>
-          </template>
+              <TabSwitch v-model:active="activeTab" :tabs="tabs"> <!-- 中文注释：选项卡 -->
+                <template #pure> <!-- 中文注释：纯净状态数据 -->
+                  <PrettyJsonViewer :value="dataRef.statWithoutMeta" :default-collapsed="true" :max-depth="Infinity" /> <!-- 中文注释：JSON 视图 -->
+                </template>
+                <template #full> <!-- 中文注释：完整状态数据 -->
+                  <PrettyJsonViewer :value="dataRef.stat" :default-collapsed="true" :max-depth="Infinity" /> <!-- 中文注释：JSON 视图 -->
+                </template>
+              </TabSwitch>
+            </template>
 
-          <!-- 无数据占位 -->
-          <template v-else>
-            <div class="empty">等待 era:writeDone 事件数据…</div>
-          </template>
+            <template v-else> <!-- 中文注释：暂无数据占位 -->
+              <div class="empty">等待 era:writeDone 事件数据…</div> <!-- 中文注释：占位提示 -->
+            </template>
+          </div>
         </div>
+
+        <!-- 右侧固定栏：只改变“位置/外部结构”，不改按钮逻辑 -->
+        <aside class="right-rail"> <!-- 中文注释：右侧栏容器 -->
+          <ActionButtons /> <!-- 中文注释：操作按钮组件（事件保持不变） -->
+        </aside>
       </div>
-      <ActionButtons />
     </div>
+
   </div>
 </template>
 
@@ -294,4 +296,51 @@ watch(
 :deep(button[aria-expanded='true'] + *) {
   overflow: visible; /* 展开时恢复正常绘制 */
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ===[新增] 横向壳：左面板 + 右侧栏（按钮）=== */
+.era-shell { /* 横向包裹容器 */ /* 中文注释：横向排列容器 */
+  display: flex; /* 横向布局 */ /* 中文注释：flex 横排 */
+  align-items: flex-start; /* 顶对齐 */ /* 中文注释：上缘对齐 */
+  gap: 12px; /* 左右间距 */ /* 中文注释：元素间距 */
+  flex-wrap: nowrap; /* 默认不换行 */ /* 中文注释：保持并排 */
+}
+
+/* 保持面板宽高（原样），但让它更好地在横向中自适应 */
+.era-panel { /* 已存在：此处只说明语义，不做覆盖 */ /* 中文注释：保留原样式 */
+  flex: 0 1 auto; /* 面板按自身宽度布局 */ /* 中文注释：不强行拉伸 */
+}
+
+/* 右侧栏外框：与左面板视觉统一（玻璃卡片风） */
+.right-rail { /* 右侧区域容器 */ /* 中文注释：侧栏 */
+  width: min(320px, 34vw); /* 宽度自适应，桌面约 280-320px 体验最佳 */ /* 中文注释：侧栏宽度 */
+  position: sticky; /* 粘附在视口内滚动 */ /* 中文注释：吸附在视口顶部 */
+  top: 10px; /* 与顶部留白 */ /* 中文注释：吸顶间距 */
+  align-self: flex-start; /* 与左侧面板顶部对齐 */ /* 中文注释：自身对齐顶部 */
+  z-index: 1; /* 避免被面板阴影覆盖 */ /* 中文注释：提升层级 */
+}
+
+/* 小屏回落：改为上下堆叠（按钮在下） */
+@media (max-width: 1100px) { /* 1100px 下回落 */ /* 中文注释：响应式断点 */
+  .era-shell { /* 横向容器 */ /* 中文注释：容器 */
+    flex-wrap: wrap; /* 允许换行 */ /* 中文注释：允许堆叠 */
+  }
+  .right-rail { /* 侧栏 */ /* 中文注释：侧栏 */
+    width: 100%; /* 占满一行 */ /* 中文注释：全宽 */
+    position: static; /* 取消吸顶，避免窄屏遮挡 */ /* 中文注释：不吸顶 */
+    margin-top: 8px; /* 与上方留白 */ /* 中文注释：间距 */
+  }
+}
+
 </style>
