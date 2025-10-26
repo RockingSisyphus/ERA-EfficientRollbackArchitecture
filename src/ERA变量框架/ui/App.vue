@@ -1,7 +1,7 @@
 <template>
   <div class="era-app-container">
     <FloatingBall v-show="currentComponent === 'FloatingBall'" @click="requestSwitchView('ExpandedView')" />
-    <div v-show="currentComponent === 'ExpandedView'"> <!-- 仅在展开视图时显示 --> <!-- 中文注释：视图切换容器 -->
+    <div v-show="currentComponent === 'ExpandedView'" class="era-expanded-layer"> <!-- 视口级展开层：悬浮模态容器 -->
       <div class="era-shell"> <!-- 新增横向壳容器：左面板 + 右侧栏 --> <!-- 中文注释：横向布局容器 -->
         <div class="era-panel"> <!-- 保持面板原有结构不变 --> <!-- 中文注释：左侧 ERA 面板 -->
           <!-- 顶部栏：标题 + 关闭按钮 --> <!-- 中文注释：面板顶部 -->
@@ -146,12 +146,18 @@ watch(
 </script>
 
 <style>
-/* App.vue 原有样式 */
-.era-app-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px; /* 为子元素之间添加一些间距 */
+/* App.vue 视口级悬浮容器（替换原有 .era-app-container） */
+.era-app-container {                                   /* 作为全局悬浮层根容器 */
+  position: fixed;                                     /* 固定在视口，不受外层布局影响 */
+  inset: 0;                                            /* 覆盖整个视口区域（top/right/bottom/left 全 0） */
+  z-index: 2147483646;                                 /* 超高层级，盖住站点其它层 */
+  pointer-events: none;                                /* 默认不截获点击，避免阻挡页面 */
+  isolation: isolate;                                  /* 新建独立层叠上下文，防止被外层混合影响 */
+  contain: layout style paint;                         /* 创建渲染封装，减少外界干扰 */
+  width: 100svw;                                       /* 适配移动端动态视口宽度 */
+  height: 100svh;                                      /* 适配移动端动态视口高度 */
 }
+
 </style>
 
 <style scoped>
@@ -342,5 +348,42 @@ watch(
     margin-top: 8px; /* 与上方留白 */ /* 中文注释：间距 */
   }
 }
+
+
+/* ===[新增] 悬浮球：固定在右下角 + 开启点击 === */
+:deep(.floating-ball) {                                                                     /* 选中子组件根元素（scoped 下用 deep） */
+  position: fixed;                                                                           /* 固定定位到视口 */
+  right: max(16px, env(safe-area-inset-right));                                              /* 右侧安全区 + 基础边距 */
+  bottom: max(16px, env(safe-area-inset-bottom));                                            /* 底部安全区 + 基础边距 */
+  z-index: 2147483647;                                                                       /* 高于容器根，确保始终可点 */
+  pointer-events: auto;                                                                      /* 启用点击（父容器是 none） */
+  touch-action: manipulation;                                                                /* 移动端减少点击延迟 */
+  will-change: transform;                                                                    /* 提前分层，避免站点 3D/滤镜影响 */
+}
+
+/* ===[新增] 展开层：视口级模态容器（只在 ExpandedView v-show 为 true 时存在） === */
+.era-expanded-layer {                                                                        /* 绑定在模板新增的 class */
+  position: fixed;                                                                           /* 固定在视口（不受外层布局约束） */
+  inset: 0;                                                                                  /* 铺满视口 */
+  display: grid;                                                                             /* 用 grid 居中内容 */
+  place-items: center;                                                                        /* 水平垂直置中 */
+  padding: clamp(12px, 2.5vw, 24px);                                                         /* 视口自适应内边距 */
+  pointer-events: auto;                                                                      /* 启用点击（与父容器的 none 区分） */
+  z-index: 2147483646;                                                                       /* 仅次于悬浮球，保证在最上层 */
+  background: transparent;                                                                   /* 如需半透明遮罩可改为 rgba(0,0,0,.25) */
+  overflow: auto;                                                                            /* 内容超出时，容器自身滚动，不被裁剪 */
+}
+
+/* ===[新增] 小屏适配：面板在移动端更“填充”可视区 === */
+@media (max-width: 640px) {                                                                  /* 针对手机宽度 */
+  .era-panel {                                                                               /* 重设面板宽高更贴合手机 */
+    width: min(92vw, 560px);                                                                 /* 放宽到 92vw，避免 60vw 太窄 */
+    height: min(88vh, calc(100svh - 32px));                                                  /* 兼顾状态栏/地址栏动态高度 */
+  }
+  .panel-body {                                                                              /* 主要内容区滚动容器 */
+    overscroll-behavior: contain;                                                            /* 防止滚动牵动背景页面 */
+  }
+}
+
 
 </style>
