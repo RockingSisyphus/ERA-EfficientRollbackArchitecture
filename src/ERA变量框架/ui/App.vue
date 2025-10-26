@@ -118,7 +118,7 @@ export interface WriteDonePayload {
 // TabSwitch 需要的类型
 type TabItem = { key: 'pure' | 'full'; label: string };
 
-const logger = new Logger('ui-App');
+const logger = new Logger();
 
 // App.vue 原有的 props
 const props = defineProps({

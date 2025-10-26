@@ -5,7 +5,7 @@ import { Logger } from '../utils/log';
 import App from './App.vue';
 import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } from './utils/dom';
 
-const logger = new Logger('ui-index');
+const logger = new Logger();
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
 let currentView: 'FloatingBall' | 'ExpandedView' = 'FloatingBall';

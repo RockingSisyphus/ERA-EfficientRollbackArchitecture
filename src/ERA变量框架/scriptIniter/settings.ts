@@ -1,7 +1,7 @@
 import { updateScriptSettings } from '../utils/era_data';
 import { Logger } from '../utils/log';
 
-const logger = new Logger('scriptIniter-settings');
+const logger = new Logger();
 
 /**
  * 初始化脚本的外部设置变量。

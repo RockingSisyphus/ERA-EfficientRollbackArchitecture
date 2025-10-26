@@ -9,7 +9,7 @@
 import { onMounted } from 'vue';
 import { Logger } from '../../utils/log';
 
-const logger = new Logger('ui-FloatingBall');
+const logger = new Logger();
 defineEmits(['click']);
 
 onMounted(() => {

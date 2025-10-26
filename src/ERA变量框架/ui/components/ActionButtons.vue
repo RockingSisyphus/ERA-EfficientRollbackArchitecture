@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import { Logger } from '../../utils/log'; // 中文注释：日志工具
 
-const logger = new Logger('ui-ActionButtons'); // 中文注释：实例化日志
+const logger = new Logger(); // 中文注释：实例化日志
 
 function onFullSync() {
   // 中文注释：完全重算事件

@@ -25,7 +25,7 @@
 import { onMounted, watch } from 'vue';
 import { Logger } from '../../../../utils/log';
 
-const logger = new Logger('ui-MetaHeader');
+const logger = new Logger();
 
 // 接收父组件传入的两个字段
 const props = defineProps<{ mk: string; messageId: number }>(); // 简单的只读展示

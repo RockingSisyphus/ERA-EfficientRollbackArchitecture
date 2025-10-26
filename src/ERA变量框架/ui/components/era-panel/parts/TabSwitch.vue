@@ -34,7 +34,7 @@ import { Logger } from '../../../../utils/log';
 
 type TabItem = { key: 'pure' | 'full'; label: string }; // Tab 项类型
 
-const logger = new Logger('ui-TabSwitch');
+const logger = new Logger();
 const props = defineProps<{ tabs: TabItem[]; active?: 'pure' | 'full' }>(); // 输入 tabs 与可选 active
 const emit = defineEmits<{ 'update:active': ['pure' | 'full'] }>(); // v-model:active
 

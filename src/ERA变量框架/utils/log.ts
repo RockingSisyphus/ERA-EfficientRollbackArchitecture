@@ -168,13 +168,9 @@ export const logContext = {
 export class Logger {
   private moduleName: string;
 
-  constructor(moduleName?: string) {
-    if (moduleName) {
-      this.moduleName = moduleName;
-    } else {
-      // 自动从调用栈获取模块名，能有效避免因实例共享导致的模块名不准问题
-      this.moduleName = this._getModuleNameFromStack() || 'unknown';
-    }
+  constructor() {
+    // 自动从调用栈获取模块名，能有效避免因实例共享导致的模块名不准问题
+    this.moduleName = this._getModuleNameFromStack() || 'unknown';
   }
 
   private _getModuleNameFromStack(): string | null {
