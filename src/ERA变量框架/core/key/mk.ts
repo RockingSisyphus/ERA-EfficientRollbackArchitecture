@@ -32,7 +32,6 @@ import { updateEraMetaData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
 import { getMessageContent, updateMessageContent } from '../../utils/message';
 import { rnd } from '../../utils/string';
-import { ensureStatusPlaceholder } from './placeholder';
 
 const logger = new Logger();
 
@@ -168,7 +167,7 @@ export async function ensureMessageKey(msg: any): Promise<{ mk: string; isNew: b
   // 3. 构造新的消息内容并统一调用更新函数
   const currentContent = getMessageContent(msg) ?? '';
   const contentWithMk = currentContent + '\n' + dataString; //尝试改为把mk放到末尾
-  const newContent = messageType === 'assistant' ? ensureStatusPlaceholder(contentWithMk) : contentWithMk;
+  const newContent = contentWithMk;
 
   // 使用从 utils.ts 导入的通用函数来更新消息，该函数已封装了处理 swipes 的逻辑。
   await updateMessageContent(msg, newContent);
