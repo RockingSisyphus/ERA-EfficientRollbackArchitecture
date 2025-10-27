@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>状态栏</title>
+  <style>
+    /* 
+      建议将此 <style> 块和下面的 <div class="era-statusbar">...</div> 一起
+      复制到酒馆正则表达式的“替换 (Replace)”字段中。
+    */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+
+    body {
+      /* 设置一个基础字体，但主要样式由 .era-statusbar 控制 */
+      font-family: 'Noto Sans SC', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: transparent; /* 确保背景透明，以便融入酒馆UI */
+    }
+
+    .era-statusbar {
+      color: #E0E0E0;
+      background: linear-gradient(145deg, #2c3e50, #34495e);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 20px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      border: 1px solid #4a6278;
+      overflow: hidden; /* 确保子元素不会溢出圆角 */
+    }
+
+    .era-statusbar-header {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #4a6278;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+
+    .era-statusbar-header h4 {
+      margin: 0;
+      font-size: 1.1em;
+      font-weight: 700;
+      color: #1abc9c; /* 高亮标题颜色 */
+      text-shadow: 0 0 5px rgba(26, 188, 156, 0.5);
+    }
+
+    .era-statusbar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .era-statusbar-item {
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    .era-statusbar-item-label {
+      font-size: 0.85em;
+      color: #bdc3c7;
+      margin-bottom: 4px;
+    }
+
+    .era-statusbar-item-value {
+      font-size: 1em;
+      font-weight: 700;
+      color: #ecf0f1;
+    }
+  </style>
+</head>
+<body>
+  <div class="era-statusbar">
+    <div class="era-statusbar-header">
+      <h4>角色状态</h4>
+    </div>
+    <div class="era-statusbar-grid">
+      <div class="era-statusbar-item">
+        <div class="era-statusbar-item-label">生命值</div>
+        <div class="era-statusbar-item-value">{{ERA:player.hp}} / {{ERA:player.max_hp}}</div>
+      </div>
+      <div class="era-statusbar-item">
+        <div class="era-statusbar-item-label">金钱</div>
+        <div class="era-statusbar-item-value">{{ERA:player.gold}} G</div>
+      </div>
+      <!-- 您可以在这里添加更多状态项 -->
+      <!--
+      <div class="era-statusbar-item">
+        <div class="era-statusbar-item-label">魔力值</div>
+        <div class="era-statusbar-item-value">{{ERA:player.mp}} / {{ERA:player.max_mp}}</div>
+      </div>
+      -->
+    </div>
+  </div>
+</body>
+</html>
