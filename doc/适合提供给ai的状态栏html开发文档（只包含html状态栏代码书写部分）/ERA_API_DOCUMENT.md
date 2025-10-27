@@ -135,26 +135,42 @@ ERA 框架采用**事件驱动架构**与外部脚本进行交互。这种设计
 ### `era:writeDone`
 
 *   **描述**: 当一次或多次连续的变量写入操作成功完成后，ERA 会广播此事件。这是外部脚本获取最新状态并做出响应的**唯一推荐方式**。
-*   **参数 (`detail`)**: `WriteDonePayload` (`object`) - 一个包含详细更新信息的对象。
-    *   `mk` (`string`): 本次更新最终落定的消息密钥 (Message Key)。
-    *   `message_id` (`number`): 本次更新最终落定的消息 ID。
-    *   `actions` (`object`): 一个描述本次写入触发了哪些操作（如 `apiWrite`, `sync`）的布尔值对象。
-    *   `stat` (`object`): **包含** ERA 内部 `$meta` 字段的完整变量对象。
-    *   `statWithoutMeta` (`object`): **不含** `$meta` 字段的纯净变量对象。**强烈建议在 UI 更新或业务逻辑处理中使用此对象**。
-    *   `editLogs` (`object`): 记录变量变更历史的日志对象。
-    *   `selectedMks` (`string[]`): 与当前聊天记录完全对应的消息密钥链。
-    *   `consecutiveProcessingCount` (`number`): 本次事件合并处理的连续操作次数。
+*   **参数 (`detail`)**: `WriteDonePayload` (`object`) - 一个包含详细更新信息的对象。其结构如下：
+    ```typescript
+    {
+      mk: string; // 本次更新的消息密钥
+      message_id: number; // 本次更新的消息 ID
+      actions: {
+        rollback: boolean; // 是否执行了回滚
+        apply: boolean;    // 是否应用了来自AI输出的变量变更
+        resync: boolean;   // 是否因历史记录变化而执行了再同步
+        api: boolean;      // 是否由API直接调用触发
+        apiWrite: boolean; // 是否由API写入操作(如update/insert)触发
+      };
+      selectedMks: (string | null)[]; // 当前聊天的主干消息密钥链
+      editLogs: { [key: string]: any[] }; // 完整的编辑日志
+      stat: any; // 包含 $meta 字段的完整变量状态
+      statWithoutMeta: any; // 不含 $meta 的纯净变量状态 (推荐使用)
+      consecutiveProcessingCount: number; // 对当前消息的连续处理次数
+    }
+    ```
+*   **重要提示：防止无限循环**
+    所有写入事件（如 `era:updateByPath`）最终都会触发一次 `era:writeDone`。为避免无限循环（例如：API写入 -> `writeDone` -> API写入），你可以在 `writeDone` 的监听器中检查 `detail.actions.apiWrite` 字段。如果为 `true`，则说明本次更新是由你自己的 API 调用触发的，你可能需要跳过某些响应逻辑。
 *   **示例**:
     ```javascript
     eventOn('era:writeDone', (detail) => {
+      // 如果这次更新是由 API 写入触发的，并且你不想重复响应，可以在这里返回。
+      if (detail.actions.apiWrite) {
+        console.log('本次更新由 API 写入触发，UI 可能已同步，跳过某些逻辑。');
+        // return; 
+      }
+
       const { mk, message_id, actions, stat, statWithoutMeta } = detail;
 
       console.log(`ERA 变量已在消息 ${message_id} (MK: ${mk}) 处更新。`);
       console.log('执行的操作:', actions);
 
       // 'statWithoutMeta' 提供了一个干净的数据版本，非常适合用于更新 UI。
-      if (actions.apiWrite) {
-        console.log('本次更新由 API 调用触发。');
-        updateMyUI(statWithoutMeta);
-      }
+      updateMyUI(statWithoutMeta);
     });
+    ```

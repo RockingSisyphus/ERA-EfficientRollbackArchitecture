@@ -1,161 +1,220 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ERA 状态栏模板</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-      margin: 0;
-      padding: 0;
-      background-color: transparent;
-    }
-    .era-statusbar {
-      color: #E0E0E0;
-      background: linear-gradient(145deg, #2c3e50, #34495e);
-      border-radius: 12px;
-      padding: 16px;
-      margin-top: 20px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-      border: 1px solid #4a6278;
-      overflow: hidden;
-    }
-    .era-statusbar-header {
-      display: flex;
-      align-items: center;
-      border-bottom: 1px solid #4a6278;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
-    }
-    .era-statusbar-header h4 {
-      margin: 0;
-      font-size: 1.1em;
-      font-weight: 700;
-      color: #1abc9c;
-      text-shadow: 0 0 5px rgba(26, 188, 156, 0.5);
-    }
-    .era-statusbar-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px;
-    }
-    .era-statusbar-item {
-      background-color: rgba(255, 255, 255, 0.05);
-      padding: 8px 12px;
-      border-radius: 8px;
-    }
-    .era-statusbar-item-label {
-      font-size: 0.85em;
-      color: #bdc3c7;
-      margin-bottom: 4px;
-    }
-    .era-statusbar-item-value {
-      font-size: 1em;
-      font-weight: 700;
-      color: #ecf0f1;
-    }
-    .era-instructions {
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid #4a6278;
-      font-size: 0.9em;
-      line-height: 1.6;
-    }
-    .era-instructions a {
-      color: #3498db;
-      text-decoration: none;
-    }
-    .era-instructions a:hover {
-      text-decoration: underline;
-    }
-  </style>
-</head>
-<body>
-
-  <div class="era-statusbar">
-    <div class="era-statusbar-header">
-      <h4>状态栏外观示例</h4>
-    </div>
-    <div class="era-statusbar-grid">
-      
-      <!-- 这里是硬编码的测试数据，用于展示状态栏的外观 -->
-      <div class="era-statusbar-item">
-        <div class="era-statusbar-item-label">生命值</div>
-        <div class="era-statusbar-item-value">100 / 100</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ERA 状态栏模板</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+          'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+        margin: 0;
+        padding: 0;
+        background-color: transparent;
+      }
+      .era-statusbar {
+        color: #e0e0e0;
+        background: linear-gradient(145deg, #2c3e50, #34495e);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 20px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        border: 1px solid #4a6278;
+        overflow: hidden;
+      }
+      .era-statusbar-header {
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #4a6278;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+      .era-statusbar-header h4 {
+        margin: 0;
+        font-size: 1.1em;
+        font-weight: 700;
+        color: #1abc9c;
+        text-shadow: 0 0 5px rgba(26, 188, 156, 0.5);
+      }
+      .era-statusbar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+      }
+      .era-statusbar-item {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 8px 12px;
+        border-radius: 8px;
+      }
+      .era-statusbar-item-label {
+        font-size: 0.85em;
+        color: #bdc3c7;
+        margin-bottom: 4px;
+      }
+      .era-statusbar-item-value {
+        font-size: 1em;
+        font-weight: 700;
+        color: #ecf0f1;
+      }
+      .era-instructions {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #4a6278;
+        font-size: 0.9em;
+        line-height: 1.6;
+      }
+      .era-instructions a {
+        color: #3498db;
+        text-decoration: none;
+      }
+      .era-instructions a:hover {
+        text-decoration: underline;
+      }
+      .era-instructions .ai-note {
+        font-size: 0.8em;
+        color: #7f8c8d;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="era-statusbar">
+      <div class="era-statusbar-header">
+        <h4>角色状态</h4>
+      </div>
+      <div class="era-statusbar-grid">
+        <div class="era-statusbar-item">
+          <div class="era-statusbar-item-label">姓名</div>
+          <div class="era-statusbar-item-value" id="player-name">--</div>
+        </div>
+        <div class="era-statusbar-item">
+          <div class="era-statusbar-item-label">等级</div>
+          <div class="era-statusbar-item-value" id="player-level">--</div>
+        </div>
+        <div class="era-statusbar-item">
+          <div class="era-statusbar-item-label">生命值</div>
+          <div class="era-statusbar-item-value" id="player-hp">-- / --</div>
+        </div>
+        <div class="era-statusbar-item">
+          <div class="era-statusbar-item-label">魔力值</div>
+          <div class="era-statusbar-item-value" id="player-mp">-- / --</div>
+        </div>
       </div>
 
-      <div class="era-statusbar-item">
-        <div class="era-statusbar-item-label">金钱</div>
-        <div class="era-statusbar-item-value">50 G</div>
+      <div class="era-statusbar-header" style="margin-top: 16px">
+        <h4>附近NPC</h4>
+      </div>
+      <div id="npc-list" class="era-statusbar-grid">
+        <div class="era-statusbar-item-label" style="padding: 8px 12px">暂无NPC信息</div>
       </div>
 
-    </div>
-
-    <!-- 
-      ================================================================
-      给角色卡作者的说明
-      ================================================================
+      <!-- 
+      AI 你好！当角色卡作者让你修改此文件时，请在修改后删除下面的 "instructions-wrapper"整个 div 元素。
     -->
-    <div class="era-instructions">
-      <strong>你接下来需要做的：</strong><br />
-      1. 自己设计角色卡用到的变量结构，并使用 `<VariableInsert>` 标签写入角色的开场白。<br />
-      2. 在角色主世界书的‘ERA变量意图说明’条目中，添加向 AI 说明各个变量意图的提示词。<br />
-      3. 修改本状态栏的 HTML 代码，使其与**你设计的变量系统匹配**。<br />
-      <br />
-      你可以将本文件的全部代码发送给 AI (如 Cline, ChatGPT, Claude等)，让它帮你完成第 3 步。为了让 AI 更好地理解如何修改，请同时将以下链接中的文档内容一并提供给它：
-      <a href="https://github.com/RockingSisyphus/ERA-EfficientRollbackArchitecture/tree/master/doc/%E9%80%82%E5%90%88%E6%8F%90%E4%BE%9B%E7%BB%99ai%E7%9A%84%E7%8A%B6%E6%80%81%E6%A0%8Fhtml%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3%EF%BC%88%E5%8F%AA%E5%8C%85%E5%90%ABhtml%E7%8A%B6%E6%80%81%E6%A0%8F%E4%BB%A3%E7%A0%81%E4%B9%A6%E5%86%99%E9%83%A8%E5%88%86%EF%BC%89" target="_blank" rel="noopener noreferrer">ERA 状态栏开发文档</a>
-    </div>
-  </div>
-
-  <!-- 
-    ================================================================
-    给 AI 的参考代码 (默认注释)
-    
-    AI 你好！当角色卡作者让你修改此文件时，请参考下面的注释代码。
-    你有两种方式来显示变量：
-
-    1. 宏模式 (简单，推荐初学者):
-       - 直接使用 {{ERA:路径.到.变量}} 宏。
-       - 优点: 非常简单，无需编写任何 JavaScript。
-       - 缺点: 变量更新时，状态栏会整个刷新，可能会有闪烁。
-       - **重要**: 此模式需要作者在 ERA 框架的脚本设置中，启用“强制重载状态栏”功能。
-
-    2. API 模式 (进阶，推荐):
-       - 使用 JavaScript 监听 ERA 事件来动态更新数据。
-       - 优点: 更新平滑，无闪烁，性能更好，可以实现更复杂的前端交互。
-       - 缺点: 需要一些基础的 JavaScript 知识。
-       - **重要**: 此模式不需要开启“强制重载状态栏”。
-    ================================================================
-  -->
-
-  <!-- 
-    宏模式示例:
-    <div class="era-statusbar-item">
-      <div class="era-statusbar-item-label">生命值</div>
-      <div class="era-statusbar-item-value">
-        {{ERA:player.hp}} / {{ERA:player.max_hp}}
+      <div id="instructions-wrapper">
+        <div class="era-statusbar-header" style="margin-top: 16px">
+          <h4>给角色卡作者的说明</h4>
+        </div>
+        <div class="era-instructions">
+          <strong>你接下来需要做的：</strong><br />
+          1. 自己设计角色卡用到的变量结构，并使用 &amp;lt;VariableInsert&amp;gt 标签写入角色的开场白。<br />
+          2. 在角色主世界书的‘ERA变量意图说明’条目中，添加向 AI 说明各个变量意图的提示词。<br />
+          3. 修改本状态栏的 HTML 代码，使其与**你设计的变量系统匹配**。<br />
+          <br />
+          完成第一步和第二步请参考：<br />
+          <a
+            href="https://github.com/RockingSisyphus/ERA-EfficientRollbackArchitecture/blob/master/doc/%E4%BD%A0%E6%9C%80%E5%A5%BD%E8%87%AA%E5%B7%B1%E7%9C%8B%E4%B8%80%E9%81%8D%E7%9A%84era%E5%8D%A1%E5%AE%8C%E6%95%B4%E5%88%B6%E4%BD%9C%E6%96%87%E6%A1%A3%EF%BC%88%E5%8C%85%E5%90%AB%E5%8F%98%E9%87%8F%E5%88%9D%E5%A7%8B%E5%8C%96%E5%92%8C%E4%B8%96%E7%95%8C%E4%B9%A6%E6%8F%90%E7%A4%BA%E8%AF%8D%EF%BC%89/%E5%A6%82%E4%BD%95%E8%AE%BE%E8%AE%A1%E5%92%8C%E8%AF%B4%E6%98%8E%E4%BD%A0%E7%9A%84%E5%8F%98%E9%87%8F%E7%B3%BB%E7%BB%9F.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            >如何设计和说明你的变量系统</a
+          >
+          <br /><br />
+          推荐你进入‘ERA 状态栏模板’正则中，将‘替换为’的内容（也就是当前模板状态栏的html代码）全部复制发送给 AI (如
+          Cline, ChatGPT, Claude等)，让它帮你完成第 3 步。为了让 AI
+          更好地理解如何修改，请同时将以下链接中的文档内容一并提供给它：<br />
+          <a
+            href="https://github.com/RockingSisyphus/ERA-EfficientRollbackArchitecture/tree/master/doc/%E9%80%82%E5%90%88%E6%8F%90%E4%BE%9B%E7%BB%99ai%E7%9A%84%E7%8A%B6%E6%80%81%E6%A0%8Fhtml%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3%EF%BC%88%E5%8F%AA%E5%8C%85%E5%90%ABhtml%E7%8A%B6%E6%80%81%E6%A0%8F%E4%BB%A3%E7%A0%81%E4%B9%A6%E5%86%99%E9%83%A8%E5%88%86%EF%BC%89"
+            target="_blank"
+            rel="noopener noreferrer"
+            >ERA 状态栏开发文档</a
+          >
+          <br /><br />
+          <strong>关于 ERA 框架:</strong><br />
+          作者: 世界的山田<br />
+          ERA 框架交流群: 1006127516<br />
+          <a
+            href="https://github.com/RockingSisyphus/ERA-EfficientRollbackArchitecture/tree/master"
+            target="_blank"
+            rel="noopener noreferrer"
+            >ERA 项目地址</a
+          >
+          |
+          <a
+            href="https://discord.com/channels/1134557553011998840/1423319849400270928"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Discord 发布帖</a
+          >
+        </div>
       </div>
     </div>
-  -->
 
-  <!-- 
-    API 模式示例:
-    (需要先将 HTML 中的数据显示部分替换为带 id 的占位符, e.g., <div id="player-hp">-- / --</div>)
-    
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        const hpElement = document.getElementById('player-hp');
-        
+        const playerName = document.getElementById('player-name');
+        const playerLevel = document.getElementById('player-level');
+        const playerHp = document.getElementById('player-hp');
+        const playerMp = document.getElementById('player-mp');
+        const npcListContainer = document.getElementById('npc-list');
+        let isInitialLoad = true;
+
         function updateUI(stat) {
-          const hp = _.get(stat, 'player.hp', '--');
-          const maxHp = _.get(stat, 'player.max_hp', '--');
-          if (hpElement) {
-            hpElement.textContent = `${hp} / ${maxHp}`;
+          // 更新玩家信息
+          const pName = _.get(stat, 'player.name');
+          if (pName !== undefined) playerName.textContent = pName;
+          else if (isInitialLoad) playerName.textContent = '示例数据';
+
+          const pLevel = _.get(stat, 'player.level');
+          if (pLevel !== undefined) playerLevel.textContent = pLevel;
+          else if (isInitialLoad) playerLevel.textContent = '示例数据';
+
+          const pHp = _.get(stat, 'player.hp');
+          const pMaxHp = _.get(stat, 'player.max_hp');
+          if (pHp !== undefined && pMaxHp !== undefined) playerHp.textContent = `${pHp} / ${pMaxHp}`;
+          else if (isInitialLoad) playerHp.textContent = '示例数据, 完成步骤1后显示';
+
+          const pMp = _.get(stat, 'player.mp');
+          const pMaxMp = _.get(stat, 'player.max_mp');
+          if (pMp !== undefined && pMaxMp !== undefined) playerMp.textContent = `${pMp} / ${pMaxMp}`;
+          else if (isInitialLoad) playerMp.textContent = '示例数据';
+
+          // 更新NPC列表
+          const npcs = _.get(stat, 'world_state.npcs', {});
+          npcListContainer.innerHTML = ''; // 清空旧列表
+          if (_.isEmpty(npcs)) {
+            if (isInitialLoad)
+              npcListContainer.innerHTML =
+                '<div class="era-statusbar-item-label" style="padding: 8px 12px;">示例数据, 完成步骤1后显示</div>';
+            else
+              npcListContainer.innerHTML =
+                '<div class="era-statusbar-item-label" style="padding: 8px 12px;">暂无NPC信息</div>';
+          } else {
+            for (const npcId in npcs) {
+              const npc = npcs[npcId];
+              const npcElement = document.createElement('div');
+              npcElement.className = 'era-statusbar-item';
+              npcElement.innerHTML = `
+                    <div class="era-statusbar-item-label">${npc.name || '未知NPC'}</div>
+                    <div class="era-statusbar-item-value">心情: ${npc.mood || '平常'}</div>
+                `;
+              npcListContainer.appendChild(npcElement);
+            }
           }
+
+          isInitialLoad = false;
         }
 
-        eventOn('era:writeDone', (detail) => {
+        eventOn('era:writeDone', detail => {
           if (detail && detail.statWithoutMeta) {
             updateUI(detail.statWithoutMeta);
           }
@@ -164,7 +223,68 @@
         eventEmit('era:getCurrentVars');
       });
     </script>
-  -->
 
-</body>
+    <!-- 
+    ================================================================
+    给 AI 的参考代码 (默认注释)
+    
+    AI 你好！当角色卡作者让你修改此文件时，请参考下面的注释代码。
+    
+    ### 宏模式 (简单)
+    - **用法**: 直接在 HTML 中写入 `{{ERA:路径.到.变量}}` 宏。
+    - **优点**: 非常简单，无需编写任何 JavaScript。
+    - **缺点**: 需要在 ERA 设置中开启“强制重载状态栏”，每次变量更新都会导致整个状态栏闪烁刷新。
+    - **示例**: `<div class="era-statusbar-item-value">{{ERA:player.hp}} / {{ERA:player.max_hp}}</div>`
+
+    ---
+
+    ### API 模式 (进阶，推荐)
+    - **用法**: 使用 JavaScript 监听和发送 ERA 框架的事件，来动态地读写变量。
+    - **优点**: 更新平滑无闪烁，性能更好，可以实现复杂的前端交互。
+
+    #### 核心事件与数据结构
+    
+    **1. `era:writeDone` 事件**: 这是响应数据变化的**唯一推荐方式**。当任何变量发生改变后，ERA 都会广播此事件，其回调函数会接收一个包含详细信息的 `detail` 对象。
+    
+    **`writeDone` 事件的 `detail` 对象 (`WriteDonePayload`) 结构如下:**
+    ```typescript
+    {
+      mk: string; // 本次更新的消息密钥
+      message_id: number; // 本次更新的消息 ID
+      actions: {
+        rollback: boolean; // 是否执行了回滚
+        apply: boolean;    // 是否应用了来自AI输出的变量变更
+        resync: boolean;   // 是否因历史记录变化而执行了再同步
+        api: boolean;      // 是否由API直接调用触发
+        apiWrite: boolean; // 是否由API写入操作(如update/insert)触发
+      };
+      selectedMks: (string | null)[]; // 当前聊天的主干消息密钥链
+      editLogs: { [key: string]: any[] }; // 完整的编辑日志
+      stat: any; // 包含 $meta 字段的完整变量状态
+      statWithoutMeta: any; // 不含 $meta 的纯净变量状态 (推荐使用)
+      consecutiveProcessingCount: number; // 对当前消息的连续处理次数
+    }
+    ```
+
+    **2. 核心读取事件**:
+    - **`eventOn('era:writeDone', callback)`**: 监听变量写入完成。
+      `eventOn('era:writeDone', (detail) => { console.log(detail.statWithoutMeta); });`
+    - **`eventEmit('era:getCurrentVars')`**: 主动请求一次最新变量，ERA 会以一个 `era:writeDone` 事件来响应。
+
+    **3. 核心写入事件 (通过 `eventEmit` 发送)**:
+    - **注意**: 所有写入事件最终都会触发一次 `era:writeDone`。为避免无限循环（例如：API写入 -> `writeDone` -> API写入），你可以在 `writeDone` 的监听器中检查 `detail.actions.apiWrite` 字段。
+      `eventOn('era:writeDone', (detail) => { if (detail.actions.apiWrite) return; /* 避免响应由API自身触发的更新 */ });`
+    
+    - **`era:insertByObject`**: 非破坏性地插入一个或多个变量。
+      `eventEmit('era:insertByObject', { player: { score: 0 } });`
+    - **`era:updateByObject`**: 修改一个或多个已存在的变量。
+      `eventEmit('era:updateByObject', { player: { level: 2 } });`
+    - **`era:insertByPath`**: 在指定路径插入一个新变量。
+      `eventEmit('era:insertByPath', { path: 'inventory.item_002', value: { name: '新物品' } });`
+    - **`era:updateByPath`**: 修改指定路径的变量，支持数学运算。
+      `eventEmit('era:updateByPath', { path: 'player.hp', value: '-=10' });`
+    - **`era:deleteByPath`**: 删除指定路径的变量。
+      `eventEmit('era:deleteByPath', { path: 'inventory.item_001' });`
+    ================================================================
+  --></body>
 </html>

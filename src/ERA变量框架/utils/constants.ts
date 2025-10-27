@@ -38,7 +38,7 @@ import { z } from 'zod';
  * 定义了脚本设置的 Zod schema，包括类型和默认值。
  */
 export const SettingsSchema = z.object({
-  在ai消息尾部生成特殊符号: z.boolean().default(false),
+  在ai消息尾部生成特殊符号: z.boolean().default(true),
   特殊符号值: z.string().default('<StatusPlaceHolderImpl/>'),
   开启悬浮球: z.boolean().default(true),
   开启黑夜模式: z.boolean().default(false),

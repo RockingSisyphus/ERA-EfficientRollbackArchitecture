@@ -1,6 +1,6 @@
 'use strict';
 
-import { LOGS_PATH, SEL_PATH, ERA_EVENT_EMITTER } from '../../utils/constants';
+import { LOGS_PATH, SEL_PATH, ERA_EVENT_EMITTER, WriteDonePayload } from '../../utils/constants';
 import { unescapeEraData } from '../../utils/data';
 import { getEraData, removeMetaFields } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
@@ -42,8 +42,8 @@ export function emitWriteDoneEvent(payload: DispatcherPayload) {
   const statWithoutMeta = removeMetaFields(stat);
   logger.debug('emitWriteDoneEvent', '获取了最新的 ERA 数据并生成了纯净版', { stat, meta, statWithoutMeta });
 
-  // 动态构建完整的 WriteDonePayload
-  const fullPayload = {
+  // 构建完整的 WriteDonePayload
+  const fullPayload: WriteDonePayload = {
     ...payload,
     stat: unescapeEraData(stat),
     statWithoutMeta: unescapeEraData(statWithoutMeta),
@@ -51,7 +51,7 @@ export function emitWriteDoneEvent(payload: DispatcherPayload) {
     editLogs: _.get(meta, LOGS_PATH, {}),
   };
 
-  logger.debug('emitWriteDoneEvent', '动态构建了完整的事件载荷', {
+  logger.debug('emitWriteDoneEvent', '构建了完整的事件载荷', {
     inputPayload: payload,
     fullPayload: fullPayload,
   });
