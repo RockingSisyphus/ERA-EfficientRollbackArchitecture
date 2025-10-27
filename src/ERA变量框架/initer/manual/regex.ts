@@ -1,5 +1,7 @@
 import { ensureCharacterRegex } from '../../utils/regex';
 import { HIDE_ERA_DATA_REGEX } from './regex_objects/hide_era_data';
+import { HIDE_ERA_METADATA_REGEX } from './regex_objects/hide_era_metadata';
+import { HIDE_ERA_THINKING_REGEX } from './regex_objects/hide_era_thinking';
 import { REPLACE_PLACEHOLDER_REGEX } from './regex_objects/replace_placeholder';
 import { Logger } from '../../utils/log';
 
@@ -31,7 +33,12 @@ export async function initEraCharacterRegexes(): Promise<InitRegexResult> {
     return { success: false, reason, details: [] };
   }
 
-  const regexesToInject = [HIDE_ERA_DATA_REGEX, REPLACE_PLACEHOLDER_REGEX];
+  const regexesToInject = [
+    HIDE_ERA_DATA_REGEX,
+    REPLACE_PLACEHOLDER_REGEX,
+    HIDE_ERA_METADATA_REGEX,
+    HIDE_ERA_THINKING_REGEX,
+  ];
   const results = [];
   let allSuccess = true;
 
