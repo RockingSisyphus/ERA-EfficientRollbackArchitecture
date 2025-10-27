@@ -16,8 +16,8 @@ import EraSettingsPanel from './RightRailContent/EraSettingsPanel.vue';
 
 <style scoped>
 .right-rail {
-  flex: 1 1 320px;
-  min-width: 280px;
+  flex: 1 1 420px;
+  min-width: 400px;
   height: min(680px, 86vh);
   position: sticky;
   top: 10px;

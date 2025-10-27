@@ -6,28 +6,49 @@
     <!-- 中文注释：卡片标题 -->
     <div class="btns">
       <!-- 中文注释：按钮垂直栈 -->
-      <button class="btn primary" title="重新计算所有变量" @click.stop="onFullSync">
-        <!-- 中文注释：主按钮 -->
-        <span class="ico" aria-hidden="true">🔄</span>
-        <!-- 中文注释：图标 -->
-        <span class="label">完全重算变量</span>
-        <!-- 中文注释：文字 -->
-      </button>
-      <button class="btn subtle" title="只重算最新一楼的变量" @click.stop="onLastSync">
-        <!-- 中文注释：次按钮 -->
-        <span class="ico" aria-hidden="true">♻️</span>
-        <!-- 中文注释：图标 -->
-        <span class="label">重算最后一楼变量</span>
-        <!-- 中文注释：文字 -->
-      </button>
+      <div class="btn-group">
+        <button class="btn primary" title="重新计算所有变量" @click.stop="onFullSync">
+          <!-- 中文注释：主按钮 -->
+          <span class="ico" aria-hidden="true">🔄</span>
+          <!-- 中文注释：图标 -->
+          <span class="label">完全重算变量</span>
+          <!-- 中文注释：文字 -->
+        </button>
+        <p class="btn-desc">当变量与预期不符时，点击此按钮可从**第一条消息**开始重新计算所有消息，以确保数据完全同步。这是一个非常耗时的操作。</p>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn subtle" title="只重算最新一楼的变量" @click.stop="onLastSync">
+          <!-- 中文注释：次按钮 -->
+          <span class="ico" aria-hidden="true">♻️</span>
+          <!-- 中文注释：图标 -->
+          <span class="label">重算最后一楼变量</span>
+          <!-- 中文注释：文字 -->
+        </button>
+        <p class="btn-desc">仅根据最新一条消息重新计算变量，速度较快。适用于修复最近一次操作导致的小问题或在手动编辑了最后一条消息后重新写入变量（注意，era会无视所有**用户发送的消息**中的变量更新语句）。</p>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn danger" title="为角色卡注入 ERA 数据隐藏正则" @click.stop="onInjectRegex">
+          <span class="ico" aria-hidden="true">🥽</span>
+          <span class="label">注入数据隐藏正则</span>
+        </button>
+        <p class="btn-desc">【角色卡作者专用】点击后，会向当前角色卡的“局部正则表达式”中添加一条规则，用于在聊天中自动隐藏 ERA 的数据标签，确保改数据不会被重复发给ai或影响视觉效果。</p>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { Logger } from '../../../utils/log'; // 中文注释：日志工具
+import { manualInitRegexes } from '../../../initer/manual/regex';
 
 const logger = new Logger(); // 中文注释：实例化日志
+
+function onInjectRegex() {
+  logger.log('onInjectRegex', '点击“注入数据隐藏正则”，开始注入...');
+  manualInitRegexes();
+}
 
 function onFullSync() {
   // 中文注释：完全重算事件
@@ -77,7 +98,22 @@ function onLastSync() {
   /* 中文注释：按钮容器 */
   display: flex; /* 中文注释：flex 布局 */
   flex-direction: column; /* 中文注释：垂直排列 */
-  gap: 10px; /* 中文注释：上下间距 */
+  gap: 16px; /* 中文注释：上下间距 */
+}
+
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-desc {
+  font-size: 11px;
+  color: var(--text-soft);
+  padding: 0 4px;
+  line-height: 1.5;
+  margin: 0;
+  transition: color 0.3s ease;
 }
 
 /* 通用按钮造型：大号、易点、可聚焦 */
@@ -118,6 +154,13 @@ function onLastSync() {
   /* 中文注释：次按钮 */
   background: var(--actions-btn-subtle-bg);
   border-color: var(--actions-btn-subtle-border);
+}
+
+/* 危险按钮：用于特殊或破坏性操作 */
+.btn.danger {
+  background: var(--actions-btn-danger-bg);
+  border-color: var(--actions-btn-danger-border);
+  color: var(--actions-btn-danger-text);
 }
 
 /* 悬停与按压反馈 */

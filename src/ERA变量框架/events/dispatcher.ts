@@ -1,7 +1,7 @@
 'use strict';
 
 import { ensureMkForLatestMessage } from '../core/key/mk';
-import { initializeExternalSettings } from '../scriptIniter/settings';
+import { initializeExternalSettings } from '../initer/auto/settings';
 import { logContext, Logger } from '../utils/log';
 import { handleApiEvent } from './handlers/api/dispatcher';
 import { handleSyncEvent } from './handlers/sync';

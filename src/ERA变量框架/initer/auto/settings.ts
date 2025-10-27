@@ -1,5 +1,5 @@
-import { updateScriptSettings } from '../utils/era_data';
-import { Logger } from '../utils/log';
+import { updateScriptSettings } from '../../utils/era_data';
+import { Logger } from '../../utils/log';
 
 const logger = new Logger();
 
