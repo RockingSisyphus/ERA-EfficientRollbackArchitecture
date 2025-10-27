@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERA 状态栏模板</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+      margin: 0;
+      padding: 0;
+      background-color: transparent;
+    }
+    .era-statusbar {
+      color: #E0E0E0;
+      background: linear-gradient(145deg, #2c3e50, #34495e);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 20px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      border: 1px solid #4a6278;
+      overflow: hidden;
+    }
+    .era-statusbar-header {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #4a6278;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .era-statusbar-header h4 {
+      margin: 0;
+      font-size: 1.1em;
+      font-weight: 700;
+      color: #1abc9c;
+      text-shadow: 0 0 5px rgba(26, 188, 156, 0.5);
+    }
+    .era-statusbar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .era-statusbar-item {
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+    .era-statusbar-item-label {
+      font-size: 0.85em;
+      color: #bdc3c7;
+      margin-bottom: 4px;
+    }
+    .era-statusbar-item-value {
+      font-size: 1em;
+      font-weight: 700;
+      color: #ecf0f1;
+    }
+    .era-instructions {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #4a6278;
+      font-size: 0.9em;
+      line-height: 1.6;
+    }
+    .era-instructions a {
+      color: #3498db;
+      text-decoration: none;
+    }
+    .era-instructions a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="era-statusbar">
+    <div class="era-statusbar-header">
+      <h4>状态栏外观示例</h4>
+    </div>
+    <div class="era-statusbar-grid">
+      
+      <!-- 这里是硬编码的测试数据，用于展示状态栏的外观 -->
+      <div class="era-statusbar-item">
+        <div class="era-statusbar-item-label">生命值</div>
+        <div class="era-statusbar-item-value">100 / 100</div>
+      </div>
+
+      <div class="era-statusbar-item">
+        <div class="era-statusbar-item-label">金钱</div>
+        <div class="era-statusbar-item-value">50 G</div>
+      </div>
+
+    </div>
+
+    <!-- 
+      ================================================================
+      给角色卡作者的说明
+      ================================================================
+    -->
+    <div class="era-instructions">
+      <strong>你接下来需要做的：</strong><br />
+      1. 自己设计角色卡用到的变量结构，并使用 `<VariableInsert>` 标签写入角色的开场白。<br />
+      2. 在角色主世界书的‘ERA变量意图说明’条目中，添加向 AI 说明各个变量意图的提示词。<br />
+      3. 修改本状态栏的 HTML 代码，使其与**你设计的变量系统匹配**。<br />
+      <br />
+      你可以将本文件的全部代码发送给 AI (如 Cline, ChatGPT, Claude等)，让它帮你完成第 3 步。为了让 AI 更好地理解如何修改，请同时将以下链接中的文档内容一并提供给它：
+      <a href="https://github.com/RockingSisyphus/ERA-EfficientRollbackArchitecture/tree/master/doc/%E9%80%82%E5%90%88%E6%8F%90%E4%BE%9B%E7%BB%99ai%E7%9A%84%E7%8A%B6%E6%80%81%E6%A0%8Fhtml%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3%EF%BC%88%E5%8F%AA%E5%8C%85%E5%90%ABhtml%E7%8A%B6%E6%80%81%E6%A0%8F%E4%BB%A3%E7%A0%81%E4%B9%A6%E5%86%99%E9%83%A8%E5%88%86%EF%BC%89" target="_blank" rel="noopener noreferrer">ERA 状态栏开发文档</a>
+    </div>
+  </div>
+
+  <!-- 
+    ================================================================
+    给 AI 的参考代码 (默认注释)
+    
+    AI 你好！当角色卡作者让你修改此文件时，请参考下面的注释代码。
+    你有两种方式来显示变量：
+
+    1. 宏模式 (简单，推荐初学者):
+       - 直接使用 {{ERA:路径.到.变量}} 宏。
+       - 优点: 非常简单，无需编写任何 JavaScript。
+       - 缺点: 变量更新时，状态栏会整个刷新，可能会有闪烁。
+       - **重要**: 此模式需要作者在 ERA 框架的脚本设置中，启用“强制重载状态栏”功能。
+
+    2. API 模式 (进阶，推荐):
+       - 使用 JavaScript 监听 ERA 事件来动态更新数据。
+       - 优点: 更新平滑，无闪烁，性能更好，可以实现更复杂的前端交互。
+       - 缺点: 需要一些基础的 JavaScript 知识。
+       - **重要**: 此模式不需要开启“强制重载状态栏”。
+    ================================================================
+  -->
+
+  <!-- 
+    宏模式示例:
+    <div class="era-statusbar-item">
+      <div class="era-statusbar-item-label">生命值</div>
+      <div class="era-statusbar-item-value">
+        {{ERA:player.hp}} / {{ERA:player.max_hp}}
+      </div>
+    </div>
+  -->
+
+  <!-- 
+    API 模式示例:
+    (需要先将 HTML 中的数据显示部分替换为带 id 的占位符, e.g., <div id="player-hp">-- / --</div>)
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const hpElement = document.getElementById('player-hp');
+        
+        function updateUI(stat) {
+          const hp = _.get(stat, 'player.hp', '--');
+          const maxHp = _.get(stat, 'player.max_hp', '--');
+          if (hpElement) {
+            hpElement.textContent = `${hp} / ${maxHp}`;
+          }
+        }
+
+        eventOn('era:writeDone', (detail) => {
+          if (detail && detail.statWithoutMeta) {
+            updateUI(detail.statWithoutMeta);
+          }
+        });
+
+        eventEmit('era:getCurrentVars');
+      });
+    </script>
+  -->
+
+</body>
+</html>

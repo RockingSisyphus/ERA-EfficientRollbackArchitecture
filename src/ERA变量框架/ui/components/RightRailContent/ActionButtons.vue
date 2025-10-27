@@ -14,7 +14,9 @@
           <span class="label">完全重算变量</span>
           <!-- 中文注释：文字 -->
         </button>
-        <p class="btn-desc">当变量与预期不符时，点击此按钮可从**第一条消息**开始重新计算所有消息，以确保数据完全同步。这是一个非常耗时的操作。</p>
+        <p class="btn-desc">
+          当变量与预期不符时，点击此按钮可从**第一条消息**开始重新计算所有消息，以确保数据完全同步。这是一个非常耗时的操作。
+        </p>
       </div>
 
       <div class="btn-group">
@@ -25,29 +27,44 @@
           <span class="label">重算最后一楼变量</span>
           <!-- 中文注释：文字 -->
         </button>
-        <p class="btn-desc">仅根据最新一条消息重新计算变量，速度较快。适用于修复最近一次操作导致的小问题或在手动编辑了最后一条消息后重新写入变量（注意，era会无视所有**用户发送的消息**中的变量更新语句）。</p>
+        <p class="btn-desc">
+          仅根据最新一条消息重新计算变量，速度较快。适用于修复最近一次操作导致的小问题或在手动编辑了最后一条消息后重新写入变量（注意，era会无视所有**用户发送的消息**中的变量更新语句）。
+        </p>
       </div>
 
       <div class="btn-group">
-        <button class="btn danger" title="为角色卡注入 ERA 数据隐藏正则" @click.stop="onInjectRegex">
+        <button class="btn danger" title="为角色卡注入 ERA 规则" @click.stop="onInjectRegex">
           <span class="ico" aria-hidden="true">🥽</span>
-          <span class="label">注入数据隐藏正则</span>
+          <span class="label">ERA 快速初始化</span>
         </button>
-        <p class="btn-desc">【角色卡作者专用】点击后，会向当前角色卡的“局部正则表达式”中添加一条规则，用于在聊天中自动隐藏 ERA 的数据标签，确保改数据不会被重复发给ai或影响视觉效果。</p>
+        <p class="btn-desc">
+          【角色卡作者专用】点击后，会向当前角色卡注入四条规则：<br />
+          1. 添加“ERA 数据隐藏正则”以隐藏聊天中的数据标签。<br />
+          2. 添加“ERA状态栏模板”以将模板状态栏替换至消息。<br />
+          3. 向角色主世界书中添加“ERA变量操作规则”条目以令ai明白era变量的操作规则。<br />
+          4. 向角色主世界书中添加“ERA变量意图说明”条目以存放变量意图说明。<br />
+          注意：作者可以用该功能快速注入使用era的几个基础配置。但你仍旧需要：<br />
+          1. 自己设计角色卡用到的变量结构并写入角色的开场白。<br />
+          2. 在角色主世界书中‘ERA变量意图说明’条目中添加向ai说明各个变量的意图的提示词。<br />
+          3. 修改‘ERA状态栏模板’正则中的状态栏代码，令其与**你设计的变量系统匹配**。
+        </p>
       </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { initEraCharacterRegexes } from '../../../initer/manual/regex';
+import { initWorldbook } from '../../../initer/manual/worldbook';
 import { Logger } from '../../../utils/log'; // 中文注释：日志工具
-import { manualInitRegexes } from '../../../initer/manual/regex';
 
 const logger = new Logger(); // 中文注释：实例化日志
 
-function onInjectRegex() {
+async function onInjectRegex() {
   logger.log('onInjectRegex', '点击“注入数据隐藏正则”，开始注入...');
-  manualInitRegexes();
+  initEraCharacterRegexes();
+  await initWorldbook();
+  logger.log('onInjectRegex', '注入完成。');
 }
 
 function onFullSync() {

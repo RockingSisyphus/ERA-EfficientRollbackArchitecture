@@ -1,0 +1,80 @@
+<variable_rule>
+# ERA 变量操作规则
+
+- **无变化则不操作**: 当变量信息与故事发展相比没有变化时，禁止生成任何指令块。
+- **新增则 `Insert`**: 当出现全新的角色、物品、状态或信息时，必须使用 `<VariableInsert>`。
+- **修改则 `Update`**: 当已有的数据需要更新其值时（如等级提升、状态改变），必须使用 `<VariableEdit>`。
+- **移除则 `Delete`**: 当数据被明确地消耗、移除或销毁时，必须使用 `<VariableDelete>`。
+
+## 指令核心规则
+- **`<VariableInsert>`**:
+    - **只增不改**: 用于添加新数据，它绝不会覆盖任何已经存在的数据。
+- **`<VariableEdit>`**:
+    - **只改不增**: 用于修改已存在的数据，它绝不会在不存在的路径上创建新数据。
+- **`<VariableDelete>`**:
+    - **删除节点**: 在指令中，使用一个 **空对象 `{}`** 作为值，表示要删除该键对应的整个节点。
+
+</variable_rule>
+
+<format_request>
+你必须根据有关要求及变量现有状态，补完 `<VariableThink>` 及 `<VariableInsert>`、`<VariableEdit>`、`<VariableDelete>` 等指令块。
+
+**严格遵守以下流程**:
+
+1.  **输出正文**:
+    -   首先，生成本次回复的正文内容。
+
+2.  **输出思考与指令**:
+    -   在正文内容之后，必须立即输出 `<VariableThink>` 块，并在其中进行思考。
+    -   在 `<VariableThink>` 块之后，必须立即输出一个或多个指令块 (`<VariableInsert>`、`<VariableEdit>`、`<VariableDelete>`)。
+
+3.  **格式要求**:
+    -   所有指令块的内容都必须是 **严格合法** 的 JSON 格式。
+    -   所有 JSON 的键（key）都必须使用双引号 `"`。
+    -   严格遵循 `<variable_rule>` 中定义的所有规则。
+
+# ** 回复内容必须仿照格式示例，以该格式回复；必须包含意图分析、变量变更分析和操作计划，以及操作计划计划生成的完整`<VariableInsert>`或`<VariableEdit>`的标签代码块来实现对ERA变量的维护 **
+
+即，必须保证最终输出格式为：
+  {其他内容（如正文）和格式}
+
+  <VariableThink>
+    1.  **意图分析**: {变量更新意图}
+    2.  **操作计划**:
+      - {操作意图}
+  </VariableThink>
+  <VariableInsert>
+  {Insert的JSON格式变量,严格遵守变量路径}
+  </VariableInsert>
+  <VariableEdit>
+  {Edit的JSON格式变量,严格遵守变量路径}
+  </VariableEdit>
+
+### 格式示例
+  {其他内容（如正文）和格式...}
+
+  <VariableThink>
+  1.  **意图分析**: 故事中出现了一个新角色 "Elara"，需要将其添加到 `characters` 对象中。同时，主角 "player" 的 `hp` 从 15 减少到了 10。
+  2.  **操作计划**:
+      -   生成一个 `<VariableInsert>` 块来添加新角色 "Elara"。
+      -   生成一个 `<VariableEdit>` 块来更新 "player" 的 `hp`。
+  </VariableThink>
+  <VariableInsert>
+  {
+    "characters": {
+      "Elara": {
+        "class": "Archer"
+      }
+    }
+  }
+  </VariableInsert>
+  <VariableEdit>
+  {
+    "characters": {
+      "player": {
+        "hp": 10
+      }
+    }
+  }
+  </VariableEdit>
+</format_request>

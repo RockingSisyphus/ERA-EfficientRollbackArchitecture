@@ -1,4 +1,6 @@
-import { initEraCharacterRegexes } from '../../utils/regex';
+import { ensureCharacterRegex } from '../../utils/regex';
+import { HIDE_ERA_DATA_REGEX } from './regex_objects/hide_era_data';
+import { REPLACE_PLACEHOLDER_REGEX } from './regex_objects/replace_placeholder';
 
 /**
  * @file 手动初始化模块 - 正则表达式
@@ -6,9 +8,10 @@ import { initEraCharacterRegexes } from '../../utils/regex';
  */
 
 /**
- * 手动初始化所有 ERA 相关的角色卡级别正则表达式。
- * 这通常用于调试或在特定时机确保正则规则被正确应用。
+ * 初始化 ERA 框架所需的所有角色卡级别的正则表达式。
+ * 目前主要是注入用于隐藏 ERA 数据标签的正则。
  */
-export function manualInitRegexes() {
-  initEraCharacterRegexes();
+export async function initEraCharacterRegexes() {
+  await ensureCharacterRegex(HIDE_ERA_DATA_REGEX);
+  await ensureCharacterRegex(REPLACE_PLACEHOLDER_REGEX);
 }

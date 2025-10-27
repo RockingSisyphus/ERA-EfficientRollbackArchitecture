@@ -1,4 +1,3 @@
-import { HIDE_ERA_DATA_REGEX } from './constants';
 import { Logger } from './log';
 
 const logger = new Logger();
@@ -22,9 +21,7 @@ export async function ensureCharacterRegex(regexData: Omit<TavernRegex, 'id' | '
   }
 
   const characterRegexes = getTavernRegexes({ scope: 'character' });
-  const isAlreadyExists = characterRegexes.some(
-    (regex) => regex.script_name === regexData.script_name,
-  );
+  const isAlreadyExists = characterRegexes.some(regex => regex.script_name === regexData.script_name);
 
   if (isAlreadyExists) {
     logger.log('ensureCharacterRegex', `名为 "${regexData.script_name}" 的正则已存在，无需注入。`);
@@ -33,7 +30,7 @@ export async function ensureCharacterRegex(regexData: Omit<TavernRegex, 'id' | '
 
   logger.log('ensureCharacterRegex', `未找到名为 "${regexData.script_name}" 的正则，正在注入...`);
   await updateTavernRegexesWith(
-    (regexes) => {
+    regexes => {
       // 在末尾添加新的正则表达式
       regexes.push({
         ...regexData,
@@ -45,12 +42,4 @@ export async function ensureCharacterRegex(regexData: Omit<TavernRegex, 'id' | '
     { scope: 'character' },
   );
   logger.log('ensureCharacterRegex', '正则注入成功。');
-}
-
-/**
- * 初始化 ERA 框架所需的所有角色卡级别的正则表达式。
- * 目前主要是注入用于隐藏 ERA 数据标签的正则。
- */
-export async function initEraCharacterRegexes() {
-  await ensureCharacterRegex(HIDE_ERA_DATA_REGEX);
 }
