@@ -23,67 +23,48 @@
           <!-- 内容区（原样保留） -->
           <!-- 中文注释：面板主体 -->
           <div class="panel-body">
-            <!-- 中文注释：可滚动内容 -->
-            <template v-if="dataRef">
-              <!-- 中文注释：有数据则渲染 -->
-              <MetaHeader :mk="dataRef.mk" :message-id="dataRef.message_id" />
-              <!-- 中文注释：最新消息元数据 -->
+            <div class="panel-content-wrapper">
+              <!-- 中文注释：可滚动内容 -->
+              <template v-if="dataRef">
+                <!-- 中文注释：有数据则渲染 -->
+                <MetaHeader :mk="dataRef.mk" :message-id="dataRef.message_id" />
+                <!-- 中文注释：最新消息元数据 -->
 
-              <EraAccordion title="ERA 最新操作详情" :default-open="false">
-                <!-- 中文注释：外层折叠 -->
-                <template #default>
-                  <!-- 中文注释：插槽 -->
-                  <div style="display: flex; flex-direction: column; gap: 8px">
-                    <!-- 中文注释：堆叠两个子折叠 -->
-                    <EraAccordion title="SelectedMks（数组）" :default-open="false">
-                      <!-- 中文注释：子折叠1 -->
-                      <template #default>
-                        <!-- 中文注释：插槽 -->
-                        <PrettyJsonViewer :value="dataRef.selectedMks" :default-collapsed="true" :max-depth="3" />
-                        <!-- 中文注释：JSON 视图 -->
-                      </template>
-                    </EraAccordion>
-                    <EraAccordion title="EditLogs（对象）" :default-open="false">
-                      <!-- 中文注释：子折叠2 -->
-                      <template #default>
-                        <!-- 中文注释：插槽 -->
-                        <PrettyJsonViewer :value="dataRef.editLogs" :default-collapsed="true" :max-depth="2" />
-                        <!-- 中文注释：JSON 视图 -->
-                      </template>
-                    </EraAccordion>
-                  </div>
-                </template>
-              </EraAccordion>
+                <OperationDetails :data="dataRef" />
 
-              <TabSwitch v-model:active="activeTab" :tabs="tabs">
-                <!-- 中文注释：选项卡 -->
-                <template #pure>
-                  <!-- 中文注释：纯净状态数据 -->
-                  <PrettyJsonViewer :value="dataRef.statWithoutMeta" :default-collapsed="true" :max-depth="Infinity" />
-                  <!-- 中文注释：JSON 视图 -->
-                </template>
-                <template #full>
-                  <!-- 中文注释：完整状态数据 -->
-                  <PrettyJsonViewer :value="dataRef.stat" :default-collapsed="true" :max-depth="Infinity" />
-                  <!-- 中文注释：JSON 视图 -->
-                </template>
-              </TabSwitch>
-            </template>
+                <TabSwitch v-model:active="activeTab" :tabs="tabs">
+                  <!-- 中文注释：选项卡 -->
+                  <template #pure>
+                    <!-- 中文注释：纯净状态数据 -->
+                    <PrettyJsonViewer :value="dataRef.statWithoutMeta" :default-collapsed="true" :max-depth="Infinity" />
+                    <!-- 中文注释：JSON 视图 -->
+                  </template>
+                  <template #full>
+                    <!-- 中文注释：完整状态数据 -->
+                    <PrettyJsonViewer :value="dataRef.stat" :default-collapsed="true" :max-depth="Infinity" />
+                    <!-- 中文注释：JSON 视图 -->
+                  </template>
+                </TabSwitch>
+              </template>
 
-            <template v-else>
-              <!-- 中文注释：暂无数据占位 -->
-              <div class="empty">等待 era:writeDone 事件数据…</div>
-              <!-- 中文注释：占位提示 -->
-            </template>
+              <template v-else>
+                <!-- 中文注释：暂无数据占位 -->
+                <div class="empty">等待 era:writeDone 事件数据…</div>
+                <!-- 中文注释：占位提示 -->
+              </template>
+            </div>
           </div>
         </div>
 
         <!-- 右侧固定栏：只改变“位置/外部结构”，不改按钮逻辑 -->
         <aside class="right-rail">
-          <!-- 中文注释：右侧栏容器 -->
-          <ActionButtons />
-          <!-- 中文注释：操作按钮组件（事件保持不变） -->
-          <EraSettingsPanel />
+          <div class="right-rail-content-wrapper">
+            <!-- 中文注释：右侧栏容器 -->
+            <ActionButtons />
+            <!-- 中文注释：操作按钮组件（事件保持不变） -->
+            <EraSettingsPanel />
+            <AboutEra />
+          </div>
         </aside>
       </div>
     </div>
@@ -98,12 +79,13 @@ import ActionButtons from './components/ActionButtons.vue';
 import EraSettingsPanel from './components/EraSettingsPanel.vue';
 import FloatingBall from './components/FloatingBall.vue';
 import ThemeManager from './components/ThemeManager.vue';
+import AboutEra from './components/AboutEra.vue';
 
 // 从 EraDataPanel 迁移过来的 imports
-import EraAccordion from './components/era-panel/parts/EraAccordion.vue';
 import MetaHeader from './components/era-panel/parts/MetaHeader.vue';
-import PrettyJsonViewer from './components/era-panel/parts/PrettyJsonViewer.vue';
 import TabSwitch from './components/era-panel/parts/TabSwitch.vue';
+import OperationDetails from './components/era-panel/OperationDetails.vue';
+import PrettyJsonViewer from './components/era-panel/parts/PrettyJsonViewer.vue';
 
 // 从 EraDataPanel 迁移过来的类型定义
 type Actions = { rollback: boolean; apply: boolean; resync: boolean; api: boolean; apiWrite: boolean };
@@ -222,7 +204,8 @@ watch(
 <style scoped>
 /* 从 EraDataPanel.vue 迁移过来的样式 */
 .era-panel {
-  width: min(960px, 60vw);
+  flex: 2 1 600px; /* 弹性增长，弹性收缩，基础宽度 600px */
+  min-width: 320px; /* 最小宽度，防止过度挤压 */
   height: min(680px, 86vh);
   display: flex;
   flex-direction: column;
@@ -281,8 +264,20 @@ watch(
 }
 
 .panel-body {
+  padding: 0; /* 移除内边距，交由 wrapper 控制 */
+  overflow: hidden; /* 隐藏自身滚动条 */
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-content-wrapper {
   padding: 14px 14px 16px;
-  overflow: auto;
+  overflow-y: auto; /* 内部滚动 */
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* 子组件间距 */
 }
 
 .block {
@@ -370,24 +365,6 @@ watch(
     color 0.3s ease;
 }
 
-/* ===[新增] 折叠时把“按钮后紧邻的内容体”彻底压平并裁剪（通用规则） === */
-/* 适配 EraAccordion：标题按钮有 aria-expanded，内容体是紧邻兄弟元素 */
-:deep(button[aria-expanded='false'] + *) {
-  height: 0 !important; /* 高度压到 0，彻底收起 */
-  padding-top: 0 !important; /* 去掉上下内边距，防止露出一条边 */
-  padding-bottom: 0 !important;
-  margin-top: 0 !important; /* 去掉上下外边距，避免 margin 折叠穿出 */
-  margin-bottom: 0 !important;
-  border-top-width: 0 !important; /* 若内容体自身有分割线，折叠时去掉 */
-  border-bottom-width: 0 !important;
-  overflow: clip !important; /* 关键：裁剪一切子内容（含虚线/阴影） */
-  contain: paint !important; /* 防止子级阴影/边框超出裁剪边界 */
-}
-
-/* 展开状态可恢复可见溢出（如悬浮提示），默认即可，可保守加一条： */
-:deep(button[aria-expanded='true'] + *) {
-  overflow: visible; /* 展开时恢复正常绘制 */
-}
 
 /* ===[新增] 横向壳：左面板 + 右侧栏（按钮）=== */
 .era-shell {
@@ -407,25 +384,41 @@ watch(
 /* 右侧栏外框：与左面板视觉统一（玻璃卡片风） */
 .right-rail {
   /* 右侧区域容器 */ /* 中文注释：侧栏 */
-  width: min(320px, 34vw); /* 宽度自适应，桌面约 280-320px 体验最佳 */ /* 中文注释：侧栏宽度 */
+  flex: 1 1 320px; /* 弹性增长，弹性收缩，基础宽度 320px */
+  min-width: 280px; /* 最小宽度 */
+  height: min(680px, 86vh); /* 与左侧面板高度对齐 */
   position: sticky; /* 粘附在视口内滚动 */ /* 中文注释：吸附在视口顶部 */
   top: 10px; /* 与顶部留白 */ /* 中文注释：吸顶间距 */
   align-self: flex-start; /* 与左侧面板顶部对齐 */ /* 中文注释：自身对齐顶部 */
   z-index: 1; /* 避免被面板阴影覆盖 */ /* 中文注释：提升层级 */
+  display: flex;
+  flex-direction: column;
+}
+
+.right-rail-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* 子组件之间的间距 */
+  overflow-y: auto; /* 内容溢出时显示滚动条 */
+  flex-grow: 1;
 }
 
 /* 小屏回落：改为上下堆叠（按钮在下） */
-@media (max-width: 1100px) {
-  /* 1100px 下回落 */ /* 中文注释：响应式断点 */
+@media (max-width: 992px) {
+  /* 992px (平板) 以下回落 */
   .era-shell {
-    /* 横向容器 */ /* 中文注释：容器 */
-    flex-wrap: wrap; /* 允许换行 */ /* 中文注释：允许堆叠 */
+    flex-wrap: wrap; /* 允许换行 */
+  }
+  .era-panel,
+  .right-rail {
+    width: 100%; /* 各占一行 */
+    flex-basis: auto; /* 重置 flex-basis */
   }
   .right-rail {
-    /* 侧栏 */ /* 中文注释：侧栏 */
-    width: 100%; /* 占满一行 */ /* 中文注释：全宽 */
-    position: static; /* 取消吸顶，避免窄屏遮挡 */ /* 中文注释：不吸顶 */
-    margin-top: 8px; /* 与上方留白 */ /* 中文注释：间距 */
+    position: static; /* 取消吸顶 */
+    margin-top: 12px; /* 与上方留白 */
+    height: auto; /* 高度自适应 */
+    max-height: 40vh; /* 限制最大高度，避免过长 */
   }
 }
 

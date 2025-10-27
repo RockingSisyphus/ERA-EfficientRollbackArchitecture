@@ -77,27 +77,17 @@ const open = ref<boolean>(props.defaultOpen);
 }
 
 .acc-body {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.28s ease;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease-in-out;
   background: var(--accordion-body-bg);
 }
 .acc-body.open {
-  grid-template-rows: 1fr;
+  max-height: 600px; /* 为展开的内容提供一个更大的最大高度 */
+  overflow-y: auto; /* 当内容超出最大高度时，显示滚动条 */
 }
 
 .inner {
-  overflow: hidden;
-  /* Add transitions for padding and visibility */
-  transition:
-    padding 0.28s ease,
-    visibility 0s 0.28s; /* Hide after the collapse transition ends */
-  padding: 0 12px;
-  visibility: hidden;
-}
-.acc-body.open .inner {
   padding: 10px 12px;
-  visibility: visible;
-  transition-delay: 0s; /* Show immediately when opening */
 }
 </style>

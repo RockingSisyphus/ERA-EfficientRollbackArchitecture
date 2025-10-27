@@ -62,7 +62,6 @@ onMounted(() => {
 
 <style scoped>
 .tabs {
-  margin-top: 12px;
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   overflow: hidden;
@@ -70,6 +69,10 @@ onMounted(() => {
   transition:
     background 0.3s ease,
     border-color 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* 关键的 flexbox hack，确保子元素可以滚动 */
 }
 .tab-bar {
   display: flex;
@@ -105,5 +108,7 @@ onMounted(() => {
   padding: 10px 12px;
   background: var(--tab-content-bg);
   transition: background 0.3s ease;
+  overflow-y: auto; /* 使内容区自身可以滚动 */
+  flex: 1; /* 占据剩余空间 */
 }
 </style>

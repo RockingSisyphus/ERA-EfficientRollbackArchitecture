@@ -70,7 +70,7 @@ defineExpose({
   --settings-text-hint-ok: #065f46;
   --settings-text-hint-bad: #b91c1c;
 
-  /* === ActionButtons.vue Styles === */
+  /* === ActionButtons.vue & AboutEra.vue Styles === */
   --actions-bg-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.62));
   --actions-shadow-card: 0 10px 40px rgba(0, 0, 0, 0.16);
   --actions-btn-bg: linear-gradient(180deg, #fafafa, #f3f4f6);
@@ -123,6 +123,7 @@ defineExpose({
   --ball-logo-shadow-near: rgba(255, 255, 255, 0.6);
   --ball-logo-shadow-far: rgba(0, 0, 0, 0.1);
   --ball-logo-filter-glow: drop-shadow(0 0 1px rgba(0, 0, 0, 0.2));
+
 }
 
 /* 暗色主题 */
@@ -179,7 +180,7 @@ defineExpose({
   --settings-text-hint-ok: #34d399;
   --settings-text-hint-bad: #ef4444;
 
-  /* === ActionButtons.vue Styles === */
+  /* === ActionButtons.vue & AboutEra.vue Styles === */
   --actions-bg-glass: linear-gradient(180deg, rgba(40, 42, 48, 0.8), rgba(33, 34, 38, 0.75));
   --actions-shadow-card: 0 10px 40px rgba(0, 0, 0, 0.3);
   --actions-btn-bg: linear-gradient(180deg, #4b5563, #374151);
@@ -240,5 +241,6 @@ defineExpose({
   --ball-logo-shadow-near: rgba(0, 0, 0, 0.3);
   --ball-logo-shadow-far: rgba(138, 43, 226, 0.45);
   --ball-logo-filter-glow: drop-shadow(0 0 3px rgba(191, 128, 255, 0.35));
+
 }
 </style>

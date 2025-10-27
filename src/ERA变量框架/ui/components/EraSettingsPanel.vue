@@ -253,7 +253,6 @@ async function saveEdits() {
   /* 玻璃卡容器 */
   width: 100%; /* 占满侧栏宽度 */
   padding: 12px; /* 内边距 */
-  margin-top: 12px; /* 与上方按钮卡间距 */
   background: var(--settings-bg-glass);
   border: 1px solid var(--border-strong);
   border-radius: 16px; /* 圆角 */
