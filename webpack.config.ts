@@ -107,6 +107,7 @@ function parse_configuration(entry: Entry, is_release = false): (_env: any, argv
   const script_filepath = path.parse(entry.script);
 
   return (_env, argv) => ({
+    cache: false,
     experiments: {
       outputModule: true,
     },
