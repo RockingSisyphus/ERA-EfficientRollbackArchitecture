@@ -198,13 +198,13 @@ onMounted(() => {
   background: var(
     --ball-logo-bg,
     linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.96) 0%,
-        rgba(255, 255, 255, 0.55) 45%,
-        rgba(220, 240, 255, 0.4) 65%,
-        rgba(120, 195, 255, 0.55) 100%
-      ),
-      linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 60%)
+      180deg,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(255, 255, 255, 0.55) 45%,
+      rgba(220, 240, 255, 0.4) 65%,
+      rgba(120, 195, 255, 0.55) 100%
+    ),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 60%)
   );
   -webkit-background-clip: text;
   background-clip: text; /* 渐变裁剪到文字 */
