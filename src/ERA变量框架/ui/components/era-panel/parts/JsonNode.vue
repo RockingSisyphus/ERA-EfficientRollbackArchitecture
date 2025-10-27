@@ -153,67 +153,74 @@ export default defineComponent({
   gap: 6px;
   padding: 2px 6px;
   border-radius: 6px;
+  transition: background 0.2s ease;
 }
 .json-line:hover {
-  background: rgba(59, 130, 246, 0.06);
+  background: var(--json-hover-bg);
 }
 .json-children {
-  border-left: 1px dashed rgba(107, 114, 128, 0.25);
+  border-left: 1px dashed var(--json-tree-line);
+  transition: border-color 0.3s ease;
 }
 
 /* 结构元素与着色 */
 .key {
-  color: #1f2937;
+  color: var(--json-key-color);
   font-weight: 700;
+  transition: color 0.3s ease;
 }
 .colon {
-  color: #6b7280;
+  color: var(--text-normal);
+  transition: color 0.3s ease;
 }
 .brace {
-  color: #9ca3af;
+  color: var(--text-normal);
+  transition: color 0.3s ease;
 }
 .summary {
-  color: #6b7280;
+  color: var(--text-normal);
   margin-left: 4px;
+  transition: color 0.3s ease;
 }
 .val.string {
-  color: #047857;
+  color: var(--json-val-string);
 }
 .val.number {
-  color: #7c3aed;
+  color: var(--json-val-number);
 }
 .val.boolean {
-  color: #0369a1;
+  color: var(--json-val-boolean);
 }
 .val.null {
-  color: #9ca3af;
+  color: var(--json-val-null);
 }
 .val.undefined {
-  color: #9ca3af;
+  color: var(--json-val-null);
 }
 
 /* 折叠箭头 */
 .caret {
   width: 18px;
   height: 18px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-soft);
   border-radius: 4px;
-  background: #fff;
+  background: var(--bg-solid);
   line-height: 16px;
   text-align: center;
   font-size: 10px;
-  color: #6b7280;
+  color: var(--text-normal);
   cursor: pointer;
-  box-shadow:
-    0 1px 0 #fff,
-    0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--json-caret-shadow);
   transition:
     transform 0.18s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease,
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 .caret.open {
   transform: rotate(90deg);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--json-caret-open-shadow);
 }
 
 /* ===[新增] 防溢出：节点与子树都裁剪（配合上层折叠时彻底看不见） === */

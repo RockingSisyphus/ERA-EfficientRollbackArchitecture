@@ -48,16 +48,17 @@ function onLastSync() {
   /* 中文注释：卡片容器 */
   width: 100%; /* 占满侧栏 */ /* 中文注释：自适应宽度 */
   padding: 12px; /* 内边距 */ /* 中文注释：留白 */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.62)); /* 中文注释：半透明渐变 */
-  border: 1px solid rgba(255, 255, 255, 0.6); /* 中文注释：浅色描边 */
+  background: var(--actions-bg-glass);
+  border: 1px solid var(--border-strong);
   border-radius: 16px; /* 中文注释：圆角 */
   backdrop-filter: blur(10px); /* 中文注释：毛玻璃效果 */
-  box-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6); /* 中文注释：外投影 + 内高光 */
+  box-shadow: var(--actions-shadow-card), var(--shadow-inset);
   display: flex; /* 中文注释：纵向布局 */
   flex-direction: column; /* 中文注释：垂直排列 */
   gap: 10px; /* 中文注释：元素间距 */
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 
 /* 标题：与面板标题权重接近但略轻 */
@@ -67,7 +68,8 @@ function onLastSync() {
   font-size: 14px; /* 中文注释：字号 */
   font-weight: 800; /* 中文注释：加粗 */
   letter-spacing: 0.3px; /* 中文注释：字距 */
-  color: #1f2937; /* 中文注释：深灰文字 */
+  color: var(--text-title);
+  transition: color 0.3s ease;
 }
 
 /* 按钮栈：竖直排列 */
@@ -87,57 +89,53 @@ function onLastSync() {
   column-gap: 8px; /* 中文注释：图标与文字间距 */
   padding: 10px 12px; /* 中文注释：触控友好尺寸 */
   border-radius: 12px; /* 中文注释：圆角 */
-  border: 1px solid rgba(0, 0, 0, 0.06); /* 中文注释：浅描边 */
-  background: linear-gradient(180deg, #fafafa, #f3f4f6); /* 中文注释：浅灰渐变 */
-  color: #374151; /* 中文注释：文字颜色 */
+  border: 1px solid var(--border-soft);
+  background: var(--actions-btn-bg);
+  color: var(--actions-btn-text);
   font-weight: 700; /* 中文注释：字重 */
   font-size: 13px; /* 中文注释：字号 */
   cursor: pointer; /* 中文注释：可点击 */
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 2px 8px rgba(0, 0, 0, 0.08); /* 中文注释：内高光 + 轻投影 */
+  box-shadow: var(--settings-shadow-inset), var(--shadow-button);
   transition:
     transform 0.12s ease,
     box-shadow 0.12s ease,
-    background 0.2s ease; /* 中文注释：交互过渡 */
+    background 0.2s ease,
+    color 0.3s ease,
+    border-color 0.3s ease;
   text-align: left; /* 中文注释：靠左 */
 }
 
 /* 主按钮：略带品牌色调（蓝青） */
 .btn.primary {
   /* 中文注释：主按钮 */
-  background: linear-gradient(180deg, #e0f2fe, #bfdbfe); /* 中文注释：浅蓝渐变 */
-  border-color: #93c5fd; /* 中文注释：描边蓝 */
-  color: #0f172a; /* 中文注释：深色文字 */
+  background: var(--actions-btn-primary-bg);
+  border-color: var(--actions-btn-primary-border);
+  color: var(--actions-btn-primary-text);
 }
 
 /* 次按钮：更素雅 */
 .btn.subtle {
   /* 中文注释：次按钮 */
-  background: linear-gradient(180deg, #f9fafb, #f3f4f6); /* 中文注释：浅灰渐变 */
-  border-color: #e5e7eb; /* 中文注释：浅灰描边 */
+  background: var(--actions-btn-subtle-bg);
+  border-color: var(--actions-btn-subtle-border);
 }
 
 /* 悬停与按压反馈 */
 .btn:hover {
   /* 中文注释：悬停态 */
   transform: translateY(-1px); /* 中文注释：轻浮起 */
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 6px 16px rgba(0, 0, 0, 0.12); /* 中文注释：增强投影 */
+  box-shadow: var(--settings-shadow-inset), var(--shadow-button-hover);
 }
 .btn:active {
   /* 中文注释：按下态 */
   transform: translateY(0); /* 中文注释：回落 */
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 2px 8px rgba(0, 0, 0, 0.1); /* 中文注释：回到轻投影 */
+  box-shadow: var(--settings-shadow-inset), var(--actions-shadow-btn-active);
 }
 
 /* 焦点可见性（无障碍） */
 .btn:focus-visible {
   /* 中文注释：键盘聚焦态 */
-  outline: 2px solid #60a5fa; /* 中文注释：蓝色描边 */
+  outline: 2px solid var(--actions-outline-focus);
   outline-offset: 2px; /* 中文注释：描边偏移 */
 }
 

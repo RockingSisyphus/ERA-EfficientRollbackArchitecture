@@ -39,6 +39,7 @@ import { z } from 'zod';
  */
 export const SettingsSchema = z.object({
   开启悬浮球: z.boolean().default(true),
+  开启黑夜模式: z.boolean().default(false),
   强制重载功能: z.boolean().default(false),
   强制重载消息数: z.number().default(2),
 });

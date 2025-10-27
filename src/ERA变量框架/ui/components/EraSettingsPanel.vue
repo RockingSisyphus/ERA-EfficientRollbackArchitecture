@@ -238,6 +238,7 @@ async function saveEdits() {
     });
 
     logger.log('saveEdits', '脚本变量已保存');
+    window.dispatchEvent(new CustomEvent('era-settings-updated'));
     loadVars();
   } catch (e) {
     logger.error('saveEdits', '保存失败：', e);
@@ -253,16 +254,17 @@ async function saveEdits() {
   width: 100%; /* 占满侧栏宽度 */
   padding: 12px; /* 内边距 */
   margin-top: 12px; /* 与上方按钮卡间距 */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.62)); /* 半透明渐变 */
-  border: 1px solid rgba(255, 255, 255, 0.6); /* 浅描边 */
+  background: var(--settings-bg-glass);
+  border: 1px solid var(--border-strong);
   border-radius: 16px; /* 圆角 */
   backdrop-filter: blur(10px); /* 毛玻璃 */
-  box-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6); /* 投影 */
+  box-shadow: var(--settings-shadow-card), var(--settings-shadow-inset);
   display: flex; /* 纵向布局 */
   flex-direction: column; /* 垂直排布 */
   gap: 10px; /* 间距 */
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 
 /* 标题按钮：收起/展开控制 */
@@ -273,21 +275,23 @@ async function saveEdits() {
   justify-content: space-between; /* 两端对齐 */
   padding: 8px 10px; /* 内边距 */
   border-radius: 10px; /* 圆角 */
-  border: 1px solid rgba(0, 0, 0, 0.06); /* 轻描边 */
-  background: linear-gradient(180deg, #fafafa, #f3f4f6); /* 渐变 */
-  color: #1f2937; /* 字色 */
+  border: 1px solid var(--border-soft);
+  background: var(--chip-bg);
+  color: var(--text-title);
   font-weight: 800; /* 加粗 */
   font-size: 13px; /* 字号 */
   cursor: pointer; /* 可点 */
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 2px 8px rgba(0, 0, 0, 0.08); /* 阴影 */
+  box-shadow: var(--settings-shadow-inset), var(--shadow-button);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .card-header:hover {
   transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--settings-shadow-inset), var(--shadow-button-hover);
 } /* 悬停态 */
 .title {
   pointer-events: none;
@@ -317,29 +321,32 @@ async function saveEdits() {
   /* 通用小按钮 */
   padding: 6px 10px; /* 内边距 */
   border-radius: 8px; /* 圆角 */
-  border: 1px solid rgba(0, 0, 0, 0.08); /* 描边 */
-  background: linear-gradient(180deg, #fafafa, #f3f4f6); /* 背景 */
+  border: 1px solid var(--border-normal);
+  background: var(--chip-bg);
+  color: var(--text-normal);
   cursor: pointer; /* 可点击 */
   font-size: 12px; /* 字号 */
   font-weight: 700; /* 加粗 */
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 2px 6px rgba(0, 0, 0, 0.06); /* 阴影 */
+  box-shadow: var(--settings-shadow-inset), var(--settings-shadow-minibtn);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .mini-btn:hover {
   transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 5px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--settings-shadow-inset), var(--settings-shadow-minibtn-hover);
 } /* 悬停 */
 .mini-btn.primary {
-  background: linear-gradient(180deg, #e0f2fe, #bfdbfe);
-  border-color: #93c5fd;
-  color: #0f172a;
+  background: var(--settings-bg-btn-primary);
+  border-color: var(--settings-border-btn-primary);
+  color: var(--settings-text-primary-btn);
 } /* 主要 */
 .mini-btn.subtle {
-  background: linear-gradient(180deg, #f9fafb, #f3f4f6);
-  border-color: #e5e7eb;
+  background: var(--settings-bg-btn-subtle);
+  border-color: var(--settings-border-input);
 } /* 次要 */
 
 /* 变量列表 */
@@ -356,17 +363,21 @@ async function saveEdits() {
   align-items: center; /* 垂直居中 */
   gap: 10px; /* 列间距 */
   padding: 8px 10px; /* 内边距 */
-  border: 1px solid rgba(0, 0, 0, 0.06); /* 轻描边 */
+  border: 1px solid var(--border-soft);
   border-radius: 10px; /* 圆角 */
-  background: linear-gradient(180deg, #ffffff, #f8fafc); /* 淡底 */
+  background: var(--settings-bg-var-row);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 .var-key {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
-  color: #374151;
+  color: var(--text-subtitle);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color 0.3s ease;
 } /* 键名样式 */
 .var-editor {
   display: flex;
@@ -379,11 +390,15 @@ async function saveEdits() {
   width: 100%; /* 拉满可用宽度 */
   padding: 8px 10px; /* 内边距 */
   border-radius: 8px; /* 圆角 */
-  border: 1px solid #e5e7eb; /* 描边 */
-  background: #fff; /* 背景 */
+  border: 1px solid var(--settings-border-input);
+  background: var(--bg-solid);
   font-size: 12px; /* 字号 */
-  color: #111827; /* 文字 */
-  box-shadow: inset 0 1px 0 #fff; /* 内高光 */
+  color: var(--settings-text-input);
+  box-shadow: var(--settings-shadow-inset);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 .ta {
   min-height: 64px;
@@ -393,12 +408,16 @@ async function saveEdits() {
 .type-chip {
   /* 类型标签 */
   font-size: 11px; /* 字号 */
-  color: #374151; /* 字色 */
-  background: #eef2ff; /* 背景 */
-  border: 1px solid #c7d2fe; /* 描边 */
+  color: var(--text-subtitle);
+  background: var(--settings-bg-type-chip);
+  border: 1px solid var(--settings-border-type-chip);
   border-radius: 999px; /* 胶囊 */
   padding: 4px 8px; /* 内边距 */
   white-space: nowrap; /* 不换行 */
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 
 /* 自定义开关（布尔） */
@@ -417,8 +436,8 @@ async function saveEdits() {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: #e5e7eb;
-  box-shadow: inset 0 1px 0 #fff;
+  background: var(--settings-bg-switch-track);
+  box-shadow: var(--settings-shadow-inset);
   transition: background 0.2s ease;
 } /* 轨道 */
 .switch .track::after {
@@ -429,12 +448,14 @@ async function saveEdits() {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s ease;
+  background: var(--settings-bg-switch-handle);
+  box-shadow: var(--settings-shadow-switch-handle);
+  transition:
+    transform 0.2s ease,
+    background 0.3s ease;
 } /* 拖头 */
 .switch input:checked + .track {
-  background: #93c5fd;
+  background: var(--settings-bg-switch-checked);
 } /* 选中轨道色 */
 .switch input:checked + .track::after {
   transform: translateX(18px);
@@ -442,21 +463,26 @@ async function saveEdits() {
 
 .hint {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-normal);
+  transition: color 0.3s ease;
 } /* JSON 提示 */
 .hint.ok {
-  color: #065f46;
+  color: var(--settings-text-hint-ok);
 } /* 通过提示色 */
 .hint.bad {
-  color: #b91c1c;
+  color: var(--settings-text-hint-bad);
 } /* 错误提示色 */
 
 .placeholder {
   padding: 10px;
-  color: #6b7280;
+  color: var(--text-normal);
   font-size: 12px;
-  border: 1px dashed rgba(0, 0, 0, 0.08);
+  border: 1px dashed var(--border-dashed);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--bg-placeholder);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 } /* 空状态 */
 </style>

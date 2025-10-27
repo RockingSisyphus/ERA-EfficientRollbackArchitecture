@@ -33,10 +33,13 @@ const open = ref<boolean>(props.defaultOpen);
 
 <style scoped>
 .acc {
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: linear-gradient(180deg, #fff, #fafafa);
+  background: var(--accordion-bg);
   overflow: hidden;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .acc-head {
@@ -44,12 +47,16 @@ const open = ref<boolean>(props.defaultOpen);
   display: flex;
   align-items: center;
   gap: 10px;
-  background: linear-gradient(180deg, #f9fafb, #f3f4f6);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--mk-pill-null-bg);
+  border-bottom: 1px solid var(--border-soft);
   padding: 10px 12px;
   cursor: pointer;
   font-weight: 800;
-  color: #374151;
+  color: var(--text-subtitle);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 .caret {
   transition: transform 0.18s ease;
@@ -65,14 +72,15 @@ const open = ref<boolean>(props.defaultOpen);
 }
 .hint {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-normal);
+  transition: color 0.3s ease;
 }
 
 .acc-body {
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 0.28s ease;
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--accordion-body-bg);
 }
 .acc-body.open {
   grid-template-rows: 1fr;

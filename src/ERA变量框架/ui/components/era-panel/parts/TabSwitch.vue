@@ -63,37 +63,47 @@ onMounted(() => {
 <style scoped>
 .tabs {
   margin-top: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   overflow: hidden;
-  background: linear-gradient(180deg, #fff, #fafafa);
+  background: var(--accordion-bg);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 .tab-bar {
   display: flex;
   gap: 8px;
   padding: 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background: linear-gradient(180deg, #f9fafb, #f3f4f6);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--mk-pill-null-bg);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 .tab-btn {
   padding: 8px 12px;
   font-weight: 800;
   font-size: 13px;
-  color: #6b7280;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  color: var(--text-normal);
+  background: var(--bg-solid);
+  border: 1px solid var(--settings-border-input);
   border-radius: 10px;
   cursor: pointer;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease;
 }
 .tab-btn.active {
-  color: #111827;
-  border-color: #93c5fd;
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 0 0 3px rgba(147, 197, 253, 0.35);
+  color: var(--settings-text-input);
+  border-color: var(--settings-border-btn-primary);
+  box-shadow: var(--settings-shadow-inset), var(--tab-active-shadow);
 }
 .tab-content {
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--tab-content-bg);
+  transition: background 0.3s ease;
 }
 </style>

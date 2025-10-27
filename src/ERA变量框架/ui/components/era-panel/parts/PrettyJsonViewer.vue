@@ -130,7 +130,8 @@ const rootClose = computed(() => (isArrayRoot.value ? ']' : '}')); // 根闭括�
 <style scoped>
 .json-root {
   font-size: 12px;
-  color: #111827;
+  color: var(--settings-text-input);
+  transition: color 0.3s ease;
 }
 .json-line {
   position: relative;
@@ -139,39 +140,44 @@ const rootClose = computed(() => (isArrayRoot.value ? ']' : '}')); // 根闭括�
   gap: 6px;
   padding: 2px 6px;
   border-radius: 6px;
+  transition: background 0.2s ease;
 }
 .json-line:hover {
-  background: rgba(59, 130, 246, 0.06);
+  background: var(--json-hover-bg);
 }
 .json-children {
-  border-left: 1px dashed rgba(107, 114, 128, 0.25);
+  border-left: 1px dashed var(--json-tree-line);
+  transition: border-color 0.3s ease;
 }
 
 .key {
-  color: #1f2937;
+  color: var(--json-key-color);
   font-weight: 700;
+  transition: color 0.3s ease;
 }
 .colon {
-  color: #6b7280;
+  color: var(--text-normal);
+  transition: color 0.3s ease;
 }
 .brace {
-  color: #9ca3af;
+  color: var(--text-normal);
+  transition: color 0.3s ease;
 }
 
 .val.string {
-  color: #047857;
+  color: var(--json-val-string);
 }
 .val.number {
-  color: #7c3aed;
+  color: var(--json-val-number);
 }
 .val.boolean {
-  color: #0369a1;
+  color: var(--json-val-boolean);
 }
 .val.null {
-  color: #9ca3af;
+  color: var(--json-val-null);
 }
 .val.undefined {
-  color: #9ca3af;
+  color: var(--json-val-null);
 }
 
 /* ===[新增] 防溢出：根与子容器都裁剪绘制，避免在外部容器高度为 0 时“透出” === */

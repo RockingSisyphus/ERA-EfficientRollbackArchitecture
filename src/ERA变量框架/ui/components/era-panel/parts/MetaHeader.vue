@@ -47,18 +47,20 @@ watch(
 .meta {
   position: relative;
   padding: 12px 12px 14px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff, #f9fafb);
-  box-shadow:
-    0 6px 18px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 #fff;
+  background: var(--meta-bg);
+  box-shadow: var(--meta-shadow), var(--settings-shadow-inset);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 .meta-title {
   margin: 0 0 10px;
   font-size: 13px;
   font-weight: 800;
-  color: #374151;
+  color: var(--text-subtitle);
+  transition: color 0.3s ease;
 }
 
 .kv {
@@ -73,25 +75,33 @@ watch(
   justify-self: start;
   align-self: center;
   font-size: 12px;
-  color: #6b7280;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  color: var(--text-normal);
+  background: var(--meta-key-bg);
+  border: 1px solid var(--settings-border-input);
   padding: 4px 8px;
   border-radius: 8px;
   font-weight: 700;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 .v {
   align-self: center;
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 12px;
-  color: #111827;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  color: var(--settings-text-input);
+  background: var(--bg-solid);
+  border: 1px solid var(--settings-border-input);
   padding: 6px 8px;
   border-radius: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 
 /* 顶部流光装饰 */
@@ -102,7 +112,7 @@ watch(
   top: -1px;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #60a5fa, #a78bfa, #34d399, #f472b6);
+  background: var(--meta-glow-bg);
   filter: blur(0.4px);
 }
 </style>

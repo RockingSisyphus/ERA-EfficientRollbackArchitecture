@@ -1,5 +1,6 @@
 <template>
-  <div class="era-app-container">
+  <div class="era-app-container" :class="{ 'dark-theme': isDarkMode }">
+    <ThemeManager ref="themeManager" />
     <FloatingBall v-show="currentComponent === 'FloatingBall'" @click="requestSwitchView('ExpandedView')" />
     <div v-show="currentComponent === 'ExpandedView'" class="era-expanded-layer">
       <!-- 视口级展开层：悬浮模态容器 -->
@@ -90,11 +91,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue';
+import { getScriptSettings } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import ActionButtons from './components/ActionButtons.vue';
 import EraSettingsPanel from './components/EraSettingsPanel.vue';
 import FloatingBall from './components/FloatingBall.vue';
+import ThemeManager from './components/ThemeManager.vue';
 
 // 从 EraDataPanel 迁移过来的 imports
 import EraAccordion from './components/era-panel/parts/EraAccordion.vue';
@@ -119,6 +122,34 @@ export interface WriteDonePayload {
 type TabItem = { key: 'pure' | 'full'; label: string };
 
 const logger = new Logger();
+
+// 主题状态管理
+const themeManager = ref<InstanceType<typeof ThemeManager> | null>(null);
+const isDarkMode = ref(false);
+
+const loadThemeSetting = () => {
+  try {
+    const settings = getScriptSettings();
+    const darkModeValue = settings?.['开启黑夜模式'] ?? false;
+    isDarkMode.value = darkModeValue;
+    if (themeManager.value) {
+      themeManager.value.isDarkMode = darkModeValue;
+    }
+    logger.log('loadThemeSetting', `主题已更新为: ${darkModeValue ? 'Dark' : 'Light'}`);
+  } catch (e) {
+    logger.error('loadThemeSetting', '加载主题设置失败', e);
+    isDarkMode.value = false; // Fallback to light mode
+  }
+};
+
+onMounted(() => {
+  loadThemeSetting();
+  window.addEventListener('era-settings-updated', loadThemeSetting);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('era-settings-updated', loadThemeSetting);
+});
 
 // App.vue 原有的 props
 const props = defineProps({
@@ -152,10 +183,6 @@ const tabs: TabItem[] = [
   { key: 'full', label: '完整状态数据' },
 ];
 const activeTab = ref<'pure' | 'full'>('pure');
-
-onMounted(() => {
-  logger.log('onMounted', 'App.vue 组件已挂载', { props: props });
-});
 
 watch(
   () => props.eventData,
@@ -199,15 +226,16 @@ watch(
   height: min(680px, 86vh);
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.65));
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: var(--bg-blur-heavy);
+  border: 1px solid var(--border-strong);
   backdrop-filter: blur(10px);
   border-radius: 16px;
-  box-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-panel), var(--shadow-inset);
   overflow: hidden;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .panel-top {
@@ -215,14 +243,18 @@ watch(
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-blur-light);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 .panel-title {
   font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: #1f2937;
+  color: var(--text-title);
+  transition: color 0.3s ease;
 }
 .btn-close {
   width: 32px;
@@ -230,16 +262,22 @@ watch(
   line-height: 30px;
   text-align: center;
   border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: #fff;
+  border: 1px solid var(--border-normal);
+  background: var(--bg-solid);
   cursor: pointer;
   font-size: 18px;
-  color: #6b7280;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: var(--text-normal);
+  box-shadow: var(--shadow-button);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .btn-close:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-button-hover);
 }
 
 .panel-body {
@@ -250,15 +288,19 @@ watch(
 .block {
   margin: 12px 0 4px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 .block-title {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 800;
-  color: #374151;
+  color: var(--text-subtitle);
+  transition: color 0.3s ease;
 }
 
 .chips {
@@ -269,16 +311,20 @@ watch(
 .chip {
   font-size: 12px;
   padding: 6px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
-  background: linear-gradient(180deg, #fafafa, #f4f4f4);
-  color: #6b7280;
-  box-shadow: inset 0 1px 0 #fff;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  box-shadow: var(--shadow-inset);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 .chip.ok {
-  color: #065f46;
-  background: linear-gradient(180deg, #ecfdf5, #d1fae5);
-  border-color: #a7f3d0;
+  color: var(--chip-ok-text);
+  background: var(--chip-ok-bg);
+  border-color: var(--chip-ok-border);
 }
 
 .mk-strip {
@@ -293,27 +339,35 @@ watch(
   gap: 6px;
   align-items: center;
   padding: 6px 8px;
-  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-  color: #4338ca;
-  border: 1px solid #c7d2fe;
+  background: var(--mk-pill-bg);
+  color: var(--mk-pill-text);
+  border: 1px solid var(--mk-pill-border);
   border-radius: 8px;
   font-size: 12px;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 .mk-pill.is-null {
-  background: linear-gradient(180deg, #f9fafb, #f3f4f6);
-  color: #6b7280;
-  border-color: #e5e7eb;
+  background: var(--mk-pill-null-bg);
+  color: var(--mk-pill-null-text);
+  border-color: var(--mk-pill-null-border);
 }
 
 .empty {
   height: 360px;
   display: grid;
   place-items: center;
-  color: #6b7280;
+  color: var(--text-normal);
   font-size: 14px;
-  border: 1px dashed rgba(0, 0, 0, 0.08);
+  border: 1px dashed var(--border-dashed);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--bg-empty);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 
 /* ===[新增] 折叠时把“按钮后紧邻的内容体”彻底压平并裁剪（通用规则） === */

@@ -23,17 +23,17 @@ onMounted(() => {
    ========================= */
 .floating-ball {
   --size: 50px; /* 直径：保持默认 50px，与原始一致 */
-  --hue: 212; /* 主色相：212≈#007bff，方便全局协调色相 */
-  --sat: 100%; /* 饱和度：更鲜亮 */
-  --lum: 52%; /* 明度：主色的明度 */
+  --hue: var(--ball-hue, 212); /* 主色相：212≈#007bff，方便全局协调色相 */
+  --sat: var(--ball-sat, 100%); /* 饱和度：更鲜亮 */
+  --lum: var(--ball-lum, 52%); /* 明度：主色的明度 */
   --surface: hsl(var(--hue) var(--sat) var(--lum)); /* 主表面色 */
   --surface-2: hsl(var(--hue) 95% 64%); /* 渐变第二色，略亮 */
   --ring: hsl(calc(var(--hue) + 20) 95% 65%); /* 外环的点缀色，偏青一点 */
-  --shadow: rgba(0, 123, 255, 0.36); /* 阴影颜色（与主色相近） */
-  --glow: rgba(102, 200, 255, 0.55); /* 外发光颜色 */
-  --inner-shadow: rgba(0, 0, 0, 0.22); /* 内阴影增强体积感 */
-  --specular: rgba(255, 255, 255, 0.75); /* 高光 */
-  --glass: rgba(255, 255, 255, 0.18); /* 玻璃质感覆盖层 */
+  --shadow: var(--ball-shadow-color, rgba(0, 123, 255, 0.36)); /* 阴影颜色（与主色相近） */
+  --glow: var(--ball-glow-color, rgba(102, 200, 255, 0.55)); /* 外发光颜色 */
+  --inner-shadow: var(--ball-inner-shadow-color, rgba(0, 0, 0, 0.22)); /* 内阴影增强体积感 */
+  --specular: var(--ball-specular-color, rgba(255, 255, 255, 0.75)); /* 高光 */
+  --glass: var(--ball-glass-color, rgba(255, 255, 255, 0.18)); /* 玻璃质感覆盖层 */
   width: var(--size); /* 宽度设为可变量 */
   height: var(--size); /* 高度设为可变量 */
   border-radius: 50%; /* 圆形 */
@@ -127,7 +127,7 @@ onMounted(() => {
 
 /* 可达性：键盘聚焦时的可见描边（不改变布局） */
 .floating-ball:focus-visible {
-  outline: 2px solid rgba(102, 200, 255, 0.85); /* 高亮描边 */
+  outline: 2px solid var(--ball-focus-outline, rgba(102, 200, 255, 0.85)); /* 高亮描边 */
   outline-offset: 2px; /* 外移 2px，避免遮挡球体 */
 }
 
@@ -195,32 +195,37 @@ onMounted(() => {
   z-index: 1; /* 位于背景之上（仍在 ::after 光环之下） */
 
   /* 渐变镂空字 + 立体阴影 */
-  background:
+  background: var(
+    --ball-logo-bg,
     linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.96) 0%,
-      rgba(255, 255, 255, 0.55) 45%,
-      rgba(220, 240, 255, 0.4) 65%,
-      rgba(120, 195, 255, 0.55) 100%
-    ),
-    /* 高光到冷蓝的层次 */ linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 60%); /* 轻内阴影 */
+        180deg,
+        rgba(255, 255, 255, 0.96) 0%,
+        rgba(255, 255, 255, 0.55) 45%,
+        rgba(220, 240, 255, 0.4) 65%,
+        rgba(120, 195, 255, 0.55) 100%
+      ),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 60%)
+  );
   -webkit-background-clip: text;
   background-clip: text; /* 渐变裁剪到文字 */
   color: transparent; /* 镂空填充由背景提供 */
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.75),
-    /* 顶部掣光 */ 0 2px 4px rgba(0, 0, 0, 0.25),
-    /* 近阴影 */ 0 8px 18px rgba(0, 123, 255, 0.35); /* 远发光阴影 */
-  filter: drop-shadow(0 0 2px rgba(102, 200, 255, 0.25)); /* 柔光晕 */
+    0 1px 0 var(--ball-logo-shadow-top, rgba(255, 255, 255, 0.75)),
+    /* 顶部掣光 */ 0 2px 4px var(--ball-logo-shadow-near, rgba(0, 0, 0, 0.25)),
+    /* 近阴影 */ 0 8px 18px var(--ball-logo-shadow-far, rgba(0, 123, 255, 0.35)); /* 远发光阴影 */
+  filter: var(--ball-logo-filter-glow, drop-shadow(0 0 2px rgba(102, 200, 255, 0.25))); /* 柔光晕 */
   animation: era-sheen 4s ease-in-out infinite; /* 轻微高光流动 */
+  transition:
+    text-shadow 0.3s ease,
+    filter 0.3s ease;
 }
 
 .floating-ball:hover .era-logo {
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.85),
-    0 3px 8px rgba(0, 0, 0, 0.28),
-    0 10px 26px rgba(0, 123, 255, 0.55); /* 悬停增强立体感 */
-  filter: drop-shadow(0 0 3px rgba(102, 200, 255, 0.38)); /* 发光略加强 */
+    0 1px 0 var(--ball-logo-shadow-top, rgba(255, 255, 255, 0.85)),
+    0 3px 8px var(--ball-logo-shadow-near, rgba(0, 0, 0, 0.28)),
+    0 10px 26px var(--ball-logo-shadow-far, rgba(0, 123, 255, 0.55)); /* 悬停增强立体感 */
+  filter: var(--ball-logo-filter-glow, drop-shadow(0 0 3px rgba(102, 200, 255, 0.38))); /* 发光略加强 */
 }
 
 /* 高光缓慢上移，制造玻璃流光感（低侵扰） */
