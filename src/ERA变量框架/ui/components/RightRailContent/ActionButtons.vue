@@ -54,17 +54,72 @@
 </template>
 
 <script setup lang="ts">
+import toastr from 'toastr';
 import { initEraCharacterRegexes } from '../../../initer/manual/regex';
-import { initWorldbook } from '../../../initer/manual/worldbook';
+import { initEraWorldbookEntries } from '../../../initer/manual/worldbook';
 import { Logger } from '../../../utils/log'; // 中文注释：日志工具
 
 const logger = new Logger(); // 中文注释：实例化日志
 
 async function onInjectRegex() {
-  logger.log('onInjectRegex', '点击“注入数据隐藏正则”，开始注入...');
-  initEraCharacterRegexes();
-  await initWorldbook();
-  logger.log('onInjectRegex', '注入完成。');
+  logger.log('onInjectRegex', '点击“ERA 快速初始化”，开始注入...');
+  try {
+    // 检查是否存在第 0 条消息
+    try {
+      const firstMessage = getChatMessages(0);
+      if (!firstMessage || firstMessage.length === 0) {
+        throw new Error('No messages found');
+      }
+    } catch (e) {
+      toastr.error('然后你才能看到状态栏模板', '请在角色卡的开场白中添加任意内容。');
+      logger.warn('onInjectRegex', '获取第 0 条消息失败，可能是因为聊天记录为空。', e);
+      return;
+    }
+
+    // 初始化正则
+    const regexResult = await initEraCharacterRegexes();
+    if (!regexResult.success) {
+      toastr.error(regexResult.reason ?? '未知错误', '正则初始化失败');
+      logger.error('onInjectRegex', '正则注入失败:', regexResult.reason);
+      return;
+    } else {
+      const injectedCount = regexResult.details.filter(d => d.status === 'injected').length;
+      const existsCount = regexResult.details.filter(d => d.status === 'exists').length;
+      let message = '';
+      if (injectedCount > 0) {
+        message += `成功注入 ${injectedCount} 个新正则。`;
+      }
+      if (existsCount > 0) {
+        message += ` ${existsCount} 个正则已存在。`;
+      }
+      if (message) {
+        toastr.success(message.trim(), '正则初始化完成');
+      }
+    }
+
+    // 初始化世界书
+    const worldbookResult = await initEraWorldbookEntries();
+    if (!worldbookResult.success) {
+      toastr.error(worldbookResult.reason ?? '一个或多个世界书条目注入失败。', '世界书初始化失败');
+      logger.error('onInjectRegex', '世界书注入失败:', worldbookResult);
+    } else {
+      const injectedCount = worldbookResult.details.filter(d => d.status === 'injected').length;
+      const existsCount = worldbookResult.details.filter(d => d.status === 'exists').length;
+      let message = '';
+      if (injectedCount > 0) {
+        message += `成功注入 ${injectedCount} 个新条目。`;
+      }
+      if (existsCount > 0) {
+        message += ` ${existsCount} 个条目已存在。`;
+      }
+      toastr.success(message.trim(), '世界书初始化完成');
+    }
+
+    logger.log('onInjectRegex', '初始化流程完成。');
+  } catch (error) {
+    logger.error('onInjectRegex', '执行初始化时发生意外错误:', error);
+    toastr.error('发生意外错误，请检查控制台获取详细信息。', '初始化失败');
+  }
 }
 
 function onFullSync() {

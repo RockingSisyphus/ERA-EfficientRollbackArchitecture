@@ -42,36 +42,44 @@ export async function isEntryInWorldbook(worldbookName: string, entryName: strin
   }
 }
 
+type InjectionResult = {
+  success: boolean;
+  status: 'injected' | 'exists' | 'failed';
+  reason?: string;
+};
+
 /**
  * 向世界书注入一个新条目，如果同名条目已存在则不执行任何操作
  * @param worldbookName - 世界书的名称
  * @param newEntry - 要注入的新条目
- * @returns 如果成功注入则返回 true，如果已存在或发生错误则返回 false
+ * @returns 一个包含操作结果的对象
  */
 export async function injectEntryToWorldbook(
   worldbookName: string,
   newEntry: PartialDeep<WorldbookEntry>,
-): Promise<boolean> {
+): Promise<InjectionResult> {
   const funcName = 'injectEntryToWorldbook';
   if (!newEntry.name) {
-    logger.error(funcName, '注入失败：新条目必须包含 name 字段。');
-    return false;
+    const reason = '注入失败：新条目必须包含 name 字段。';
+    logger.error(funcName, reason);
+    return { success: false, status: 'failed', reason };
   }
 
   const entryExists = await isEntryInWorldbook(worldbookName, newEntry.name);
   if (entryExists) {
     logger.log(funcName, `条目「${newEntry.name}」已存在于世界书「${worldbookName}」中，无需注入。`);
-    return false;
+    return { success: true, status: 'exists' };
   }
 
   try {
     logger.log(funcName, `正在向世界书「${worldbookName}」注入新条目「${newEntry.name}」...`);
     await createWorldbookEntries(worldbookName, [newEntry]);
     logger.log(funcName, `成功向世界书「${worldbookName}」注入新条目「${newEntry.name}」。`);
-    return true;
+    return { success: true, status: 'injected' };
   } catch (error) {
-    logger.error(funcName, `向世界书「${worldbookName}」注入条目「${newEntry.name}」时发生错误。`, error);
-    return false;
+    const reason = `向世界书「${worldbookName}」注入条目「${newEntry.name}」时发生错误。`;
+    logger.error(funcName, reason, error);
+    return { success: false, status: 'failed', reason };
   }
 }
 

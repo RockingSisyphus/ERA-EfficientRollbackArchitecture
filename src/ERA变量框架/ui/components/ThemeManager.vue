@@ -80,8 +80,12 @@ defineExpose({
   --actions-btn-primary-text: #0f172a;
   --actions-btn-subtle-bg: linear-gradient(180deg, #f9fafb, #f3f4f6);
   --actions-btn-subtle-border: #e5e7eb;
+  --actions-btn-danger-bg: linear-gradient(180deg, #fee2e2, #fecaca);
+  --actions-btn-danger-border: #fca5a5;
+  --actions-btn-danger-text: #991b1b;
   --actions-shadow-btn-active: 0 2px 8px rgba(0, 0, 0, 0.1);
   --actions-outline-focus: #60a5fa;
+  --text-soft: #6b7280;
 
   /* === EraAccordion.vue Styles === */
   --accordion-bg: linear-gradient(180deg, #fff, #fafafa);

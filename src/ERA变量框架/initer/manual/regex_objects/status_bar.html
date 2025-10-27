@@ -172,11 +172,11 @@
           // 更新玩家信息
           const pName = _.get(stat, 'player.name');
           if (pName !== undefined) playerName.textContent = pName;
-          else if (isInitialLoad) playerName.textContent = '示例数据';
+          else if (isInitialLoad) playerName.textContent = '示例数据, 完成步骤1后显示';
 
           const pLevel = _.get(stat, 'player.level');
           if (pLevel !== undefined) playerLevel.textContent = pLevel;
-          else if (isInitialLoad) playerLevel.textContent = '示例数据';
+          else if (isInitialLoad) playerLevel.textContent = '示例数据, 完成步骤1后显示';
 
           const pHp = _.get(stat, 'player.hp');
           const pMaxHp = _.get(stat, 'player.max_hp');
@@ -186,7 +186,7 @@
           const pMp = _.get(stat, 'player.mp');
           const pMaxMp = _.get(stat, 'player.max_mp');
           if (pMp !== undefined && pMaxMp !== undefined) playerMp.textContent = `${pMp} / ${pMaxMp}`;
-          else if (isInitialLoad) playerMp.textContent = '示例数据';
+          else if (isInitialLoad) playerMp.textContent = '示例数据, 完成步骤1后显示';
 
           // 更新NPC列表
           const npcs = _.get(stat, 'world_state.npcs', {});

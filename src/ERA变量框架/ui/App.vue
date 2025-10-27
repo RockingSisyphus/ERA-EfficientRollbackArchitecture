@@ -15,9 +15,9 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { WriteDonePayload } from '../utils/constants';
 import { getScriptSettings } from '../utils/era_data';
 import { Logger } from '../utils/log';
-import type { WriteDonePayload } from '../utils/constants';
 import EraPanel from './components/EraPanel.vue';
 import FloatingBall from './components/FloatingBall.vue';
 import RightRail from './components/RightRail.vue';
