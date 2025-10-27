@@ -123,7 +123,6 @@ defineExpose({
   --ball-logo-shadow-near: rgba(255, 255, 255, 0.6);
   --ball-logo-shadow-far: rgba(0, 0, 0, 0.1);
   --ball-logo-filter-glow: drop-shadow(0 0 1px rgba(0, 0, 0, 0.2));
-
 }
 
 /* 暗色主题 */
@@ -241,6 +240,5 @@ defineExpose({
   --ball-logo-shadow-near: rgba(0, 0, 0, 0.3);
   --ball-logo-shadow-far: rgba(138, 43, 226, 0.45);
   --ball-logo-filter-glow: drop-shadow(0 0 3px rgba(191, 128, 255, 0.35));
-
 }
 </style>
