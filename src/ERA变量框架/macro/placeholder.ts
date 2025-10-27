@@ -8,7 +8,7 @@ import { isUserMessage, getMessageContent, updateMessageContent } from '../utils
  * @description 监听消息接收事件，并确保消息中存在用于渲染状态UI的占位符。
  */
 
-eventOn(tavern_events.MESSAGE_RECEIVED, async (message_id) => {
+eventOn(tavern_events.MESSAGE_RECEIVED, async message_id => {
   const settings = getScriptSettings();
   if (!settings.在ai消息尾部生成特殊符号) {
     return;
