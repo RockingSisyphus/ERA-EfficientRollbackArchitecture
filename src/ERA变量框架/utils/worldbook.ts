@@ -48,7 +48,10 @@ export async function isEntryInWorldbook(worldbookName: string, entryName: strin
  * @param newEntry - 要注入的新条目
  * @returns 如果成功注入则返回 true，如果已存在或发生错误则返回 false
  */
-export async function injectEntryToWorldbook(worldbookName: string, newEntry: PartialDeep<WorldbookEntry>): Promise<boolean> {
+export async function injectEntryToWorldbook(
+  worldbookName: string,
+  newEntry: PartialDeep<WorldbookEntry>,
+): Promise<boolean> {
   const funcName = 'injectEntryToWorldbook';
   if (!newEntry.name) {
     logger.error(funcName, '注入失败：新条目必须包含 name 字段。');
