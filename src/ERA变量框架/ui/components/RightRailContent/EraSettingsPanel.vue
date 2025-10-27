@@ -107,9 +107,9 @@
 */
 import { reactive, ref } from 'vue'; // 中文注释：Vue 响应式 API
 import { z } from 'zod';
-import { SettingsSchema } from '../../utils/constants';
-import { getScriptSettings, updateScriptSettings } from '../../utils/era_data';
-import { Logger } from '../../utils/log'; // 中文注释：项目内日志工具
+import { SettingsSchema } from '../../../utils/constants';
+import { getScriptSettings, updateScriptSettings } from '../../../utils/era_data';
+import { Logger } from '../../../utils/log'; // 中文注释：项目内日志工具
 
 const logger = new Logger(); // 中文注释：实例化日志
 

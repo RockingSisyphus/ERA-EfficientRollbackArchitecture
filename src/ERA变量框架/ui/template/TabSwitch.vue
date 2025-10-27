@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'; // 引入响应式工具
-import { Logger } from '../../../../utils/log';
+import { Logger } from '../../utils/log';
 
 type TabItem = { key: 'pure' | 'full'; label: string }; // Tab 项类型
 
@@ -69,10 +69,6 @@ onMounted(() => {
   transition:
     background 0.3s ease,
     border-color 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0; /* 关键的 flexbox hack，确保子元素可以滚动 */
 }
 .tab-bar {
   display: flex;
@@ -108,7 +104,5 @@ onMounted(() => {
   padding: 10px 12px;
   background: var(--tab-content-bg);
   transition: background 0.3s ease;
-  overflow-y: auto; /* 使内容区自身可以滚动 */
-  flex: 1; /* 占据剩余空间 */
 }
 </style>

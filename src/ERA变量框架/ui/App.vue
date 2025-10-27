@@ -6,102 +6,22 @@
       <!-- 视口级展开层：悬浮模态容器 -->
       <div class="era-shell">
         <!-- 新增横向壳容器：左面板 + 右侧栏 -->
-        <!-- 中文注释：横向布局容器 -->
-        <div class="era-panel">
-          <!-- 保持面板原有结构不变 -->
-          <!-- 中文注释：左侧 ERA 面板 -->
-          <!-- 顶部栏：标题 + 关闭按钮 -->
-          <!-- 中文注释：面板顶部 -->
-          <header class="panel-top">
-            <!-- 中文注释：顶栏 -->
-            <h3 class="panel-title">ERA 数据面板</h3>
-            <!-- 中文注释：标题 -->
-            <button class="btn-close" aria-label="关闭" @click="requestSwitchView('FloatingBall')">×</button>
-            <!-- 中文注释：关闭按钮 -->
-          </header>
-
-          <!-- 内容区（原样保留） -->
-          <!-- 中文注释：面板主体 -->
-          <div class="panel-body">
-            <div class="panel-content-wrapper">
-              <!-- 中文注释：可滚动内容 -->
-              <template v-if="dataRef">
-                <!-- 中文注释：有数据则渲染 -->
-                <MetaHeader :mk="dataRef.mk" :message-id="dataRef.message_id" />
-                <!-- 中文注释：最新消息元数据 -->
-
-                <OperationDetails :data="dataRef" />
-
-                <TabSwitch v-model:active="activeTab" :tabs="tabs">
-                  <!-- 中文注释：选项卡 -->
-                  <template #pure>
-                    <!-- 中文注释：纯净状态数据 -->
-                    <PrettyJsonViewer :value="dataRef.statWithoutMeta" :default-collapsed="true" :max-depth="Infinity" />
-                    <!-- 中文注释：JSON 视图 -->
-                  </template>
-                  <template #full>
-                    <!-- 中文注释：完整状态数据 -->
-                    <PrettyJsonViewer :value="dataRef.stat" :default-collapsed="true" :max-depth="Infinity" />
-                    <!-- 中文注释：JSON 视图 -->
-                  </template>
-                </TabSwitch>
-              </template>
-
-              <template v-else>
-                <!-- 中文注释：暂无数据占位 -->
-                <div class="empty">等待 era:writeDone 事件数据…</div>
-                <!-- 中文注释：占位提示 -->
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- 右侧固定栏：只改变“位置/外部结构”，不改按钮逻辑 -->
-        <aside class="right-rail">
-          <div class="right-rail-content-wrapper">
-            <!-- 中文注释：右侧栏容器 -->
-            <ActionButtons />
-            <!-- 中文注释：操作按钮组件（事件保持不变） -->
-            <EraSettingsPanel />
-            <AboutEra />
-          </div>
-        </aside>
+        <EraPanel :data="dataRef" />
+        <RightRail />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getScriptSettings } from '../utils/era_data';
 import { Logger } from '../utils/log';
-import ActionButtons from './components/ActionButtons.vue';
-import EraSettingsPanel from './components/EraSettingsPanel.vue';
+import type { WriteDonePayload } from '../utils/constants';
+import EraPanel from './components/EraPanel.vue';
 import FloatingBall from './components/FloatingBall.vue';
+import RightRail from './components/RightRail.vue';
 import ThemeManager from './components/ThemeManager.vue';
-import AboutEra from './components/AboutEra.vue';
-
-// 从 EraDataPanel 迁移过来的 imports
-import MetaHeader from './components/era-panel/parts/MetaHeader.vue';
-import TabSwitch from './components/era-panel/parts/TabSwitch.vue';
-import OperationDetails from './components/era-panel/OperationDetails.vue';
-import PrettyJsonViewer from './components/era-panel/parts/PrettyJsonViewer.vue';
-
-// 从 EraDataPanel 迁移过来的类型定义
-type Actions = { rollback: boolean; apply: boolean; resync: boolean; api: boolean; apiWrite: boolean };
-export interface WriteDonePayload {
-  mk: string;
-  message_id: number;
-  actions: Actions;
-  selectedMks: (string | null)[];
-  editLogs: Record<string, any[]>;
-  stat: any;
-  statWithoutMeta: any;
-  consecutiveProcessingCount: number;
-}
-
-// TabSwitch 需要的类型
-type TabItem = { key: 'pure' | 'full'; label: string };
 
 const logger = new Logger();
 
@@ -160,12 +80,6 @@ const requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {
 // 从 EraDataPanel 迁移过来的逻辑
 const dataRef = computed(() => props.eventData || null);
 
-const tabs: TabItem[] = [
-  { key: 'pure', label: '纯净状态数据' },
-  { key: 'full', label: '完整状态数据' },
-];
-const activeTab = ref<'pure' | 'full'>('pure');
-
 watch(
   () => props.eventData,
   (newData, oldData) => {
@@ -203,168 +117,6 @@ watch(
 
 <style scoped>
 /* 从 EraDataPanel.vue 迁移过来的样式 */
-.era-panel {
-  flex: 2 1 600px; /* 弹性增长，弹性收缩，基础宽度 600px */
-  min-width: 320px; /* 最小宽度，防止过度挤压 */
-  height: min(680px, 86vh);
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-blur-heavy);
-  border: 1px solid var(--border-strong);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  box-shadow: var(--shadow-panel), var(--shadow-inset);
-  overflow: hidden;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease;
-}
-
-.panel-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--bg-blur-light);
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease;
-}
-.panel-title {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  color: var(--text-title);
-  transition: color 0.3s ease;
-}
-.btn-close {
-  width: 32px;
-  height: 32px;
-  line-height: 30px;
-  text-align: center;
-  border-radius: 8px;
-  border: 1px solid var(--border-normal);
-  background: var(--bg-solid);
-  cursor: pointer;
-  font-size: 18px;
-  color: var(--text-normal);
-  box-shadow: var(--shadow-button);
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-.btn-close:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-button-hover);
-}
-
-.panel-body {
-  padding: 0; /* 移除内边距，交由 wrapper 控制 */
-  overflow: hidden; /* 隐藏自身滚动条 */
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-content-wrapper {
-  padding: 14px 14px 16px;
-  overflow-y: auto; /* 内部滚动 */
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px; /* 子组件间距 */
-}
-
-.block {
-  margin: 12px 0 4px;
-  padding: 10px 12px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease;
-}
-.block-title {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text-subtitle);
-  transition: color 0.3s ease;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.chip {
-  font-size: 12px;
-  padding: 6px 8px;
-  border: 1px solid var(--chip-border);
-  border-radius: 999px;
-  background: var(--chip-bg);
-  color: var(--chip-text);
-  box-shadow: var(--shadow-inset);
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease;
-}
-.chip.ok {
-  color: var(--chip-ok-text);
-  background: var(--chip-ok-bg);
-  border-color: var(--chip-ok-border);
-}
-
-.mk-strip {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  max-height: 140px;
-  overflow: auto;
-}
-.mk-pill {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  padding: 6px 8px;
-  background: var(--mk-pill-bg);
-  color: var(--mk-pill-text);
-  border: 1px solid var(--mk-pill-border);
-  border-radius: 8px;
-  font-size: 12px;
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease;
-}
-.mk-pill.is-null {
-  background: var(--mk-pill-null-bg);
-  color: var(--mk-pill-null-text);
-  border-color: var(--mk-pill-null-border);
-}
-
-.empty {
-  height: 360px;
-  display: grid;
-  place-items: center;
-  color: var(--text-normal);
-  font-size: 14px;
-  border: 1px dashed var(--border-dashed);
-  border-radius: 12px;
-  background: var(--bg-empty);
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease;
-}
-
 
 /* ===[新增] 横向壳：左面板 + 右侧栏（按钮）=== */
 .era-shell {
@@ -376,32 +128,10 @@ watch(
 }
 
 /* 保持面板宽高（原样），但让它更好地在横向中自适应 */
-.era-panel {
-  /* 已存在：此处只说明语义，不做覆盖 */ /* 中文注释：保留原样式 */
-  flex: 0 1 auto; /* 面板按自身宽度布局 */ /* 中文注释：不强行拉伸 */
+:deep(.era-panel) {
+  flex: 0 1 auto; /* 面板按自身宽度布局 */
 }
 
-/* 右侧栏外框：与左面板视觉统一（玻璃卡片风） */
-.right-rail {
-  /* 右侧区域容器 */ /* 中文注释：侧栏 */
-  flex: 1 1 320px; /* 弹性增长，弹性收缩，基础宽度 320px */
-  min-width: 280px; /* 最小宽度 */
-  height: min(680px, 86vh); /* 与左侧面板高度对齐 */
-  position: sticky; /* 粘附在视口内滚动 */ /* 中文注释：吸附在视口顶部 */
-  top: 10px; /* 与顶部留白 */ /* 中文注释：吸顶间距 */
-  align-self: flex-start; /* 与左侧面板顶部对齐 */ /* 中文注释：自身对齐顶部 */
-  z-index: 1; /* 避免被面板阴影覆盖 */ /* 中文注释：提升层级 */
-  display: flex;
-  flex-direction: column;
-}
-
-.right-rail-content-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 12px; /* 子组件之间的间距 */
-  overflow-y: auto; /* 内容溢出时显示滚动条 */
-  flex-grow: 1;
-}
 
 /* 小屏回落：改为上下堆叠（按钮在下） */
 @media (max-width: 992px) {
@@ -409,12 +139,12 @@ watch(
   .era-shell {
     flex-wrap: wrap; /* 允许换行 */
   }
-  .era-panel,
-  .right-rail {
+  :deep(.era-panel),
+  :deep(.right-rail) {
     width: 100%; /* 各占一行 */
     flex-basis: auto; /* 重置 flex-basis */
   }
-  .right-rail {
+  :deep(.right-rail) {
     position: static; /* 取消吸顶 */
     margin-top: 12px; /* 与上方留白 */
     height: auto; /* 高度自适应 */
@@ -451,7 +181,7 @@ watch(
 /* ===[新增] 小屏适配：面板在移动端更“填充”可视区 === */
 @media (max-width: 640px) {
   /* 针对手机宽度 */
-  .era-panel {
+  :deep(.era-panel) {
     /* 重设面板宽高更贴合手机 */
     width: min(92vw, 560px); /* 放宽到 92vw，避免 60vw 太窄 */
     height: min(88vh, calc(100svh - 32px)); /* 兼顾状态栏/地址栏动态高度 */

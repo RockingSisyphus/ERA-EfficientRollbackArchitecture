@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { Logger } from '../../utils/log'; // 中文注释：日志工具
+import { Logger } from '../../../utils/log'; // 中文注释：日志工具
 
 const logger = new Logger(); // 中文注释：实例化日志
 

@@ -16,9 +16,9 @@
 </template>
 
 <script setup lang="ts">
-import EraAccordion from './parts/EraAccordion.vue';
-import PrettyJsonViewer from './parts/PrettyJsonViewer.vue';
-import type { WriteDonePayload } from '../../App.vue';
+import type { WriteDonePayload } from '../../../utils/constants';
+import EraAccordion from '../../template/EraAccordion.vue';
+import PrettyJsonViewer from '../../template/PrettyJsonViewer.vue';
 
 defineProps<{
   data: WriteDonePayload;

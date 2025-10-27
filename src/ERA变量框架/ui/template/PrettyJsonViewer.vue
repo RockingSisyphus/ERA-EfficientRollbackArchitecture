@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'; // 计算属性工具
-import { Logger } from '../../../../utils/log';
+import { Logger } from '../../utils/log';
 import JsonNode from './JsonNode.vue'; // ✅ 改为导入独立 SFC 的递归节点组件
 
 const logger = new Logger();

@@ -5,22 +5,26 @@
       <ul>
         <li>
           <strong>ERA 项目地址:</strong>
-          <a href="https://github.com/RockingSisyphus/ERA-EfficientRollbackArchitecture/tree/master" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://github.com/RockingSisyphus/ERA-EfficientRollbackArchitecture/tree/master"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             GitHub
           </a>
         </li>
         <li>
           <strong>ERA 介绍帖:</strong>
-          <a href="https://discord.com/channels/1134557553011998840/1423319849400270928" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://discord.com/channels/1134557553011998840/1423319849400270928"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Discord
           </a>
         </li>
-        <li>
-          <strong>作者:</strong> 世界的山田
-        </li>
-        <li>
-          <strong>ERA 框架交流群:</strong> 1006127516
-        </li>
+        <li><strong>作者:</strong> 世界的山田</li>
+        <li><strong>ERA 框架交流群:</strong> 1006127516</li>
       </ul>
     </div>
   </section>

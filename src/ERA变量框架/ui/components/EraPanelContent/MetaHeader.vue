@@ -1,7 +1,5 @@
 <template>
   <section class="meta">
-    <h4 class="meta-title">最新消息元数据</h4>
-    <!-- 小节标题 -->
     <div class="kv">
       <div class="item">
         <span class="k">mk</span>
@@ -23,7 +21,7 @@
 
 <script setup lang="ts">
 import { onMounted, watch } from 'vue';
-import { Logger } from '../../../../utils/log';
+import { Logger } from '../../../utils/log';
 
 const logger = new Logger();
 
@@ -46,7 +44,7 @@ watch(
 <style scoped>
 .meta {
   position: relative;
-  padding: 12px 12px 14px;
+  /* padding is handled by EraAccordion's .inner */
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   background: var(--meta-bg);
@@ -54,13 +52,6 @@ watch(
   transition:
     background 0.3s ease,
     border-color 0.3s ease;
-}
-.meta-title {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text-subtitle);
-  transition: color 0.3s ease;
 }
 
 .kv {
@@ -109,7 +100,7 @@ watch(
   position: absolute;
   left: 12px;
   right: 12px;
-  top: -1px;
+  top: 0;
   height: 3px;
   border-radius: 999px;
   background: var(--meta-glow-bg);

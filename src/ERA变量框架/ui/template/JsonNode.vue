@@ -51,7 +51,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, ref, watch } from 'vue'; // 引入响应式/组件工具
-import { Logger } from '../../../../utils/log';
+import { Logger } from '../../utils/log';
 
 export default defineComponent({
   name: 'JsonNode', // 关键：为自递归提供组件名
