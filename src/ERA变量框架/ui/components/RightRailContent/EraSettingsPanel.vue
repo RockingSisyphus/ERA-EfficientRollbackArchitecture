@@ -106,6 +106,7 @@
    - 保存时按原类型回写到脚本域。
 */
 import { reactive, ref } from 'vue'; // 中文注释：Vue 响应式 API
+import toastr from 'toastr';
 import { z } from 'zod';
 import { SettingsSchema } from '../../../utils/constants';
 import { getScriptSettings, updateScriptSettings } from '../../../utils/era_data';
@@ -154,6 +155,7 @@ function loadVars() {
     if (!obj || Object.keys(obj).length === 0) {
       logger.warn('loadVars', '设置对象为空，UI 将不会被填充。');
       rows.value = [];
+      toastr.info('未找到任何脚本变量。');
       return;
     }
 
@@ -175,9 +177,10 @@ function loadVars() {
           edits[key] = value;
         }
       });
+    toastr.success('已从脚本变量中加载最新设置。', '读取成功');
   } catch (e) {
     logger.error('loadVars', '读取脚本变量失败:', e);
-    alert('读取 ERA 设置失败，请检查浏览器控制台获取详细信息。');
+    toastr.error('读取 ERA 设置失败，请检查浏览器控制台。', '读取失败');
   }
 }
 
@@ -209,7 +212,9 @@ function markJsonTouched(key: string) {
 // === 丢弃未保存的编辑 ===
 function discardEdits() {
   // 中文注释：丢弃编辑
+  logger.log('discardEdits', '点击“丢弃修改”');
   loadVars(); // 中文注释：重新读取覆盖本地改动
+  toastr.info('所有未保存的修改已被丢弃。', '操作完成');
 }
 
 // === 保存修改 ===
@@ -238,11 +243,12 @@ async function saveEdits() {
     });
 
     logger.log('saveEdits', '脚本变量已保存');
+    toastr.success('设置已成功保存到脚本变量。', '保存成功');
     window.dispatchEvent(new CustomEvent('era-settings-updated'));
     loadVars();
   } catch (e) {
     logger.error('saveEdits', '保存失败：', e);
-    alert(`保存失败：${(e as any)?.message ?? e}`);
+    toastr.error(`保存失败：${(e as any)?.message ?? e}`, '保存失败');
   }
 }
 </script>

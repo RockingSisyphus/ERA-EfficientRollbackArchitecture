@@ -58,6 +58,7 @@ import toastr from 'toastr';
 import { initEraCharacterRegexes } from '../../../initer/manual/regex';
 import { initEraWorldbookEntries } from '../../../initer/manual/worldbook';
 import { Logger } from '../../../utils/log'; // 中文注释：日志工具
+import { ui } from 'jquery';
 
 const logger = new Logger(); // 中文注释：实例化日志
 
@@ -71,7 +72,7 @@ async function onInjectRegex() {
         throw new Error('No messages found');
       }
     } catch (e) {
-      toastr.error('然后你才能看到状态栏模板', '请在角色卡的开场白中添加任意内容。');
+      toastr.error('然后再次点击快速初始化', '请在角色卡的开场白中添加任意内容。');
       logger.warn('onInjectRegex', '获取第 0 条消息失败，可能是因为聊天记录为空。', e);
       return;
     }
@@ -125,13 +126,25 @@ async function onInjectRegex() {
 function onFullSync() {
   // 中文注释：完全重算事件
   logger.log('onFullSync', '点击“完全重算变量”，发送 manual_full_sync 事件。'); // 中文注释：日志
-  eventEmit('manual_full_sync'); // 中文注释：发送全量重算事件（保持不变）
+  try {
+    eventEmit('manual_full_sync'); // 中文注释：发送全量重算事件（保持不变）
+    toastr.success('已发送“完全重算变量”请求。', '操作成功');
+  } catch (error) {
+    logger.error('onFullSync', '发送 manual_full_sync 事件时出错:', error);
+    toastr.error('发送请求失败，请检查控制台。', '操作失败');
+  }
 }
 
 function onLastSync() {
   // 中文注释：局部重算事件
   logger.log('onLastSync', '点击“重算最后一楼变量”，发送 manual_sync 事件。'); // 中文注释：日志
-  eventEmit('manual_sync'); // 中文注释：发送单楼重算事件（保持不变）
+  try {
+    eventEmit('manual_sync'); // 中文注释：发送单楼重算事件（保持不变）
+    toastr.success('已发送“重算最后一楼变量”请求。', '操作成功');
+  } catch (error) {
+    logger.error('onLastSync', '发送 manual_sync 事件时出错:', error);
+    toastr.error('发送请求失败，请检查控制台。', '操作失败');
+  }
 }
 </script>
 

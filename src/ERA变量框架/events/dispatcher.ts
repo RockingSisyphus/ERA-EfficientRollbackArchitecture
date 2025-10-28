@@ -2,6 +2,8 @@
 
 import { ensureMkForLatestMessage } from '../core/key/mk';
 import { initializeExternalSettings } from '../initer/auto/settings';
+import { ensurePlaceholder } from '../macro/placeholder';
+import { getMessageContentWithRetry } from '../utils/message';
 import { logContext, Logger } from '../utils/log';
 import { handleApiEvent } from './handlers/api/dispatcher';
 import { handleSyncEvent } from './handlers/sync';
@@ -108,6 +110,10 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
   const actionsTaken: ActionsTaken = { rollback: false, apply: false, resync: false, api: false, apiWrite: false };
 
   try {
+    // **入口保障**: 尝试获取最新消息内容，内置的重试和延迟机制可以应对酒馆消息更新延迟。
+    // 即使最终失败，也继续执行，目的只是为了“等待”。
+    await getMessageContentWithRetry();
+
     // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
     const { mk, message_id: msgId, isNewKey } = await ensureMkForLatestMessage();
     if (!mk || msgId === null) {
@@ -116,6 +122,9 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     }
     logContext.mk = mk;
     message_id = msgId;
+
+    // **前置保障**: 确保 AI 消息有占位符
+    await ensurePlaceholder(message_id);
 
     // 如果 ensureMkForLatestMessage 刚刚注入了一个新的 MK，就创建或更新忽略规则。
     if (isNewKey && mk) {

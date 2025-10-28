@@ -135,6 +135,51 @@ export function findLastAiMessage(): any | null {
   return null;
 }
 
+/**
+ * **【带重试获取消息内容】**
+ * 尝试获取指定或最新AI消息的内容，如果初次获取为空，则会进行指定次数和间隔的重试。
+ * 这主要用于应对酒馆消息在事件触发后可能存在的更新延迟。
+ * @param {TavernMessage | number} [messageOrId] - （可选）酒馆消息对象或消息 ID。如果未提供，则自动查找最新的 AI 消息。
+ * @param {number} [retries=3] - 最大重试次数。
+ * @param {number} [delay=50] - 每次重试之间的等待时间（毫秒）。
+ * @returns {Promise<string | null>} 成功则返回消息内容，重试后仍然失败则返回 null。
+ */
+export async function getMessageContentWithRetry(
+  messageOrId?: any | number,
+  retries: number = 5,
+  delay: number = 50,
+): Promise<string | null> {
+  let msg: any;
+
+  if (messageOrId) {
+    if (typeof messageOrId === 'number') {
+      const messages = getChatMessages(messageOrId, { include_swipes: true });
+      msg = messages ? messages[0] : null;
+    } else {
+      msg = messageOrId;
+    }
+  } else {
+    msg = findLastAiMessage();
+  }
+
+  if (!msg) {
+    log.warn('getMessageContentWithRetry', '找不到有效的消息对象', { messageOrId });
+    return null;
+  }
+
+  for (let i = 0; i < retries; i++) {
+    const content = getMessageContent(msg);
+    if (content) {
+      return content;
+    }
+    log.log('getMessageContentWithRetry', `获取消息内容失败，将在 ${delay}ms 后重试 (第 ${i + 1} 次)`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+
+  log.warn('getMessageContentWithRetry', `重试 ${retries} 次后仍无法获取消息内容`, { message_id: msg.message_id });
+  return getMessageContent(msg); // 返回最后一次尝试的结果 (可能为 null)
+}
+
 // ==================================================================
 // 消息写入
 // ==================================================================
@@ -144,8 +189,13 @@ export function findLastAiMessage(): any | null {
  * 这个辅助函数封装了处理 `swipes` 和普通 `message` 的逻辑，提供一个统一的写入接口。
  * @param {any} message - 要更新的消息对象。
  * @param {string} newContent - 全新的消息内容。
+ * @param {'none' | 'affected' | 'all'} [refresh='none'] - 更新后是否刷新消息。
  */
-export async function updateMessageContent(message: any, newContent: string) {
+export async function updateMessageContent(
+  message: any,
+  newContent: string,
+  refresh: 'none' | 'affected' | 'all' = 'none',
+) {
   const oldContent = getMessageContent(message);
   log.debug('updateMessageContent', '更新前的消息内容:', oldContent);
   log.debug('updateMessageContent', '更新后的消息内容:', newContent);
@@ -163,5 +213,5 @@ export async function updateMessageContent(message: any, newContent: string) {
     updatePayload.message = newContent;
   }
 
-  await setChatMessages([updatePayload], { refresh: 'none' });
+  await setChatMessages([updatePayload], { refresh });
 }
