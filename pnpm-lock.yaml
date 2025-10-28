@@ -13,7 +13,7 @@ importers:
         version: 13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807))
       '@vueuse/integrations':
         specifier: ^13.9.0
-        version: 13.9.0(axios@1.12.2)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))
+        version: 13.9.0(axios@1.13.0)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))
       '@vueuse/shared':
         specifier: ^13.9.0
         version: 13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807))
@@ -49,7 +49,7 @@ importers:
         version: 3.5.22(typescript@6.0.0-dev.20250807)
       vue-final-modal:
         specifier: ^4.5.5
-        version: 4.5.5(@vueuse/core@13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807)))(@vueuse/integrations@13.9.0(axios@1.12.2)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807)))(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))
+        version: 4.5.5(@vueuse/core@13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807)))(@vueuse/integrations@13.9.0(axios@1.13.0)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807)))(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))
       vue-router:
         specifier: ^4.6.3
         version: 4.6.3(vue@3.5.22(typescript@6.0.0-dev.20250807))
@@ -683,8 +683,8 @@ packages:
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
 
-  '@types/validator@13.15.3':
-    resolution: {integrity: sha512-7bcUmDyS6PN3EuD9SlGGOxM77F8WLVsrwkxyWxKnxzmXoequ6c7741QBrANq6htVRGOITJ7z72mTP6Z4XyuG+Q==}
+  '@types/validator@13.15.4':
+    resolution: {integrity: sha512-LSFfpSnJJY9wbC0LQxgvfb+ynbHftFo0tMsFOl/J4wexLnYMmDSPaj2ZyDv3TkfL1UePxPrxOWJfbiRS8mQv7A==}
 
   '@types/web-bluetooth@0.0.20':
     resolution: {integrity: sha512-g9gZnnXVq7gM7v3tJCWV/qw7w+KeOlSHAhgF9RytFyifW6AF61hdT2ucrYhPq9hLs5JIryeupHV3qGk95dH9ow==}
@@ -1177,8 +1177,8 @@ packages:
     resolution: {integrity: sha512-fjgm5MvRHLhx+osE2xoekY70AhARk3a6hkN+3Io1jc00jtquGvxYlKlsFUhmUET0V5te6CcZI7lcv2Ym61mjHA==}
     deprecated: Critical security vulnerability fixed in v0.21.1. For more information, see https://github.com/axios/axios/pull/3410
 
-  axios@1.12.2:
-    resolution: {integrity: sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==}
+  axios@1.13.0:
+    resolution: {integrity: sha512-zt40Pz4zcRXra9CVV31KeyofwiNvAbJ5B6YPz9pMJ+yOSLikvPT4Yi5LjfgjRa9CawVYBaD1JQzIVcIvBejKeA==}
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
@@ -1618,8 +1618,8 @@ packages:
   earcut@3.0.2:
     resolution: {integrity: sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ==}
 
-  electron-to-chromium@1.5.240:
-    resolution: {integrity: sha512-OBwbZjWgrCOH+g6uJsA2/7Twpas2OlepS9uvByJjR2datRDuKGYeD+nP8lBBks2qnB7bGJNHDUx7c/YLaT3QMQ==}
+  electron-to-chromium@1.5.241:
+    resolution: {integrity: sha512-ILMvKX/ZV5WIJzzdtuHg8xquk2y0BOGlFOxBVwTpbiXqWIH0hamG45ddU4R3PQ0gYu+xgo0vdHXHli9sHIGb4w==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -4373,7 +4373,7 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
-  '@types/validator@13.15.3': {}
+  '@types/validator@13.15.4': {}
 
   '@types/web-bluetooth@0.0.20': {}
 
@@ -4641,13 +4641,13 @@ snapshots:
       '@vueuse/shared': 13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807))
       vue: 3.5.22(typescript@6.0.0-dev.20250807)
 
-  '@vueuse/integrations@13.9.0(axios@1.12.2)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))':
+  '@vueuse/integrations@13.9.0(axios@1.13.0)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))':
     dependencies:
       '@vueuse/core': 13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807))
       '@vueuse/shared': 13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807))
       vue: 3.5.22(typescript@6.0.0-dev.20250807)
     optionalDependencies:
-      axios: 1.12.2
+      axios: 1.13.0
       focus-trap: 7.6.5
 
   '@vueuse/metadata@10.11.1': {}
@@ -4900,7 +4900,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  axios@1.12.2:
+  axios@1.13.0:
     dependencies:
       follow-redirects: 1.15.11
       form-data: 4.0.4
@@ -4943,7 +4943,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.8.20
       caniuse-lite: 1.0.30001751
-      electron-to-chromium: 1.5.240
+      electron-to-chromium: 1.5.241
       node-releases: 2.0.26
       update-browserslist-db: 1.1.4(browserslist@4.27.0)
 
@@ -5064,7 +5064,7 @@ snapshots:
 
   class-validator@0.14.1:
     dependencies:
-      '@types/validator': 13.15.3
+      '@types/validator': 13.15.4
       libphonenumber-js: 1.12.25
       validator: 13.15.20
 
@@ -5377,7 +5377,7 @@ snapshots:
 
   earcut@3.0.2: {}
 
-  electron-to-chromium@1.5.240: {}
+  electron-to-chromium@1.5.241: {}
 
   emoji-regex@8.0.0: {}
 
@@ -7174,7 +7174,7 @@ snapshots:
 
   remote-content@4.0.1:
     dependencies:
-      axios: 1.12.2
+      axios: 1.13.0
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
@@ -7849,10 +7849,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  vue-final-modal@4.5.5(@vueuse/core@13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807)))(@vueuse/integrations@13.9.0(axios@1.12.2)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807)))(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807)):
+  vue-final-modal@4.5.5(@vueuse/core@13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807)))(@vueuse/integrations@13.9.0(axios@1.13.0)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807)))(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807)):
     dependencies:
       '@vueuse/core': 13.9.0(vue@3.5.22(typescript@6.0.0-dev.20250807))
-      '@vueuse/integrations': 13.9.0(axios@1.12.2)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))
+      '@vueuse/integrations': 13.9.0(axios@1.13.0)(focus-trap@7.6.5)(vue@3.5.22(typescript@6.0.0-dev.20250807))
       focus-trap: 7.6.5
       vue: 3.5.22(typescript@6.0.0-dev.20250807)
 
