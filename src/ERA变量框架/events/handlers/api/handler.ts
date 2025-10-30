@@ -21,12 +21,7 @@ import { SEL_PATH } from '../../../utils/constants';
 import { J, unescapeEraData } from '../../../utils/data';
 import { getEraData, removeMetaFields } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log';
-import {
-  findLastAiMessage,
-  getMessageContent,
-  isUserMessage,
-  updateMessageContent,
-} from '../../../utils/message';
+import { findLastAiMessage, getMessageContent, isUserMessage, updateMessageContent } from '../../../utils/message';
 import { debouncedEmitApiWrite, emitQueryResultEvent } from '../../emitters/events';
 
 const logger = new Logger();
