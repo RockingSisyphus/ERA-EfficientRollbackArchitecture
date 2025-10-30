@@ -16,11 +16,14 @@
  * 从而将 API 调用无缝地整合到 ERA 的原生解析和同步流程中。
  */
 
-import { J } from '../../../utils/data';
+import { getStatAtMK, getStatsBetweenMKs } from '../../../core/snapshot';
+import { J, unescapeEraData } from '../../../utils/data';
+import { getEraData, removeMetaFields } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log';
 import { findLastAiMessage, getMessageContent, updateMessageContent } from '../../../utils/message';
-import { debouncedEmitApiWrite, emitWriteDoneEvent } from '../../emitters/events';
+import { debouncedEmitApiWrite, emitQueryResultEvent } from '../../emitters/events';
 import { DispatcherPayload } from '../../types';
+import { SEL_PATH } from '../../../utils/constants';
 
 const logger = new Logger();
 
@@ -206,8 +209,78 @@ export function deleteByPath(path: string) {
 
 /**
  * **【处理器】** 处理 `era:getCurrentVars` 事件。
- * 这个函数是空的，因为它的目的只是为了触发 writeDone 事件，以便其他组件能通过这种方式获取到最新变量。
+ * 获取当前最新的变量状态，并通过 `era:queryResult` 事件发回结果。
+ * @param {any} detail - 原始请求的 detail 对象。
  */
-export function getCurrentVars(payload: DispatcherPayload) {
-  emitWriteDoneEvent(payload);
+export function handleGetCurrentVars(detail: any) {
+  logger.log('handleGetCurrentVars', `请求获取当前变量。`);
+  const { stat, meta } = getEraData();
+  const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+  const lastMk = selectedMks[selectedMks.length - 1] || '';
+  const lastMessageId = selectedMks.length - 1;
+
+  const resultItem = {
+    mk: lastMk,
+    message_id: lastMessageId,
+    stat: unescapeEraData(stat),
+    statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
+  };
+
+  emitQueryResultEvent('getCurrentVars', detail, resultItem);
+}
+
+/**
+ * **【处理器】** 处理 `era:getSnapshotAtMk` 事件。
+ * 计算指定 MK 的历史快照，并通过 `era:queryResult` 事件发回结果。
+ * @param {any} detail - 从事件中获取的 `detail` 对象，应包含 `mk`。
+ */
+export function handleGetSnapshotAtMk(detail: any) {
+  const mk = detail?.mk;
+  if (!mk) {
+    logger.error('handleGetSnapshotAtMk', '请求缺少 "mk" 参数。');
+    return;
+  }
+
+  logger.log('handleGetSnapshotAtMk', `请求获取历史快照，MK: ${mk}`);
+  const stat = getStatAtMK(mk);
+
+  if (stat) {
+    const { meta } = getEraData();
+    const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+    const message_id = selectedMks.indexOf(mk);
+
+    const resultItem = {
+      mk,
+      message_id,
+      stat: unescapeEraData(stat),
+      statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
+    };
+    emitQueryResultEvent('getSnapshotAtMk', detail, resultItem);
+  } else {
+    logger.error('handleGetSnapshotAtMk', `获取快照失败，MK: ${mk}`);
+  }
+}
+
+/**
+ * **【处理器】** 处理 `era:getSnapshotsBetweenMks` 事件。
+ * 计算两个 MK 之间的所有历史快照，并通过 `era:queryResult` 事件发回结果数组。
+ * @param {any} detail - 从事件中获取的 `detail` 对象，应包含 `startMk` 和 `endMk`。
+ */
+export function handleGetSnapshotsBetweenMks(detail: any) {
+  const { startMk, endMk } = detail || {};
+
+  logger.log('handleGetSnapshotsBetweenMks', `请求获取批量快照，从: ${startMk || '开始'}, 到: ${endMk || '结束'}`);
+  const results = getStatsBetweenMKs(startMk, endMk);
+
+  if (results) {
+    // 为每个结果添加 statWithoutMeta
+    const finalResults = results.map(item => ({
+      ...item,
+      stat: unescapeEraData(item.stat),
+      statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
+    }));
+    emitQueryResultEvent('getSnapshotsBetweenMks', detail, finalResults);
+  } else {
+    logger.error('handleGetSnapshotsBetweenMks', '获取批量快照失败。');
+  }
 }

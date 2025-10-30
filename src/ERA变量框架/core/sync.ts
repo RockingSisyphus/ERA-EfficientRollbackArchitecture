@@ -27,11 +27,11 @@
 
 import { LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { parseEditLog } from '../utils/data';
-import { getEraData, updateEraMetaData } from '../utils/era_data';
+import { getEraData, updateEraMetaData, updateEraStatData } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import { ApplyVarChangeForMessage } from './crud/patcher';
 import { readMessageKey } from './key/mk';
-import { rollbackByMk } from './rollback';
+import { rollbackStatToMK } from './timetravel';
 
 const logger = new Logger();
 
@@ -203,15 +203,19 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
     );
   }
 
-  // 3. 收集需要回滚的 MK 列表，并执行逆序回滚
-  if (firstRecalcId > -1) {
-    const mksToRollback = oldSelectedMks.slice(firstRecalcId).filter(mk => mk) as string[];
-    if (mksToRollback.length > 0) {
-      logger.log('resyncStateOnHistoryChange', `准备回滚 ${mksToRollback.length} 个MK: [${mksToRollback.join(', ')}]`);
-      for (const mk of mksToRollback.reverse()) {
-        logger.debug('resyncStateOnHistoryChange', `[回滚] 正在回滚 MK: ${mk}`);
-        await rollbackByMk(mk, true); // true 表示只回滚，不重写
-      }
+  // 3. 执行逆序回滚
+  if (firstRecalcId > -1 && firstRecalcId < oldSelectedMks.length) {
+    const { stat: currentStat, meta: currentMeta } = getEraData();
+    const allLogs: { [mk: string]: string } = _.get(currentMeta, LOGS_PATH, {});
+
+    const currentMK = oldSelectedMks[oldSelectedMks.length - 1];
+    // 目标是回滚到 firstRecalcId 的前一个状态
+    const targetMK = firstRecalcId > 0 ? oldSelectedMks[firstRecalcId - 1] : undefined;
+
+    if (currentMK) {
+      logger.log('resyncStateOnHistoryChange', `准备一次性回滚。从: ${currentMK}, 到: ${targetMK || '初始状态'}`);
+      const newStat = rollbackStatToMK(targetMK, currentMK, currentStat, oldSelectedMks, allLogs);
+      await updateEraStatData(() => newStat);
       logger.log('resyncStateOnHistoryChange', '逆序回滚完成。');
     }
   }

@@ -13,14 +13,7 @@
 
           <OperationDetails :data="data" />
 
-          <TabSwitch v-model:active="activeTab" :tabs="tabs">
-            <template #pure>
-              <PrettyJsonViewer :value="data.statWithoutMeta" :default-collapsed="true" :max-depth="Infinity" />
-            </template>
-            <template #full>
-              <PrettyJsonViewer :value="data.stat" :default-collapsed="true" :max-depth="Infinity" />
-            </template>
-          </TabSwitch>
+          <SnapshotManager :latest-data="data" />
         </template>
         <template v-else>
           <div class="empty">等待 era:writeDone 事件数据…</div>
@@ -32,13 +25,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import type { WriteDonePayload } from '../../utils/constants';
 import { Logger } from '../../utils/log';
 import EraAccordion from '../template/EraAccordion.vue';
 import MetaHeader from './EraPanelContent/MetaHeader.vue';
-import TabSwitch from '../template/TabSwitch.vue';
 import OperationDetails from './EraPanelContent/OperationDetails.vue';
-import PrettyJsonViewer from '../template/PrettyJsonViewer.vue';
-import type { WriteDonePayload } from '../../utils/constants';
+import SnapshotManager from './SnapshotManager.vue';
 
 type TabItem = { key: 'pure' | 'full'; label: string };
 
@@ -57,11 +49,6 @@ const requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {
   }
 };
 
-const tabs: TabItem[] = [
-  { key: 'pure', label: '纯净状态数据' },
-  { key: 'full', label: '完整状态数据' },
-];
-const activeTab = ref<'pure' | 'full'>('pure');
 </script>
 
 <style scoped>

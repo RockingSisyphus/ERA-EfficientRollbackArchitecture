@@ -13,7 +13,7 @@ const logger = new Logger();
 defineEmits(['click']);
 
 onMounted(() => {
-  logger.log('onMounted', 'FloatingBall.vue 组件已挂载');
+  //logger.log('onMounted', 'FloatingBall.vue 组件已挂载');
 });
 </script>
 

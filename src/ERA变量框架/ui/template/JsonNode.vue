@@ -67,7 +67,7 @@ export default defineComponent({
     const logger = new Logger();
 
     onMounted(() => {
-      logger.debug('onMounted', '组件已挂载', { props: p });
+      //logger.debug('onMounted', '组件已挂载', { props: p });
     });
 
     // 节点类型判定

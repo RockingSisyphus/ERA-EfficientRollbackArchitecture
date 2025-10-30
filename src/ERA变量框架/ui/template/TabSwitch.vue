@@ -56,7 +56,7 @@ function setActive(k: 'pure' | 'full') {
 } // 切换并抛出
 
 onMounted(() => {
-  logger.log('onMounted', '组件已挂载', { props });
+  //logger.log('onMounted', '组件已挂载', { props });
 });
 </script>
 

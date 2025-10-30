@@ -126,7 +126,12 @@ export const ERA_API_EVENTS = {
   UPDATE_BY_PATH: 'era:updateByPath',
   DELETE_BY_OBJECT: 'era:deleteByObject',
   DELETE_BY_PATH: 'era:deleteByPath',
+  /** 获取当前最新的变量状态 */
   GET_CURRENT_VARS: 'era:getCurrentVars',
+  /** 获取指定 MK 的历史变量快照 */
+  GET_SNAPSHOT_AT_MK: 'era:getSnapshotAtMk',
+  /** 获取两个 MK 之间的所有历史变量快照 */
+  GET_SNAPSHOTS_BETWEEN_MKS: 'era:getSnapshotsBetweenMks',
 } as const;
 
 /**
@@ -138,6 +143,8 @@ export const ERA_EVENT_EMITTER = {
   WRITE_DONE: 'era:writeDone',
   /** 当API执行写入时触发 */
   API_WRITE: 'era:apiWrite',
+  /** 当变量查询准备好时触发，用于响应 GET_... 系列 API 事件 */
+  VARS_QUERY_RESULT: 'era:queryResult',
 } as const;
 
 /**
@@ -196,4 +203,26 @@ export interface WriteDonePayload {
    * 这对于需要感知状态是否在同一消息上连续更新的外部脚本很有用。
    */
   consecutiveProcessingCount: number;
+}
+
+/**
+ * `era:queryResult` 事件中，单个查询结果的结构。
+ */
+export interface QueryResultItem {
+  mk: string;
+  message_id: number;
+  stat: any;
+  statWithoutMeta: any;
+}
+
+/**
+ * `era:queryResult` 事件的负载对象结构。
+ */
+export interface QueryResultPayload {
+  /** 原始查询的类型 */
+  queryType: 'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks';
+  /** 原始查询的 detail 对象 */
+  request: any;
+  /** 查询的结果。根据 queryType，可以是单个结果或结果数组。 */
+  result: QueryResultItem | QueryResultItem[];
 }

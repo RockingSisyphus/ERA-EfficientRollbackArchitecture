@@ -14,12 +14,13 @@
 
 'use strict';
 
-import { CHAT_SCOPE, LOGS_PATH, META_DATA_PATH, STAT_DATA_PATH } from '../utils/constants';
+import { LOGS_PATH, SEL_PATH, STAT_DATA_PATH } from '../utils/constants';
 import { J, parseEditLog } from '../utils/data';
-import { getEraData } from '../utils/era_data';
+import { getEraData, updateEraStatData } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import { getMessageContent, isUserMessage } from '../utils/message';
 import { readMessageKey } from './key/mk';
+import { rollbackStatToMK } from './timetravel';
 
 const logger = new Logger();
 
@@ -34,44 +35,27 @@ const logger = new Logger();
 export async function rollbackByMk(MK: string, silent = false) {
   try {
     logger.log('rollbackByMk', `开始回滚, MK=${MK}`);
-    await updateVariablesWith(v => {
-      const meta = _.get(v, META_DATA_PATH, {});
-      const stat = _.get(v, STAT_DATA_PATH, {});
 
-      const raw = _.get(meta, [LOGS_PATH, MK]);
-      const arr = parseEditLog(raw);
-      if (!arr || !arr.length) {
-        logger.debug('rollbackByMk', `EditLog 为空或无效，跳过回滚。`);
-        return v;
-      }
+    const { meta, stat: currentStat } = getEraData();
+    const selectedMks: string[] = _.get(meta, SEL_PATH, []);
+    const allLogs: { [mk: string]: string } = _.get(meta, LOGS_PATH, {});
 
-      // 关键：必须逆序遍历 EditLog 来执行回滚。
-      // 这确保了对同一变量的多次修改能够被正确地、按相反的顺序撤销。
-      for (let i = arr.length - 1; i >= 0; i--) {
-        const e = arr[i];
-        const op = String(e?.op || '').toLowerCase();
-        const path = String(e?.path || '');
-        if (!path) continue;
+    const currentIndex = selectedMks.indexOf(MK);
+    if (currentIndex === -1) {
+      logger.error('rollbackByMk', `在 selectedMks 中未找到要回滚的 MK: ${MK}`);
+      return;
+    }
 
-        if (op === 'insert') {
-          // 对于“插入”操作，回滚即为“删除”。
-          _.unset(stat, path);
-          continue;
-        }
-        if (op === 'update' || op === 'delete') {
-          // 对于“更新”或“删除”操作，回滚即为恢复到“旧值”。
-          if (typeof e?.value_old === 'undefined') {
-            // 如果日志中没有记录旧值，最安全的回滚方式是直接删除该路径。
-            _.unset(stat, path);
-          } else {
-            _.set(stat, path, _.cloneDeep(e.value_old));
-          }
-        }
-      }
+    // 即使是第一条消息(currentIndex=0)，targetMK 也会是 undefined，
+    // rollbackStatToMK 会正确处理这种情况，回滚到初始状态。
+    const targetMK = selectedMks[currentIndex - 1];
 
-      _.set(v, STAT_DATA_PATH, stat);
-      return v;
-    }, CHAT_SCOPE);
+    const newStat = rollbackStatToMK(targetMK, MK, currentStat, selectedMks, allLogs);
+
+    await updateEraStatData(() => {
+      return newStat;
+    });
+
     logger.log('rollbackByMk', `回滚完成：MK=${MK}`);
   } catch (e: any) {
     logger.error('rollbackByMk', `回滚异常：MK=${MK} → ${e?.message || e}`, e);

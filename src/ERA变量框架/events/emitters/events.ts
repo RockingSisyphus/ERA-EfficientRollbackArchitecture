@@ -1,6 +1,6 @@
 'use strict';
 
-import { LOGS_PATH, SEL_PATH, ERA_EVENT_EMITTER, WriteDonePayload } from '../../utils/constants';
+import { ERA_EVENT_EMITTER, LOGS_PATH, QueryResultPayload, SEL_PATH, WriteDonePayload } from '../../utils/constants';
 import { unescapeEraData } from '../../utils/data';
 import { getEraData, removeMetaFields } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
@@ -62,5 +62,31 @@ export function emitWriteDoneEvent(payload: DispatcherPayload) {
     `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(
       payload.actions,
     )}, MK: ${payload.mk}, MsgID: ${payload.message_id}, 连续处理次数: ${payload.consecutiveProcessingCount}`,
+  );
+}
+
+/**
+ * **【广播器】** 触发 `era:queryResult` 事件。
+ * 用于响应所有 `GET_...` 系列的 API 请求。
+ *
+ * @param {'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks'} queryType - 原始查询的类型。
+ * @param {any} request - 原始查询的 `detail` 对象。
+ * @param {any} result - 查询的结果（单个 QueryResultItem 或 QueryResultItem 数组）。
+ */
+export function emitQueryResultEvent(
+  queryType: 'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks',
+  request: any,
+  result: any,
+) {
+  const payload: QueryResultPayload = {
+    queryType,
+    request,
+    result,
+  };
+
+  eventEmit(ERA_EVENT_EMITTER.VARS_QUERY_RESULT, payload);
+  logger.log(
+    'emitQueryResultEvent',
+    `已为查询 [${queryType}] 发送 ${ERA_EVENT_EMITTER.VARS_QUERY_RESULT} 事件。`,
   );
 }

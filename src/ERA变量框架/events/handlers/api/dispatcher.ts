@@ -3,7 +3,9 @@
 import {
   deleteByObject,
   deleteByPath,
-  getCurrentVars,
+  handleGetCurrentVars,
+  handleGetSnapshotAtMk,
+  handleGetSnapshotsBetweenMks,
   insertByObject,
   insertByPath,
   updateByObject,
@@ -24,5 +26,7 @@ export function handleApiEvent(job: EventJob, actionsTaken: ActionsTaken, payloa
   else if (eventType === ERA_API_EVENTS.UPDATE_BY_PATH) updateByPath(detail.path, detail.value);
   else if (eventType === ERA_API_EVENTS.DELETE_BY_OBJECT) deleteByObject(detail);
   else if (eventType === ERA_API_EVENTS.DELETE_BY_PATH) deleteByPath(detail.path);
-  else if (eventType === ERA_API_EVENTS.GET_CURRENT_VARS) getCurrentVars(payload);
+  else if (eventType === ERA_API_EVENTS.GET_CURRENT_VARS) handleGetCurrentVars(detail);
+  else if (eventType === ERA_API_EVENTS.GET_SNAPSHOT_AT_MK) handleGetSnapshotAtMk(detail);
+  else if (eventType === ERA_API_EVENTS.GET_SNAPSHOTS_BETWEEN_MKS) handleGetSnapshotsBetweenMks(detail);
 }
