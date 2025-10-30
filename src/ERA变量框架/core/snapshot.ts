@@ -6,10 +6,10 @@
 
 'use strict';
 
-import { getEraData } from '../utils/era_data';
 import { LOGS_PATH, SEL_PATH } from '../utils/constants';
-import { calculateAllStatsBetweenMks, calculateStatAt } from './timetravel';
+import { getEraData } from '../utils/era_data';
 import { Logger } from '../utils/log';
+import { calculateAllStatsBetweenMks, calculateStatAt } from './timetravel';
 
 const logger = new Logger();
 
@@ -28,6 +28,12 @@ export function getStatAtMK(targetMK: string): object | null {
 
     if (!targetMK) {
       logger.error('getStatAtMK', `目标 MK 不能为空。`);
+      return null;
+    }
+
+    // 检查 targetMK 是否有效
+    if (!selectedMks.includes(targetMK)) {
+      logger.error('getStatAtMK', `提供的 targetMK "${targetMK}" 无效或不存在于 selectedMks 中。`);
       return null;
     }
 
@@ -60,6 +66,18 @@ export function getStatsBetweenMKs(
     const validMks = selectedMks.filter((mk): mk is string => !!mk);
     if (validMks.length === 0) {
       return [];
+    }
+
+    // 检查 startMk 是否有效
+    if (startMk && !validMks.includes(startMk)) {
+      logger.error('getStatsBetweenMKs', `提供的 startMk "${startMk}" 无效或不存在于 selectedMks 中。`);
+      return null;
+    }
+
+    // 检查 endMk 是否有效
+    if (endMk && !validMks.includes(endMk)) {
+      logger.error('getStatsBetweenMKs', `提供的 endMk "${endMk}" 无效或不存在于 selectedMks 中。`);
+      return null;
     }
 
     const actualStartMk = startMk || validMks[0];
