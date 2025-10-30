@@ -127,6 +127,18 @@ defineExpose({
   --ball-logo-shadow-near: rgba(255, 255, 255, 0.6);
   --ball-logo-shadow-far: rgba(0, 0, 0, 0.1);
   --ball-logo-filter-glow: drop-shadow(0 0 1px rgba(0, 0, 0, 0.2));
+
+  /* === SnapshotManager.vue Styles === */
+  --snapshot-accent: #5b8cff;
+  --snapshot-accent-soft: rgba(91, 140, 255, 0.25);
+  --snapshot-bg: #fff;
+  --snapshot-stroke: rgba(0, 0, 0, 0.12);
+  --snapshot-text: #2a2a2a;
+  --snapshot-muted: #777;
+  --snapshot-bg-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.3));
+  --snapshot-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  --snapshot-outer-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --snapshot-focus-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 /* 暗色主题 */
@@ -244,5 +256,17 @@ defineExpose({
   --ball-logo-shadow-near: rgba(0, 0, 0, 0.3);
   --ball-logo-shadow-far: rgba(138, 43, 226, 0.45);
   --ball-logo-filter-glow: drop-shadow(0 0 3px rgba(191, 128, 255, 0.35));
+
+  /* === SnapshotManager.vue Styles === */
+  --snapshot-accent: #3b82f6;
+  --snapshot-accent-soft: rgba(59, 130, 246, 0.3);
+  --snapshot-bg: #2d2f37;
+  --snapshot-stroke: rgba(255, 255, 255, 0.1);
+  --snapshot-text: #f9fafb;
+  --snapshot-muted: #9ca3af;
+  --snapshot-bg-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent);
+  --snapshot-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --snapshot-outer-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --snapshot-focus-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 </style>
