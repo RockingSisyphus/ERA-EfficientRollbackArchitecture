@@ -13,9 +13,13 @@
         <span class="v">{{ messageId ?? '—' }}</span>
         <!-- 值：message_id -->
       </div>
+      <div class="item">
+        <span class="k">来源</span>
+        <!-- 键：来源 -->
+        <span class="v">{{ isUser ? '用户' : 'AI' }}</span>
+        <!-- 值：来源 -->
+      </div>
     </div>
-    <div class="glow"></div>
-    <!-- 装饰：流光条 -->
   </section>
 </template>
 
@@ -26,7 +30,7 @@ import { Logger } from '../../../utils/log';
 const logger = new Logger();
 
 // 接收父组件传入的两个字段
-const props = defineProps<{ mk: string; messageId: number }>(); // 简单的只读展示
+const props = defineProps<{ mk: string; messageId: number; isUser: boolean }>(); // 简单的只读展示
 
 onMounted(() => {
   //logger.log('onMounted', '组件已挂载', { props });
@@ -93,17 +97,5 @@ watch(
     background 0.3s ease,
     border-color 0.3s ease,
     color 0.3s ease;
-}
-
-/* 顶部流光装饰 */
-.glow {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  top: 0;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--meta-glow-bg);
-  filter: blur(0.4px);
 }
 </style>

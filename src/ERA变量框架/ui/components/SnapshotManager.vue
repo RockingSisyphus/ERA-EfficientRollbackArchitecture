@@ -24,7 +24,7 @@
 
     <template v-if="displayData">
       <EraAccordion title="消息元数据" :default-open="true">
-        <MetaHeader :mk="displayData.mk" :message-id="displayData.message_id" />
+        <MetaHeader :mk="displayData.mk" :message-id="displayData.message_id" :is-user="isUserMessageComputed" />
       </EraAccordion>
 
       <TabSwitch v-model:active="activeTab" :tabs="tabs">
@@ -42,6 +42,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { QueryResultItem, QueryResultPayload, WriteDonePayload } from '../../utils/constants';
+import { isUserMessage } from '../../utils/message';
 import { Logger } from '../../utils/log';
 import EraAccordion from '../template/EraAccordion.vue';
 import PrettyJsonViewer from '../template/PrettyJsonViewer.vue';
@@ -78,6 +79,17 @@ const displayData = computed<DisplayData | null>(() => {
     return props.latestData;
   }
   return historicalSnapshot.value;
+});
+
+const isUserMessageComputed = computed(() => {
+  if (!displayData.value) return false;
+  // 如果是历史快照(QueryResultItem)，它会包含 is_user 属性
+  if ('is_user' in displayData.value) {
+    return (displayData.value as QueryResultItem).is_user;
+  }
+  // 否则，这是最新数据(WriteDonePayload)，我们需要从消息中获取它
+  const message = getChatMessages(displayData.value.message_id, { include_swipes: false })[0];
+  return message ? isUserMessage(message) : false;
 });
 
 watch(

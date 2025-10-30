@@ -211,6 +211,7 @@ export interface WriteDonePayload {
 export interface QueryResultItem {
   mk: string;
   message_id: number;
+  is_user: boolean;
   stat: any;
   statWithoutMeta: any;
 }

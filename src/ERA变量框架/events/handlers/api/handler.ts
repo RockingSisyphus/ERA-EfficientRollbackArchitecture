@@ -17,13 +17,17 @@
  */
 
 import { getStatAtMK, getStatsBetweenMKs } from '../../../core/snapshot';
+import { SEL_PATH } from '../../../utils/constants';
 import { J, unescapeEraData } from '../../../utils/data';
 import { getEraData, removeMetaFields } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log';
-import { findLastAiMessage, getMessageContent, updateMessageContent } from '../../../utils/message';
+import {
+  findLastAiMessage,
+  getMessageContent,
+  isUserMessage,
+  updateMessageContent,
+} from '../../../utils/message';
 import { debouncedEmitApiWrite, emitQueryResultEvent } from '../../emitters/events';
-import { DispatcherPayload } from '../../types';
-import { SEL_PATH } from '../../../utils/constants';
 
 const logger = new Logger();
 
@@ -218,10 +222,13 @@ export function handleGetCurrentVars(detail: any) {
   const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
   const lastMk = selectedMks[selectedMks.length - 1] || '';
   const lastMessageId = selectedMks.length - 1;
+  const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+  const lastMessage = messages[lastMessageId];
 
   const resultItem = {
     mk: lastMk,
     message_id: lastMessageId,
+    is_user: lastMessage ? isUserMessage(lastMessage) : false,
     stat: unescapeEraData(stat),
     statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
   };
@@ -248,10 +255,13 @@ export function handleGetSnapshotAtMk(detail: any) {
     const { meta } = getEraData();
     const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
     const message_id = selectedMks.indexOf(mk);
+    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+    const message = messages[message_id];
 
     const resultItem = {
       mk,
       message_id,
+      is_user: message ? isUserMessage(message) : false,
       stat: unescapeEraData(stat),
       statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
     };
@@ -273,12 +283,17 @@ export function handleGetSnapshotsBetweenMks(detail: any) {
   const results = getStatsBetweenMKs(startMk, endMk);
 
   if (results) {
+    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
     // 为每个结果添加 statWithoutMeta
-    const finalResults = results.map(item => ({
-      ...item,
-      stat: unescapeEraData(item.stat),
-      statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
-    }));
+    const finalResults = results.map(item => {
+      const message = messages[item.message_id];
+      return {
+        ...item,
+        is_user: message ? isUserMessage(message) : false,
+        stat: unescapeEraData(item.stat),
+        statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
+      };
+    });
     emitQueryResultEvent('getSnapshotsBetweenMks', detail, finalResults);
   } else {
     logger.error('handleGetSnapshotsBetweenMks', '获取批量快照失败。');
