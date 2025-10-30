@@ -85,8 +85,5 @@ export function emitQueryResultEvent(
   };
 
   eventEmit(ERA_EVENT_EMITTER.VARS_QUERY_RESULT, payload);
-  logger.log(
-    'emitQueryResultEvent',
-    `已为查询 [${queryType}] 发送 ${ERA_EVENT_EMITTER.VARS_QUERY_RESULT} 事件。`,
-  );
+  logger.log('emitQueryResultEvent', `已为查询 [${queryType}] 发送 ${ERA_EVENT_EMITTER.VARS_QUERY_RESULT} 事件。`);
 }

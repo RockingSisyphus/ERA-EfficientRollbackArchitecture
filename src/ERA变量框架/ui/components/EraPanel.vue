@@ -48,7 +48,6 @@ const requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {
     logger.warn('requestSwitchView', '全局切换函数 eraUiSwitchView 未找到');
   }
 };
-
 </script>
 
 <style scoped>

@@ -222,9 +222,7 @@ onUnmounted(() => {
   padding: 10px 36px 10px 12px; /* 留出右侧箭头空间 */
   border-radius: 10px; /* 圆角输入框 */
   border: 1px solid var(--snapshot-stroke); /* 细描边 */
-  background:
-    var(--snapshot-bg-gradient),
-    var(--snapshot-bg); /* 基底色（卡片色） */
+  background: var(--snapshot-bg-gradient), var(--snapshot-bg); /* 基底色（卡片色） */
   backdrop-filter: saturate(1.05) blur(2px); /* 轻玻璃效果（有支持的浏览器） */
   color: var(--snapshot-text); /* 文本颜色 */
   font-family: inherit; /* 继承字体 */
@@ -238,9 +236,7 @@ onUnmounted(() => {
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     background 0.25s ease; /* 交互过渡 */
-  box-shadow:
-    var(--snapshot-inner-shadow),
-    var(--snapshot-outer-shadow); /* 轻外阴影，浮起感 */
+  box-shadow: var(--snapshot-inner-shadow), var(--snapshot-outer-shadow); /* 轻外阴影，浮起感 */
 }
 
 /* ---- 悬停：描边加深，提示可交互 ---- */
