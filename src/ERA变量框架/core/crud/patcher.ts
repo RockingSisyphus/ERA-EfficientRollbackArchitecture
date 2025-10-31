@@ -55,8 +55,9 @@ export const ApplyVarChangeForMessage = async (
   msg: any,
   initialStat: any,
   meta: any,
-): Promise<{ finalStat: any; finalEditLog: any[] }> => {
+): Promise<{ finalStat: any; finalEditLog: any[]; mk: string | null }> => {
   logger.debug('ApplyVarChangeForMessage (Pure)', `开始计算消息 (ID: ${msg.message_id})...`);
+  const mk = readMessageKey(msg);
   try {
     // 1. 从消息中提取、解析并转义所有指令。
     const { allInserts, allEdits, allDeletes } = extractAndParseCommands(msg);
@@ -81,10 +82,10 @@ export const ApplyVarChangeForMessage = async (
     const finalEditLog = [...(insertLog || []), ...(editBlockLog || []), ...(deleteLog || [])];
 
     // 6. 返回计算结果
-    return { finalStat: statAfterDelete, finalEditLog };
+    return { finalStat: statAfterDelete, finalEditLog, mk };
   } catch (err: any) {
     logger.error('ApplyVarChangeForMessage (Pure)', `变量计算异常: ${err?.message || err}`, err);
     // 在异常情况下，返回未修改的初始状态和空日志，以防止破坏后续流程。
-    return { finalStat: initialStat, finalEditLog: [] };
+    return { finalStat: initialStat, finalEditLog: [], mk };
   }
 };
