@@ -436,7 +436,9 @@ onUnmounted(() => {
   font-size: 14px;
   color: var(--snapshot-muted);
   pointer-events: none;
-  transition: transform 0.18s ease, color 0.2s ease;
+  transition:
+    transform 0.18s ease,
+    color 0.2s ease;
 }
 
 /* ── 获焦时箭头联动旋转高亮（如果你之前已有此规则，可保留任一版本） ── */
@@ -487,7 +489,10 @@ onUnmounted(() => {
   line-height: 1.2;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.1s ease;
 }
 #era-snapshot-ui .query-button:hover {
   background-color: var(--snapshot-btn-hover-bg);
