@@ -13,6 +13,7 @@ import unpluginAutoImport from 'unplugin-auto-import/webpack';
 import { VueUseComponentsResolver, VueUseDirectiveResolver } from 'unplugin-vue-components/resolvers';
 import unpluginVueComponents from 'unplugin-vue-components/webpack';
 import { VueLoaderPlugin } from 'vue-loader';
+import ts from 'typescript';
 import webpack from 'webpack';
 import WebpackObfuscator from 'webpack-obfuscator';
 const require = createRequire(import.meta.url);
@@ -102,6 +103,42 @@ function watch_it(compiler: webpack.Compiler) {
   }
 }
 
+function get_logger_transformer(_program: ts.Program): ts.TransformerFactory<ts.SourceFile> {
+  return context => {
+    return sourceFile => {
+      const visitor = (node: ts.Node): ts.Node => {
+        // 检查是否是 new Logger() 调用
+        if (
+          ts.isNewExpression(node) &&
+          ts.isIdentifier(node.expression) &&
+          node.expression.text === 'Logger' &&
+          (!node.arguments || node.arguments.length === 0)
+        ) {
+          const projectDir = path.join(__dirname, 'src');
+          const relativePath = path.relative(projectDir, sourceFile.fileName);
+
+          // 将 '幻想乡缘起-主页面\components\StatusTab\tabs\ContentBio.vue'
+          // 转换为 '幻想乡缘起-主页面/components/StatusTab/tabs/ContentBio'
+          const moduleName = relativePath
+            .replace(/\\/g, '/') // 统一路径分隔符为 /
+            .replace(/\.(vue|ts|js)$/, '')
+            .replace(/\/index$/, '');
+
+          return context.factory.updateNewExpression(
+            node,
+            node.expression,
+            node.typeArguments,
+            [context.factory.createStringLiteral(moduleName)],
+          );
+        }
+        return ts.visitEachChild(node, visitor, context);
+      };
+
+      return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+    };
+  };
+}
+
 function parse_configuration(entry: Entry, is_release = false): (_env: any, argv: any) => webpack.Configuration {
   const should_obfuscate = fs.readFileSync(path.join(__dirname, entry.script), 'utf-8').includes('@obfuscate');
   const script_filepath = path.parse(entry.script);
@@ -169,6 +206,9 @@ function parse_configuration(entry: Entry, is_release = false): (_env: any, argv
                   noUnusedLocals: false,
                   noUnusedParameters: false,
                 },
+                getCustomTransformers: (program: ts.Program) => ({
+                  before: [get_logger_transformer(program)],
+                }),
               },
               resourceQuery: /raw/,
               type: 'asset/source',
@@ -203,6 +243,9 @@ function parse_configuration(entry: Entry, is_release = false): (_env: any, argv
                   noUnusedLocals: false,
                   noUnusedParameters: false,
                 },
+                getCustomTransformers: (program: ts.Program) => ({
+                  before: [get_logger_transformer(program)],
+                }),
               },
               resourceQuery: /url/,
               type: 'asset/inline',
@@ -237,6 +280,9 @@ function parse_configuration(entry: Entry, is_release = false): (_env: any, argv
                   noUnusedLocals: false,
                   noUnusedParameters: false,
                 },
+                getCustomTransformers: (program: ts.Program) => ({
+                  before: [get_logger_transformer(program)],
+                }),
               },
               exclude: /node_modules/,
             },

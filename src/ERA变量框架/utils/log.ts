@@ -168,9 +168,13 @@ export const logContext = {
 export class Logger {
   private moduleName: string;
 
-  constructor() {
-    // 自动从调用栈获取模块名，能有效避免因实例共享导致的模块名不准问题
-    this.moduleName = this._getModuleNameFromStack() || 'unknown';
+  /**
+   * 创建一个新的 Logger 实例。
+   * @param moduleName - 【请勿手动填写】此参数由 Webpack 构建过程自动注入，用于标识当前模块。
+   */
+  constructor(moduleName?: string) {
+    // 优先使用由 Webpack 注入的模块名，如果不存在，则回退到旧的堆栈解析方法（仅用于非打包环境）
+    this.moduleName = moduleName || this._getModuleNameFromStack() || 'unknown';
   }
 
   private _getModuleNameFromStack(): string | null {
@@ -179,30 +183,33 @@ export class Logger {
       // 智能寻找调用者：遍历堆栈，找到第一个不属于 log.ts 的、包含项目路径的行
       const callerLine = stack
         .split('\n')
-        .find(line => line.includes('/src/ERA变量框架/') && !line.includes('/utils/log.ts'));
+        .find(
+          line =>
+            (line.includes(`/src/ERA变量框架/`) ||
+              line.includes(`/dist/ERA变量框架/`) ||
+              line.includes(`\\src\\ERA变量框架\\`) ||
+              line.includes(`\\dist\\ERA变量框架\\`)) &&
+            !line.includes('/utils/log.ts'),
+        );
 
       if (!callerLine) {
-        // 如果找不到，优雅降级
         return null;
       }
 
       // 更鲁棒的正则，用于从不同格式的堆栈行中提取路径
-      const match = callerLine.match(/src\/ERA变量框架\/([^?:\s)]+)/);
+      const match = callerLine.match(new RegExp(`(src|dist)[\\\\/]ERA变量框架[\\\\/]([^?:]+)`));
 
-      if (!match || !match[1]) {
-        // 如果正则匹配失败，优雅降级
+      if (!match || !match[2]) {
         return null;
       }
 
-      let path = match[1];
+      const path = match[2];
 
-      // 移除文件扩展名
-      path = path.replace(/\.(vue|ts|js)$/, '');
-      // 将 'src/ERA变量框架/' 替换为空，并用 '-' 替换 '/'
+      // 移除文件扩展名和 /index 后缀，并统一路径分隔符
       return path
-        .replace(/^src\/ERA变量框架\//, '')
-        .replace(/\/index$/, '')
-        .replace(/\//g, '-');
+        .replace(/\\/g, '/')
+        .replace(/\.(vue|ts|js)$/, '')
+        .replace(/\/index$/, '');
     } catch (e) {
       console.error('《ERA-Log-Debug》: 解析模块名时发生意外错误。', e);
       return null;
