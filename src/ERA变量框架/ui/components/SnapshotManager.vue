@@ -418,58 +418,67 @@ onUnmounted(() => {
 
 /* ── 让下拉本体为浮动标题“腾位”：加上足够的上内边距 ── */
 #era-snapshot-ui .mk-selector {
-  /* 原生下拉 */
-  padding-top: 22px; /* 原为 ~10px；增大以容纳浮动标题 */
-  padding-right: 36px; /* 保持与箭头空间一致 */
-  padding-bottom: 10px; /* 原下边距不变 */
-  padding-left: 12px; /* 左边距对齐容器 */
+  padding-top: 22px;
 }
 
 /* ── 可选：当获得焦点时，标题颜色联动强调 ── */
 #era-snapshot-ui .select-field:focus-within .field-label {
-  /* 容器聚焦（select 获焦） */
-  color: var(--snapshot-accent); /* 与高亮色一致 */
+  color: var(--snapshot-accent);
 }
 
 /* ── 箭头：保持你先前的右侧内置箭头样式不变（引用已有规则） ── */
 #era-snapshot-ui .select-container::after {
-  /* 已存在的右侧箭头 */
-  content: '▾'; /* 保持 */
-  position: absolute; /* 保持 */
-  top: 50%; /* 保持 */
-  right: 12px; /* 保持 */
-  transform: translateY(-50%) rotate(0deg); /* 保持 */
-  font-size: 14px; /* 保持 */
-  color: var(--snapshot-muted); /* 与标题次色一致，更统一 */
-  pointer-events: none; /* 保持 */
-  transition:
-    transform 0.18s ease,
-    color 0.2s ease; /* 保持 */
+  content: '▾';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--snapshot-muted);
+  pointer-events: none;
+  transition: transform 0.18s ease, color 0.2s ease;
 }
 
 /* ── 获焦时箭头联动旋转高亮（如果你之前已有此规则，可保留任一版本） ── */
 #era-snapshot-ui .select-container:focus-within::after {
-  transform: translateY(-50%) rotate(180deg); /* 旋转指示展开感 */
-  color: var(--snapshot-accent); /* 与焦点高亮同步 */
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--snapshot-accent);
 }
 
 /* =========================
    ID 查询输入框与按钮
    ========================= */
+
+/* 容器：实现无缝拼接和整体焦点效果 */
 #era-snapshot-ui .id-query-container {
   display: flex;
-  gap: 8px;
+  border-radius: 10px;
+  transition: box-shadow 0.18s ease;
+}
+#era-snapshot-ui .id-query-container:focus-within {
+  box-shadow: 0 0 0 3px var(--snapshot-accent-soft);
 }
 
+/* 输入框：继承 .mk-selector 样式，并调整拼接侧的圆角和边框 */
 #era-snapshot-ui .id-input {
-  flex-grow: 1; /* 占据大部分空间 */
+  flex-grow: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right-width: 0;
+}
+/* 输入框获焦时，由父容器处理阴影 */
+#era-snapshot-ui .id-input:focus {
+  box-shadow: none;
+  border-color: var(--snapshot-stroke);
 }
 
-/* 查询按钮：与输入框保持一致的圆角/描边/光环，并随主题变色 */
+/* 查询按钮：独立且完整的样式，确保高度一致 */
 #era-snapshot-ui .query-button {
   flex-shrink: 0;
-  padding: 10px 16px;
+  padding: 22px 16px 10px; /* 统一垂直 padding 以对齐输入框 */
   border-radius: 10px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
   background-color: var(--snapshot-btn-bg);
   color: var(--snapshot-btn-text);
   border: 1px solid var(--snapshot-stroke);
@@ -478,58 +487,19 @@ onUnmounted(() => {
   line-height: 1.2;
   font-weight: 700;
   cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.1s ease;
-  box-shadow: var(--snapshot-outer-shadow);
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
 }
-
 #era-snapshot-ui .query-button:hover {
   background-color: var(--snapshot-btn-hover-bg);
   border-color: color-mix(in oklab, var(--snapshot-stroke), var(--snapshot-text) 10%);
 }
-
 #era-snapshot-ui .query-button:active {
   transform: scale(0.97);
   background-color: var(--snapshot-btn-active-bg);
-  box-shadow: var(--snapshot-inner-shadow);
 }
-
 #era-snapshot-ui .query-button:focus-visible {
   outline: none;
-  box-shadow:
-    0 0 0 3px var(--snapshot-accent-soft),
-    var(--snapshot-outer-shadow);
-}
-
-#era-snapshot-ui .id-input {
-  /* 确保输入框和按钮高度一致 */
-  padding-top: 10px;
-  padding-bottom: 10px;
-  /* 调整右侧圆角，与按钮无缝衔接 */
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-right-width: 0; /* 移除右边框，由按钮左边框代替 */
-}
-
-#era-snapshot-ui .id-query-container {
-  display: flex;
-  /* 让子元素在获焦时整体发光 */
-  transition: box-shadow 0.18s ease;
-  border-radius: 10px; /* 容器圆角 */
-}
-
-#era-snapshot-ui .id-query-container:focus-within {
+  z-index: 1; /* 确保焦点阴影在最上层 */
   box-shadow: 0 0 0 3px var(--snapshot-accent-soft);
-}
-
-#era-snapshot-ui .id-input:focus {
-  /* 当输入框获焦时，移除它自己的阴影，由父容器的阴影代替 */
-  box-shadow: none;
-  border-color: var(--snapshot-stroke); /* 保持边框颜色不变 */
 }
 </style>

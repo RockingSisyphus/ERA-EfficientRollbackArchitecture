@@ -14,16 +14,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { WriteDonePayload } from '../utils/constants';
+import { storeToRefs } from 'pinia';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { getScriptSettings } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import EraPanel from './components/EraPanel.vue';
 import FloatingBall from './components/FloatingBall.vue';
 import RightRail from './components/RightRail.vue';
 import ThemeManager from './components/ThemeManager.vue';
+import { useUiStore } from './store';
 
 const logger = new Logger();
+
+// 从 Pinia store 获取状态和 action
+const uiStore = useUiStore();
+const { currentView: currentComponent, eventData: dataRef } = storeToRefs(uiStore);
 
 // 主题状态管理
 const themeManager = ref<InstanceType<typeof ThemeManager> | null>(null);
@@ -53,51 +58,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('era-settings-updated', loadThemeSetting);
 });
 
-// App.vue 原有的 props
-const props = defineProps({
-  initialView: {
-    type: String,
-    required: true,
-    default: 'FloatingBall',
-  },
-  eventData: {
-    type: Object as () => WriteDonePayload | null,
-    default: () => null,
-  },
-});
-
-// App.vue 原有的逻辑
-const currentComponent = ref(props.initialView);
 const requestSwitchView = (viewName: 'FloatingBall' | 'ExpandedView') => {
   logger.debug('requestSwitchView', `请求切换视图到: ${viewName}`);
-  if ((window as any).eraUiSwitchView) {
-    (window as any).eraUiSwitchView(viewName);
-  } else {
-    logger.warn('requestSwitchView', '全局切换函数 eraUiSwitchView 未找到');
-  }
+  uiStore.switchView(viewName);
 };
-
-// 从 EraDataPanel 迁移过来的逻辑
-const dataRef = computed(() => props.eventData || null);
-
-watch(
-  () => props.eventData,
-  (newData, oldData) => {
-    logger.debug('watch:eventData', 'eventData prop 发生变化', {
-      newData,
-      oldData,
-    });
-  },
-  { deep: true },
-);
-
-watch(
-  () => props.initialView,
-  newView => {
-    logger.debug('watch:initialView', `initialView prop 发生变化，新视图: ${newView}`);
-    currentComponent.value = newView;
-  },
-);
 </script>
 
 <style>

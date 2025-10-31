@@ -3,40 +3,12 @@ import { createApp, App as VueApp } from 'vue';
 import { getScriptSettings } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import App from './App.vue';
+import { useUiStore } from './store';
 import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } from './utils/dom';
 
 const logger = new Logger();
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
-let currentView: 'FloatingBall' | 'ExpandedView' = 'FloatingBall';
-let lastEventData: any = null;
-
-/**
- * 渲染 App 组件
- * @param viewToShow 要在 App 内部初始显示的视图
- */
-function renderApp(viewToShow: 'FloatingBall' | 'ExpandedView', dataToPass: any) {
-  logger.debug('renderApp', `开始渲染 App，视图: ${viewToShow}`, { dataToPass });
-  if (!mountPoint) {
-    logger.warn('renderApp', '挂载点不存在，渲染中止');
-    return;
-  }
-
-  // 1. 卸载当前 app
-  unmountVueApp();
-
-  // 2. 创建并挂载新的 app 实例，并通过 props 传递初始视图和数据
-  vueApp = createApp(App, {
-    initialView: viewToShow,
-    eventData: dataToPass,
-  });
-  vueApp.use(createPinia());
-  vueApp.mount(mountPoint[0]);
-
-  // 3. 重新传送样式，以确保新组件的样式被加载
-  teleportStyle();
-  logger.debug('renderApp', '渲染完成');
-}
 
 /**
  * 切换视图的全局函数
@@ -44,12 +16,11 @@ function renderApp(viewToShow: 'FloatingBall' | 'ExpandedView', dataToPass: any)
  */
 function switchView(viewName: 'FloatingBall' | 'ExpandedView') {
   logger.debug('switchView', `请求切换视图到: ${viewName}`);
-  if (currentView !== viewName) {
-    currentView = viewName;
-    logger.log('switchView', `视图已切换，重新渲染 App`);
-    renderApp(viewName, lastEventData);
+  // 初始化后，store 实例将可用
+  if ((window as any).eraUiStore) {
+    (window as any).eraUiStore.switchView(viewName);
   } else {
-    logger.debug('switchView', `视图已经是 ${viewName}，无需切换`);
+    logger.warn('switchView', 'UI store尚未初始化');
   }
 }
 
@@ -73,6 +44,8 @@ function unloadUI() {
     destroyMountPoint();
     mountPoint = null;
   }
+  // 卸载时自我清理，防止内存泄漏
+  window.removeEventListener('pagehide', unloadUI);
   logger.log('unloadUI', 'UI 脚本卸载完成');
 }
 
@@ -93,18 +66,28 @@ $(() => {
   $('body').append(mountPoint);
   logger.debug('$(document).ready', '挂载点已添加到 body');
 
-  // 初始加载 App
-  renderApp(currentView, lastEventData);
+  // 创建并挂载 Vue 实例
+  vueApp = createApp(App);
+  const pinia = createPinia();
+  vueApp.use(pinia);
+  vueApp.mount(mountPoint[0]);
+
+  // 获取 store 实例并暴露到 window，以便外部函数调用
+  const uiStore = useUiStore(pinia);
+  (window as any).eraUiStore = uiStore;
+
+  // 传送样式，也只执行一次
+  teleportStyle();
+  logger.debug('initialize', 'Vue App 已挂载，样式已传送');
 
   // 监听 era:writeDone 事件
   eventOn('era:writeDone', (data: any) => {
-    logger.log('era:writeDone', '接收到 era:writeDone 事件，准备刷新 UI', data);
-    lastEventData = data;
-    // 无论当前视图是什么，都强制刷新
-    renderApp(currentView, lastEventData);
+    logger.log('era:writeDone', '接收到 era:writeDone 事件，更新 store', data);
+    uiStore.setEventData(data); // 通过 store action 更新数据
   });
   logger.debug('$(document).ready', '已设置 era:writeDone 事件监听器');
-});
 
-// 在卸载时执行
-$(window).on('pagehide', unloadUI);
+  // 在卸载时执行，并确保只绑定一次
+  window.removeEventListener('pagehide', unloadUI); // 先移除旧的
+  window.addEventListener('pagehide', unloadUI); // 再添加新的
+});

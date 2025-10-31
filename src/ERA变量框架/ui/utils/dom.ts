@@ -16,7 +16,7 @@ export function teleportStyle(): void {
   // 先移除旧的，确保样式是最新的
   $(`head > div[script_id="${scriptId}"]`).remove();
 
-  const $div = $('<div>').attr('script_id', scriptId).append($('head > style', document).clone());
+  const $div = $('<div>').attr('script_id', scriptId).append($(document).find('head > style').clone());
   $('head').append($div);
 }
 
