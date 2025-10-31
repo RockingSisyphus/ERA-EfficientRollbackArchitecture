@@ -215,12 +215,7 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
       // --- 修复结束 ---
 
       // 使用这个有正确作用域的上下文来调用纯函数
-      const { finalStat, finalEditLog, mk } = await ApplyVarChangeForMessage(
-        msg,
-        statForRecalc,
-        contextMeta,
-        config,
-      );
+      const { finalStat, finalEditLog, mk } = await ApplyVarChangeForMessage(msg, statForRecalc, contextMeta, config);
 
       newSelectedMks[i] = mk; // 记录当前消息的 MK
       logger.debug('resyncStateOnHistoryChange', `[重算] 正在处理消息索引: ${i}, MK: ${mk}`);

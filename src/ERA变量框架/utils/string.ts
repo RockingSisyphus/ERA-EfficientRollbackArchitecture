@@ -164,11 +164,7 @@ export function extractBlocksByRegex(text: string, tagNameRegex: RegExp): string
  * @param {boolean} [toSimplified=false] - 是否将提取的内容转换为简体中文。
  * @returns {string[]} 包含所有有效内容块的数组。
  */
-export function extractValidBlocks(
-  text: string,
-  targetTagNameRegex: RegExp,
-  toSimplified: boolean = false,
-): string[] {
+export function extractValidBlocks(text: string, targetTagNameRegex: RegExp, toSimplified: boolean = false): string[] {
   // 1. 预处理：移除所有包含 "think" 的标签块
   const thinkRegex = createTagRegex('think', 'contains');
   const processedText = removeTagsByRegex(text, thinkRegex);
