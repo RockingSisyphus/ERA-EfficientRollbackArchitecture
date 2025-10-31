@@ -29,7 +29,10 @@ function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, edit
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
 
   if (currentNodeInVars === undefined) {
-    logger.warn('applyDeleteAtLevel', `VariableDelete 跳过：路径不存在 -> ${basePath || '(root)'}`);
+    logger.warn('applyDeleteAtLevel', `VariableDelete 跳过：路径不存在 -> ${basePath || '(root)'}`, {
+      basePath,
+      patchObj,
+    });
     return;
   }
 
@@ -52,6 +55,7 @@ function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, edit
       logger.warn(
         'applyDeleteAtLevel',
         `VariableDelete 失败：路径 <${basePath}> 受 "necessary: all" 保护，其子节点无法被删除。`,
+        { basePath, patchObj, currentNodeInVars },
       );
       return;
     }
@@ -75,13 +79,16 @@ function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, edit
     logger.warn(
       'applyDeleteAtLevel',
       `VariableDelete 失败：路径 <${basePath}> 受 "necessary: ${necessary}" 保护，无法被直接删除。`,
+      { basePath, patchObj, currentNodeInVars },
     );
     return;
   }
 
   // 根节点（basePath 为 ''）不应被删除。
   if (basePath === '') {
-    logger.error('applyDeleteAtLevel', 'VariableDelete 失败：不允许删除根对象。');
+    logger.error('applyDeleteAtLevel', 'VariableDelete 失败：不允许删除根对象。', {
+      patchObj,
+    });
     return;
   }
 
@@ -117,7 +124,11 @@ export async function processDeleteBlocks(
       // 从根路径开始递归
       applyDeleteAtLevel(currentStat, '', deleteRoot, editLog);
     } catch (e: any) {
-      logger.error('processDeleteBlocks', `处理 deleteRoot 失败: ${e?.message || e}`, e);
+      logger.error('processDeleteBlocks', `处理 deleteRoot 失败: ${e?.message || e}`, {
+        error: e,
+        deleteRoot,
+        currentStat,
+      });
     }
   }
 

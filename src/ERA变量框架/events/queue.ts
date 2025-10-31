@@ -79,14 +79,14 @@ async function processQueue() {
   // 【加锁】
   // 正式开始处理，加锁以阻止其他调用进入。
   isProcessing = true;
-  logger.log('processQueue', '处理器启动');
+  logger.debug('processQueue', '处理器启动');
 
   // 【防抖】
   const firstJob = eventQueue[0];
   const group = getEventGroup(firstJob.type);
   if (group !== 'API') {
     const debounceTime = EVENT_DEBOUNCE_MAP.get(firstJob.type) ?? 300;
-    logger.log('processQueue', `启动事件收集窗口，等待 ${debounceTime}ms...`);
+    logger.debug('processQueue', `启动事件收集窗口，等待 ${debounceTime}ms...`);
     await new Promise(resolve => setTimeout(resolve, debounceTime));
   }
 
@@ -114,7 +114,7 @@ async function processQueue() {
 
   // 【解锁并通知】
   isProcessing = false;
-  logger.log('processQueue', '处理器空闲，已释放锁。');
+  logger.debug('processQueue', '处理器空闲，已释放锁。');
 
   // 如果有等待者，则发送解锁信号，让它立即开始。
   if (unlockSignal) {

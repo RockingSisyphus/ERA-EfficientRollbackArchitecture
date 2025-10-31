@@ -119,8 +119,8 @@ const findDivergencePoint = (
     return { type: 'FAST_SYNC', newSelectedMks: currentMks };
   }
 
-  // 所有其他情况（有害删除、有新增、混合更改）都必须完全重算
-  logger.log('findDivergencePoint', `检测到需要完全重算。将从最早的分歧点 (ID: ${firstMismatch}) 开始。`);
+  // 所有其他情况（有害删除、有新增、混合更改）都必须从最早的分歧点重算
+  logger.log('findDivergencePoint', `检测到需要分歧点重算。将从最早的分歧点 (ID: ${firstMismatch}) 开始。`);
   return { type: 'FULL_RECALC', recalcId: firstMismatch };
 };
 
@@ -131,195 +131,115 @@ const findDivergencePoint = (
  * @param {boolean} [forceFullResync=false] - 如果为 true，则强制从头开始完全重算，忽略差异检测。
  */
 export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
-  if (forceFullResync) {
-    logger.warn('resyncStateOnHistoryChange', '强制完全重算模式已启动！');
-  } else {
-    logger.log('resyncStateOnHistoryChange', '聊天记录变更，启动状态同步...');
-  }
+  try {
+    if (forceFullResync) {
+      logger.warn('resyncStateOnHistoryChange', '强制完全重算模式已启动！');
+    } else {
+      logger.log('resyncStateOnHistoryChange', '聊天记录变更，启动状态同步...');
+    }
 
-  // 核心假设：getChatMessages 会重新生成 message_id，使其保持从 0 开始的连续序列。
-  const allMessages = getChatMessages('0-{{lastMessageId}}', { include_swipes: true });
-  logger.debug('resyncStateOnHistoryChange', '获取到的 allMessages:', allMessages);
+    // 核心假设：getChatMessages 会重新生成 message_id，使其保持从 0 开始的连续序列。
+    const allMessages = getChatMessages('0-{{lastMessageId}}', { include_swipes: true });
+    logger.debug('resyncStateOnHistoryChange', '获取到的 allMessages:', allMessages);
 
-  // 在函数开始时一次性获取所有数据
-  const { stat: initialStat, meta: initialMeta } = getEraData();
-  // oldSelectedMks 从 initialMeta 派生
-  const oldSelectedMks: (string | null)[] = _.cloneDeep(_.get(initialMeta, SEL_PATH, []));
+    // 在函数开始时一次性获取所有数据
+    const { stat: initialStat, meta: initialMeta } = getEraData();
+    // oldSelectedMks 从 initialMeta 派生
+    const oldSelectedMks: (string | null)[] = _.cloneDeep(_.get(initialMeta, SEL_PATH, []));
 
-  logger.debug(
-    'resyncStateOnHistoryChange',
-    `状态快照: oldSelectedMks.length=${oldSelectedMks.length}, allMessages.length=${allMessages?.length ?? 0}`,
-  );
+    logger.debug(
+      'resyncStateOnHistoryChange',
+      `状态快照: oldSelectedMks.length=${oldSelectedMks.length}, allMessages.length=${allMessages?.length ?? 0}`,
+    );
 
-  if (!allMessages || allMessages.length === 0) {
-    logger.log('resyncStateOnHistoryChange', '当前聊天记录为空，不执行任何操作，同步终止。');
-    return;
-  }
+    if (!allMessages || allMessages.length === 0) {
+      logger.log('resyncStateOnHistoryChange', '当前聊天记录为空，不执行任何操作，同步终止。');
+      return;
+    }
 
-  // 1. 找出分歧点
-  const divergence = findDivergencePoint(allMessages, oldSelectedMks, initialMeta, forceFullResync);
+    // 1. 找出分歧点
+    const divergence = findDivergencePoint(allMessages, oldSelectedMks, initialMeta, forceFullResync);
 
-  // 2. 处理分歧结果
-  if (divergence.type === 'FAST_SYNC') {
-    logger.log('resyncStateOnHistoryChange', '执行快速同步...');
-    await updateEraMetaData(meta => {
-      _.set(meta, SEL_PATH, divergence.newSelectedMks);
-      return meta;
+    // 2. 处理分歧结果
+    if (divergence.type === 'FAST_SYNC') {
+      logger.log('resyncStateOnHistoryChange', '执行快速同步...');
+      await updateEraMetaData(meta => {
+        _.set(meta, SEL_PATH, divergence.newSelectedMks);
+        return meta;
+      });
+      logger.log('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
+      return;
+    }
+
+    const firstRecalcId = divergence.recalcId;
+
+    // 3. 执行逆序回滚（内存中）
+    // 确定重算的起始状态。默认为初始状态。
+    let statForRecalc = initialStat;
+    if (firstRecalcId > -1 && firstRecalcId < oldSelectedMks.length) {
+      const allLogs: { [mk: string]: string } = _.get(initialMeta, LOGS_PATH, {});
+      const currentMK = oldSelectedMks[oldSelectedMks.length - 1];
+      const targetMK = firstRecalcId > 0 ? oldSelectedMks[firstRecalcId - 1] : undefined;
+
+      if (currentMK) {
+        logger.log('resyncStateOnHistoryChange', `准备一次性回滚。从: ${currentMK}, 到: ${targetMK || '初始状态'}`);
+        // 回滚结果作为重算的起点
+        statForRecalc = rollbackStatToMK(targetMK, currentMK, initialStat, oldSelectedMks, allLogs);
+        logger.log('resyncStateOnHistoryChange', '逆序回滚完成（内存中）。');
+      }
+    }
+
+    // 4. 从不匹配点开始，顺序重新应用变量修改，并构建新的 selectedMks
+    logger.log('resyncStateOnHistoryChange', `从 ID ${firstRecalcId} 开始顺序重算...`);
+    const newSelectedMks: (string | null)[] = oldSelectedMks.slice(0, firstRecalcId); // 继承匹配部分
+
+    // 为重算过程创建一个 meta 的可变副本
+    const metaForRecalc = _.cloneDeep(initialMeta);
+
+    for (let i = firstRecalcId; i < allMessages.length; i++) {
+      const msg = allMessages[i];
+
+      // --- 关键修复 ---
+      // 为本次计算创建一个拥有正确历史范围的“上下文元数据”。
+      // 1. 继承到目前为止已重算的所有日志。
+      const contextMeta = _.cloneDeep(metaForRecalc);
+      // 2. 关键：将上下文中的 selectedMks 严格限制为当前消息之前的部分。
+      //    newSelectedMks 在每次循环开始时，都代表了从 0 到 i-1 的正确历史。
+      _.set(contextMeta, SEL_PATH, newSelectedMks.slice(0, i));
+      // --- 修复结束 ---
+
+      // 使用这个有正确作用域的上下文来调用纯函数
+      const { finalStat, finalEditLog, mk } = await ApplyVarChangeForMessage(msg, statForRecalc, contextMeta);
+
+      newSelectedMks[i] = mk; // 记录当前消息的 MK
+      logger.debug('resyncStateOnHistoryChange', `[重算] 正在处理消息索引: ${i}, MK: ${mk}`);
+
+      if (!mk) {
+        logger.debug('resyncStateOnHistoryChange', `消息 (ID: ${i}) 无 MK，跳过变量计算。`);
+        continue; // 如果是用户消息等，则跳过
+      }
+
+      // 更新状态，为下一次循环做准备
+      statForRecalc = finalStat;
+      // 将新生成的日志写入主 metaForRecalc 对象，为下一次循环的 clone 做准备
+      _.set(metaForRecalc, [LOGS_PATH, mk], finalEditLog);
+    }
+    logger.log('resyncStateOnHistoryChange', '顺序重算完成。');
+
+    // 5. 循环结束后，一次性将最终计算出的状态写入全局
+    // statForRecalc 已经是最终的 stat
+    // metaForRecalc 包含了正确的日志，我们只需要更新 SEL_PATH
+    _.set(metaForRecalc, SEL_PATH, newSelectedMks);
+
+    await updateEraStatData(() => statForRecalc);
+    await updateEraMetaData(() => metaForRecalc);
+    logger.log('resyncStateOnHistoryChange', '状态同步完成。');
+  } catch (error: any) {
+    logger.error('resyncStateOnHistoryChange', `状态同步时发生严重错误: ${error?.message || error}`, {
+      error,
+      forceFullResync,
+      eraData: getEraData(),
+      allMessages: getChatMessages('0-{{lastMessageId}}', { include_swipes: true }),
     });
-    logger.log('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
-    return;
   }
-
-  const firstRecalcId = divergence.recalcId;
-
-  // 3. 执行逆序回滚（内存中）
-  // 确定重算的起始状态。默认为初始状态。
-  let statForRecalc = initialStat;
-  if (firstRecalcId > -1 && firstRecalcId < oldSelectedMks.length) {
-    const allLogs: { [mk: string]: string } = _.get(initialMeta, LOGS_PATH, {});
-    const currentMK = oldSelectedMks[oldSelectedMks.length - 1];
-    const targetMK = firstRecalcId > 0 ? oldSelectedMks[firstRecalcId - 1] : undefined;
-
-    if (currentMK) {
-      logger.log('resyncStateOnHistoryChange', `准备一次性回滚。从: ${currentMK}, 到: ${targetMK || '初始状态'}`);
-      // 回滚结果作为重算的起点
-      statForRecalc = rollbackStatToMK(targetMK, currentMK, initialStat, oldSelectedMks, allLogs);
-      logger.log('resyncStateOnHistoryChange', '逆序回滚完成（内存中）。');
-    }
-  }
-
-  // 4. 从不匹配点开始，顺序重新应用变量修改，并构建新的 selectedMks
-  logger.log('resyncStateOnHistoryChange', `从 ID ${firstRecalcId} 开始顺序重算...`);
-  const newSelectedMks: (string | null)[] = oldSelectedMks.slice(0, firstRecalcId); // 继承匹配部分
-
-  // 为重算过程创建一个 meta 的可变副本
-  const metaForRecalc = _.cloneDeep(initialMeta);
-
-  for (let i = firstRecalcId; i < allMessages.length; i++) {
-    const msg = allMessages[i];
-
-    // 使用当前循环中的状态调用纯函数，计算出下一个状态
-    const { finalStat, finalEditLog, mk } = await ApplyVarChangeForMessage(msg, statForRecalc, metaForRecalc);
-
-    newSelectedMks[i] = mk; // 记录当前消息的 MK
-    logger.debug('resyncStateOnHistoryChange', `[重算] 正在处理消息索引: ${i}, MK: ${mk}`);
-
-    if (!mk) {
-      logger.debug('resyncStateOnHistoryChange', `消息 (ID: ${i}) 无 MK，跳过变量计算。`);
-      continue; // 如果是用户消息等，则跳过
-    }
-
-    // 更新状态，为下一次循环做准备
-    statForRecalc = finalStat;
-    // 将新生成的日志写入元数据，同样为下一次循环做准备
-    // N.B. 这里的写入是针对 metaForRecalc 这个内存中的对象，不是全局状态
-    _.set(metaForRecalc, [LOGS_PATH, mk], finalEditLog);
-  }
-  logger.log('resyncStateOnHistoryChange', '顺序重算完成。');
-
-  // 5. 循环结束后，一次性将最终计算出的状态写入全局
-  // statForRecalc 已经是最终的 stat
-  // metaForRecalc 包含了正确的日志，我们只需要更新 SEL_PATH
-  _.set(metaForRecalc, SEL_PATH, newSelectedMks);
-
-  await updateEraStatData(() => statForRecalc);
-  await updateEraMetaData(() => metaForRecalc);
-  logger.log('resyncStateOnHistoryChange', '状态同步完成。');
-
-  // ==================================================================
-  // 【保险机制】 - 已于 2025/10/02 移除
-  //
-  // **历史原因**:
-  // 该机制最初是为了解决一个旧架构下的“内容-变量错位”问题。在旧架构中，当删除一条 swipe 时，
-  // 后一条 swipe 的内容会“顶替”上来，但其底层的消息变量（及其 MK）却保持不变。
-  // 这导致主同步逻辑的 MK 比对失效，无法发现状态变化。
-  // 为此，保险机制被设计为：通过 `oldSelectedMks`（状态变更前的快照）找到被删除的旧 MK，
-  // 强制回滚它，然后根据当前可见的新内容重新写入变量，从而修复错位。
-  //
-  // **当前架构下的情况与移除原因**:
-  // 在当前架构中，MK 已被直接写入消息内容，与内容强绑定。当 swipe 导致内容变化时，MK 也会随之变化。
-  // 这使得主同步逻辑（逆序回滚、顺序重算）已经能够完全、正确地处理 swipe 等场景，不再需要此保险机制。
-  //
-  // 继续保留该机制不仅是冗余的，而且会主动引发 Bug：
-  // 它依然按照旧逻辑，使用 `oldSelectedMks` 回滚一个过时的、不相关的 MK，这会破坏主逻辑刚刚同步好的正确状态。
-  // 随后，在被破坏的状态上进行的重写操作会失败或产生错误结果（例如，生成一个空的 EditLog），
-  // 并覆盖掉之前由主逻辑正确生成的 EditLog，导致数据丢失。
-  //
-  // 综上，该机制已从“保险”变为“风险”，因此被完全注释掉。
-  // ==================================================================
-  // logger.log('resyncStateOnHistoryChange', '执行【保险机制】：无条件回滚并重写最后一楼...');
-  // const lastWrittenMk = [...oldSelectedMks].reverse().find(mk => mk);
-  // if (lastWrittenMk) {
-  //   logger.log('resyncStateOnHistoryChange', `找到最后一个写入的MK: ${lastWrittenMk}，执行回滚...`);
-  //   await rollbackByMk(lastWrittenMk, true);
-  //   logger.log('resyncStateOnHistoryChange', '回滚完成，准备根据当前最后一楼内容重写...');
-  //   await ApplyVarChange(); // ApplyVarChange 默认处理最后一楼
-  //   logger.log('resyncStateOnHistoryChange', '保险性重写完成。');
-  // } else {
-  //   logger.log('resyncStateOnHistoryChange', '未找到任何可供回滚的旧MK，跳过保险机制。');
-  // }
 };
-
-/**
- * @deprecated 该函数已被 resyncStateOnHistoryChange 的内置“模拟写入”逻辑所取代。
- * **【强制同步最后一条AI消息】**
- * 这是一个用于特定场景的函数，例如由外部 API 触发，需要强制重算最后一条 AI 消息的变量。
- * 它解决了在消息内容被外部修改（但 MK 未变）时，状态无法自动更新的问题。
- *
- * **执行逻辑**:
- * 1. **定位**: 找到最后一条 AI 消息。
- * 2. **回滚**: 如果该消息存在且有 MK，则无条件回滚此 MK 引入的所有变量修改。
- * 3. **重算**: 立即根据该消息的**当前内容**重新计算变量，并生成新的 `EditLog`。
- * 4. **更新**: 将新的 MK 更新到 `SelectedMks` 数组的正确位置。
- *
- * **安全性**:
- * 此函数操作目标明确（最后一条 AI 消息），且回滚和重算在同一调用链中完成，
- * 避免了旧“保险机制”中因目标不明确而破坏 `resync` 状态的风险。
- */
-// export const forceSyncLastAiMessage = async () => {
-//   logger.log('forceSyncLastAiMessage', '启动强制同步最后一条 AI 消息...');
-
-//   // 1. 定位
-//   const msg = findLastAiMessage();
-//   if (!msg || typeof msg.message_id !== 'number') {
-//     logger.warn('forceSyncLastAiMessage', '未找到可供强制同步的 AI 消息。');
-//     return;
-//   }
-
-//   const messageId = msg.message_id;
-//   const MK = readMessageKey(msg);
-
-//   if (!MK) {
-//     logger.warn('forceSyncLastAiMessage', `消息 (ID: ${messageId}) 不含 MK，无法执行强制同步。将转为执行常规写入...`);
-//     // 如果没有 MK，说明是新消息，直接走标准写入流程即可
-//     await ApplyVarChangeForMessage(msg);
-//     return;
-//   }
-
-//   logger.log('forceSyncLastAiMessage', `目标消息 (ID: ${messageId}, MK: ${MK})。`);
-
-//   // 2. 回滚
-//   logger.debug('forceSyncLastAiMessage', `正在回滚 MK: ${MK}...`);
-//   await rollbackByMk(MK, true); // silent=true，避免不必要的日志刷新
-
-//   // 3. 重算
-//   logger.debug('forceSyncLastAiMessage', `回滚完成，正在根据当前内容重算 MK: ${MK}...`);
-//   const newMK = await ApplyVarChangeForMessage(msg);
-
-//   // 4. 更新 SelectedMks
-//   if (newMK) {
-//     try {
-//       await updateEraMetaData(meta => {
-//         const selectedMks = _.get(meta, SEL_PATH, []);
-//         selectedMks[messageId] = newMK;
-//         _.set(meta, SEL_PATH, selectedMks);
-//         return meta;
-//       });
-//       logger.log('forceSyncLastAiMessage', `强制同步完成，已更新 SelectedMks[${messageId}] = ${newMK}`);
-//     } catch (e: any) {
-//       logger.error('forceSyncLastAiMessage', `强制同步后更新 SelectedMks 失败: ${e?.message || e}`, e);
-//     }
-//   } else {
-//     logger.error('forceSyncLastAiMessage', `重算后未能获取新的 MK，SelectedMks 可能未更新。`);
-//   }
-// };

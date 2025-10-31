@@ -50,7 +50,10 @@ async function applyEditAtLevel(
   // --- 1. 路径和存在性检查 ---
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
   if (currentNodeInVars === undefined) {
-    logger.warn('applyEditAtLevel', `VariableEdit 跳过：路径不存在 -> ${basePath || '(root)'}`);
+    logger.warn('applyEditAtLevel', `VariableEdit 跳过：路径不存在 -> ${basePath || '(root)'}`, {
+      basePath,
+      patchObj,
+    });
     return;
   }
 
@@ -68,6 +71,7 @@ async function applyEditAtLevel(
     logger.warn(
       'applyEditAtLevel',
       `VariableEdit 失败：路径 <${basePath}> 受 "$meta.updatable: false" 保护，无法被修改。`,
+      { basePath, patchObj, currentNodeInVars },
     );
     return; // 终止此分支的递归。
   }
@@ -90,7 +94,11 @@ async function applyEditAtLevel(
 
     // 路径合法性检查：确保要写入的完整路径是存在的。
     if (!_.has(statData, subPath)) {
-      logger.warn('applyEditAtLevel', `VariableEdit 失败：路径非法，无法写入 -> ${subPath}`);
+      logger.warn('applyEditAtLevel', `VariableEdit 失败：路径非法，无法写入 -> ${subPath}`, {
+        subPath,
+        valNew,
+        statData,
+      });
       continue;
     }
 
@@ -156,12 +164,16 @@ export async function processEditBlocks(
   for (const editRoot of allEdits) {
     if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
     try {
-      logger.debug('processEditBlocks', `处理 editRoot: ${JSON.stringify(editRoot)}`);
+      logger.debug('processEditBlocks', `处理 editRoot: `, editRoot);
       // 从根路径 '' 开始统一递归入口，保持逻辑一致性。
       // applyEditAtLevel 会直接修改 finalStat 和 editLog。
       await applyEditAtLevel(finalStat, '', editRoot, editLog, messageId, selectedMks, allLogs);
     } catch (e: any) {
-      logger.error('processEditBlocks', `处理 editRoot 失败: ${e?.message || e}`, e);
+      logger.error('processEditBlocks', `处理 editRoot 失败: ${e?.message || e}`, {
+        error: e,
+        editRoot,
+        finalStat,
+      });
     }
   }
 

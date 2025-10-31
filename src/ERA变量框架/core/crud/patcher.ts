@@ -84,7 +84,12 @@ export const ApplyVarChangeForMessage = async (
     // 6. 返回计算结果
     return { finalStat: statAfterDelete, finalEditLog, mk };
   } catch (err: any) {
-    logger.error('ApplyVarChangeForMessage (Pure)', `变量计算异常: ${err?.message || err}`, err);
+    logger.error('ApplyVarChangeForMessage (Pure)', `变量计算异常: ${err?.message || err}`, {
+      error: err,
+      message: msg,
+      initialStat,
+      meta,
+    });
     // 在异常情况下，返回未修改的初始状态和空日志，以防止破坏后续流程。
     return { finalStat: initialStat, finalEditLog: [], mk };
   }

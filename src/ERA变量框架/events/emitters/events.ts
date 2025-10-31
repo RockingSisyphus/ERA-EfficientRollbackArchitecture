@@ -57,12 +57,7 @@ export function emitWriteDoneEvent(payload: DispatcherPayload) {
   });
 
   eventEmit(ERA_EVENT_EMITTER.WRITE_DONE, fullPayload);
-  logger.log(
-    'emitWriteDoneEvent',
-    `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。操作: ${JSON.stringify(
-      payload.actions,
-    )}, MK: ${payload.mk}, MsgID: ${payload.message_id}, 连续处理次数: ${payload.consecutiveProcessingCount}`,
-  );
+  logger.log('emitWriteDoneEvent', `已触发 ${ERA_EVENT_EMITTER.WRITE_DONE} 事件。`, fullPayload);
 }
 
 /**

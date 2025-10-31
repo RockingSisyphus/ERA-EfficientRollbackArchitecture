@@ -98,7 +98,11 @@ export function applyInsertAtLevel(
     // **插入失败**
     // 如果路径已存在，但不是可递归补充的对象结构（例如，一个是对象，另一个是字符串），
     // 则记录警告。insert 不会覆盖已存在的值。
-    logger.warn('applyInsertAtLevel', `VariableInsert 失败：路径已存在且无法递归补充 -> ${basePath}`);
+    logger.warn('applyInsertAtLevel', `VariableInsert 失败：路径已存在且无法递归补充 -> ${basePath}`, {
+      basePath,
+      patchObj,
+      currentNodeInVars,
+    });
   }
   // 如果 basePath 为空（在根级别）且 patch 不是对象，则不执行任何操作，因为根不能被非对象替换。
 }
@@ -136,7 +140,11 @@ export async function processInsertBlocks(
       // 从根路径 '' 开始统一递归入口，顶层调用时，父节点为 null
       applyInsertAtLevel(currentStat, '', insertRoot, editLog, null, null);
     } catch (e: any) {
-      logger.error('processInsertBlocks', `处理 insertRoot 失败: ${e?.message || e}`, e);
+      logger.error('processInsertBlocks', `处理 insertRoot 失败: ${e?.message || e}`, {
+        error: e,
+        insertRoot,
+        currentStat,
+      });
     }
   }
 

@@ -27,13 +27,16 @@ export function getStatAtMK(targetMK: string): object | null {
     const allLogs: { [mk: string]: string } = _.get(meta, LOGS_PATH, {});
 
     if (!targetMK) {
-      logger.error('getStatAtMK', `目标 MK 不能为空。`);
+      logger.error('getStatAtMK', `目标 MK 不能为空。`, { targetMK });
       return null;
     }
 
     // 检查 targetMK 是否有效
     if (!selectedMks.includes(targetMK)) {
-      logger.error('getStatAtMK', `提供的 targetMK "${targetMK}" 无效或不存在于 selectedMks 中。`);
+      logger.error('getStatAtMK', `提供的 targetMK "${targetMK}" 无效或不存在于 selectedMks 中。`, {
+        targetMK,
+        selectedMks,
+      });
       return null;
     }
 
@@ -42,7 +45,11 @@ export function getStatAtMK(targetMK: string): object | null {
 
     return statAtTarget;
   } catch (error: any) {
-    logger.error('getStatAtMK', `计算状态快照时出错: ${error?.message || error}`, error);
+    logger.error('getStatAtMK', `计算状态快照时出错: ${error?.message || error}`, {
+      error,
+      targetMK,
+      eraData: getEraData(),
+    });
     return null;
   }
 }
@@ -70,13 +77,19 @@ export function getStatsBetweenMKs(
 
     // 检查 startMk 是否有效
     if (startMk && !validMks.includes(startMk)) {
-      logger.error('getStatsBetweenMKs', `提供的 startMk "${startMk}" 无效或不存在于 selectedMks 中。`);
+      logger.error('getStatsBetweenMKs', `提供的 startMk "${startMk}" 无效或不存在于 selectedMks 中。`, {
+        startMk,
+        validMks,
+      });
       return null;
     }
 
     // 检查 endMk 是否有效
     if (endMk && !validMks.includes(endMk)) {
-      logger.error('getStatsBetweenMKs', `提供的 endMk "${endMk}" 无效或不存在于 selectedMks 中。`);
+      logger.error('getStatsBetweenMKs', `提供的 endMk "${endMk}" 无效或不存在于 selectedMks 中。`, {
+        endMk,
+        validMks,
+      });
       return null;
     }
 
@@ -86,7 +99,12 @@ export function getStatsBetweenMKs(
     const results = calculateAllStatsBetweenMks(actualStartMk, actualEndMk, selectedMks, allLogs);
     return results;
   } catch (error: any) {
-    logger.error('getStatsBetweenMKs', `计算批量快照时出错: ${error?.message || error}`, error);
+    logger.error('getStatsBetweenMKs', `计算批量快照时出错: ${error?.message || error}`, {
+      error,
+      startMk,
+      endMk,
+      eraData: getEraData(),
+    });
     return null;
   }
 }

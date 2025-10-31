@@ -99,16 +99,23 @@ export function rollbackStatToMK(
   const targetIndex = targetMK ? selectedMks.indexOf(targetMK) : -1;
 
   if (currentIndex === -1) {
-    logger.error('rollbackStatToMK', `在序列中未找到当前MK: ${currentMK}`);
-    throw new Error('在序列中未找到当前MK。');
+    const errorMsg = `在序列中未找到当前MK: ${currentMK}`;
+    logger.error('rollbackStatToMK', errorMsg, { currentMK, selectedMks });
+    throw new Error(errorMsg);
   }
   if (targetMK && targetIndex === -1) {
-    logger.error('rollbackStatToMK', `在序列中未找到目标MK: ${targetMK}`);
-    throw new Error('在序列中未找到目标MK。');
+    const errorMsg = `在序列中未找到目标MK: ${targetMK}`;
+    logger.error('rollbackStatToMK', errorMsg, { targetMK, selectedMks });
+    throw new Error(errorMsg);
   }
 
   if (targetIndex > currentIndex) {
-    logger.warn('rollbackStatToMK', '目标MK不在过去，返回当前状态。');
+    logger.warn('rollbackStatToMK', '目标MK不在过去，返回当前状态。', {
+      targetMK,
+      currentMK,
+      targetIndex,
+      currentIndex,
+    });
     return _.cloneDeep(currentStat);
   }
   if (targetIndex === currentIndex) {
@@ -150,12 +157,18 @@ export function calculateStatForward(
   const targetIndex = selectedMks.indexOf(targetMK);
 
   if (startIndex === -1 || targetIndex === -1) {
-    logger.error('calculateStatForward', `在序列中未找到MK。起始MK: ${startMK}, 目标MK: ${targetMK}`);
-    throw new Error('在序列中未找到MK。');
+    const errorMsg = `在序列中未找到MK。起始MK: ${startMK}, 目标MK: ${targetMK}`;
+    logger.error('calculateStatForward', errorMsg, { startMK, targetMK, selectedMks });
+    throw new Error(errorMsg);
   }
 
   if (targetIndex < startIndex) {
-    logger.warn('calculateStatForward', '目标MK不在未来，返回起始状态。');
+    logger.warn('calculateStatForward', '目标MK不在未来，返回起始状态。', {
+      startMK,
+      targetMK,
+      startIndex,
+      targetIndex,
+    });
     return _.cloneDeep(startStat);
   }
   if (targetIndex === startIndex) {
@@ -192,8 +205,9 @@ export function calculateStatAt(
   const targetIndex = selectedMks.indexOf(targetMK);
 
   if (targetIndex === -1) {
-    logger.error('calculateStatAt', `在序列中未找到目标MK: ${targetMK}`);
-    throw new Error('在序列中未找到目标MK。');
+    const errorMsg = `在序列中未找到目标MK: ${targetMK}`;
+    logger.error('calculateStatAt', errorMsg, { targetMK, selectedMks });
+    throw new Error(errorMsg);
   }
 
   let tempStat = {}; // 从绝对的初始状态开始
@@ -229,7 +243,11 @@ export function calculateAllStatsBetweenMks(
   const endIndex = selectedMks.indexOf(endMk);
 
   if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
-    logger.error('calculateAllStatsBetweenMks', '无效的 startMk 或 endMk。');
+    logger.error('calculateAllStatsBetweenMks', '无效的 startMk 或 endMk。', {
+      startMk,
+      endMk,
+      selectedMks,
+    });
     return [];
   }
 
@@ -280,7 +298,11 @@ export function findLatestNewValue(
   logger?.debug('findLatestNewValue', `开始为路径 <${path}> 从消息索引 <${startMessageId}> 向上追溯历史值...`);
 
   if (startMessageId < 0 || startMessageId > selectedMks.length) {
-    logger?.warn('findLatestNewValue', `错误：起始消息索引 ${startMessageId} 超出范围。`);
+    logger?.warn('findLatestNewValue', `错误：起始消息索引 ${startMessageId} 超出范围。`, {
+      path,
+      startMessageId,
+      selectedMksCount: selectedMks.length,
+    });
     return null;
   }
 

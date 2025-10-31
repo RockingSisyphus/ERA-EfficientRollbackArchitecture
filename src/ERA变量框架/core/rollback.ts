@@ -39,7 +39,10 @@ export async function rollbackByMk(MK: string, silent = false) {
 
     const currentIndex = selectedMks.indexOf(MK);
     if (currentIndex === -1) {
-      logger.error('rollbackByMk', `在 selectedMks 中未找到要回滚的 MK: ${MK}`);
+      logger.error('rollbackByMk', `在 selectedMks 中未找到要回滚的 MK: ${MK}`, {
+        MK,
+        selectedMks,
+      });
       return;
     }
 
@@ -55,7 +58,11 @@ export async function rollbackByMk(MK: string, silent = false) {
 
     logger.debug('rollbackByMk', `回滚完成：MK=${MK}`);
   } catch (e: any) {
-    logger.error('rollbackByMk', `回滚异常：MK=${MK} → ${e?.message || e}`, e);
+    logger.error('rollbackByMk', `回滚异常：MK=${MK} → ${e?.message || e}`, {
+      error: e,
+      MK,
+      eraData: getEraData(),
+    });
   }
 }
 

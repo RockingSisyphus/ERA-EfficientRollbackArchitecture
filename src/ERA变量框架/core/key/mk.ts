@@ -147,7 +147,7 @@ export function readMessageKey(msg: any): string {
  */
 export async function ensureMessageKey(msg: any): Promise<{ mk: string; isNew: boolean }> {
   if (!msg || typeof msg.message_id !== 'number' || !msg.role) {
-    logger.warn('ensureMessageKey', `无效的消息对象结构，无法确保Key。msg=${JSON.stringify(msg)}`);
+    logger.warn('ensureMessageKey', `无效的消息对象结构，无法确保Key。`, { msg });
     return { mk: '', isNew: false };
   }
 
@@ -192,7 +192,7 @@ export const ensureMkForLatestMessage = async (): Promise<{
     logger.debug('ensureMkForLatestMessage', `获取到的最新消息对象 (msg)`, msg);
 
     if (!msg || typeof msg.message_id !== 'number') {
-      logger.warn('ensureMkForLatestMessage', '无法读取最新消息或其ID，退出');
+      logger.warn('ensureMkForLatestMessage', '无法读取最新消息或其ID，退出', { latestMessage: msg });
       return { mk: '', message_id: null, isNewKey: false };
     }
 
@@ -201,7 +201,10 @@ export const ensureMkForLatestMessage = async (): Promise<{
     logger.debug('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。 (是否新建: ${isNew})`);
     return { mk, message_id: msg.message_id, isNewKey: isNew };
   } catch (err: any) {
-    logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, err);
+    logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, {
+      error: err,
+      latestMessage: getChatMessages(-1, { include_swipes: true })?.[0],
+    });
     return { mk: '', message_id: null, isNewKey: false };
   }
 };
