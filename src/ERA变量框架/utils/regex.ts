@@ -26,7 +26,7 @@ export async function ensureCharacterRegex(
 ): Promise<RegexInjectionResult> {
   if (!isCharacterTavernRegexesEnabled()) {
     const reason = '局部正则未启用，跳过注入。';
-    logger.log('ensureCharacterRegex', reason);
+    logger.debug('ensureCharacterRegex', reason);
     return { success: false, status: 'skipped', reason };
   }
 
@@ -34,12 +34,12 @@ export async function ensureCharacterRegex(
   const isAlreadyExists = characterRegexes.some(regex => regex.script_name === regexData.script_name);
 
   if (isAlreadyExists) {
-    logger.log('ensureCharacterRegex', `名为 "${regexData.script_name}" 的正则已存在，无需注入。`);
+    logger.debug('ensureCharacterRegex', `名为 "${regexData.script_name}" 的正则已存在，无需注入。`);
     return { success: true, status: 'exists' };
   }
 
   try {
-    logger.log('ensureCharacterRegex', `未找到名为 "${regexData.script_name}" 的正则，正在注入...`);
+    logger.debug('ensureCharacterRegex', `未找到名为 "${regexData.script_name}" 的正则，正在注入...`);
     await updateTavernRegexesWith(
       regexes => {
         // 在末尾添加新的正则表达式
@@ -52,7 +52,7 @@ export async function ensureCharacterRegex(
       },
       { scope: 'character' },
     );
-    logger.log('ensureCharacterRegex', '正则注入成功。');
+    logger.debug('ensureCharacterRegex', '正则注入成功。');
     return { success: true, status: 'injected' };
   } catch (error) {
     const reason = `注入名为 "${regexData.script_name}" 的正则时发生错误。`;

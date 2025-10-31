@@ -33,7 +33,7 @@ const logger = new Logger();
 const props = defineProps<{ mk: string; messageId: number; isUser: boolean }>(); // 简单的只读展示
 
 onMounted(() => {
-  //logger.log('onMounted', '组件已挂载', { props });
+  //logger.debug('onMounted', '组件已挂载', { props });
 });
 
 watch(

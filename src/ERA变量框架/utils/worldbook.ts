@@ -67,14 +67,14 @@ export async function injectEntryToWorldbook(
 
   const entryExists = await isEntryInWorldbook(worldbookName, newEntry.name);
   if (entryExists) {
-    logger.log(funcName, `条目「${newEntry.name}」已存在于世界书「${worldbookName}」中，无需注入。`);
+    logger.debug(funcName, `条目「${newEntry.name}」已存在于世界书「${worldbookName}」中，无需注入。`);
     return { success: true, status: 'exists' };
   }
 
   try {
-    logger.log(funcName, `正在向世界书「${worldbookName}」注入新条目「${newEntry.name}」...`);
+    logger.debug(funcName, `正在向世界书「${worldbookName}」注入新条目「${newEntry.name}」...`);
     await createWorldbookEntries(worldbookName, [newEntry]);
-    logger.log(funcName, `成功向世界书「${worldbookName}」注入新条目「${newEntry.name}」。`);
+    logger.debug(funcName, `成功向世界书「${worldbookName}」注入新条目「${newEntry.name}」。`);
     return { success: true, status: 'injected' };
   } catch (error) {
     const reason = `向世界书「${worldbookName}」注入条目「${newEntry.name}」时发生错误。`;
@@ -90,15 +90,15 @@ export async function injectEntryToWorldbook(
 export async function createAndBindPrimaryWorldbook(): Promise<string> {
   const funcName = 'createAndBindPrimaryWorldbook';
   const worldbookName = 'ERA卡示例世界书';
-  logger.log(funcName, `正在创建新的世界书「${worldbookName}」...`);
+  logger.debug(funcName, `正在创建新的世界书「${worldbookName}」...`);
   await createWorldbook(worldbookName);
 
   const charWorldbooks = await getCharWorldbookNames('current');
   charWorldbooks.primary = worldbookName;
 
-  logger.log(funcName, `正在将新世界书「${worldbookName}」绑定为当前角色卡的主世界书...`);
+  logger.debug(funcName, `正在将新世界书「${worldbookName}」绑定为当前角色卡的主世界书...`);
   await rebindCharWorldbooks('current', charWorldbooks);
 
-  logger.log(funcName, '创建并绑定成功。');
+  logger.debug(funcName, '创建并绑定成功。');
   return worldbookName;
 }

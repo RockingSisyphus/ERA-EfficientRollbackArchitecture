@@ -14,12 +14,9 @@
 
 'use strict';
 
-import { LOGS_PATH, SEL_PATH, STAT_DATA_PATH } from '../utils/constants';
-import { J, parseEditLog } from '../utils/data';
+import { LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { getEraData, updateEraStatData } from '../utils/era_data';
 import { Logger } from '../utils/log';
-import { getMessageContent, isUserMessage } from '../utils/message';
-import { readMessageKey } from './key/mk';
 import { rollbackStatToMK } from './timetravel';
 
 const logger = new Logger();
@@ -34,7 +31,7 @@ const logger = new Logger();
  */
 export async function rollbackByMk(MK: string, silent = false) {
   try {
-    logger.log('rollbackByMk', `开始回滚, MK=${MK}`);
+    logger.debug('rollbackByMk', `开始回滚, MK=${MK}`);
 
     const { meta, stat: currentStat } = getEraData();
     const selectedMks: string[] = _.get(meta, SEL_PATH, []);
@@ -56,12 +53,11 @@ export async function rollbackByMk(MK: string, silent = false) {
       return newStat;
     });
 
-    logger.log('rollbackByMk', `回滚完成：MK=${MK}`);
+    logger.debug('rollbackByMk', `回滚完成：MK=${MK}`);
   } catch (e: any) {
     logger.error('rollbackByMk', `回滚异常：MK=${MK} → ${e?.message || e}`, e);
   }
 }
-
 
 /*
  * 旧的 calibrate 函数，其核心思想已被吸收进 `resyncStateOnHistoryChange` 的保险机制中。

@@ -53,7 +53,7 @@ function unloadUI() {
 $(() => {
   const settings = getScriptSettings();
   if (settings['开启悬浮球'] === false) {
-    logger.log('initialize', 'UI ahow ball disabled, attempting to unload...');
+    logger.log('initialize', '悬浮球设置为关闭，开始卸载UI...');
     unloadUI();
     return;
   }

@@ -121,6 +121,6 @@ export async function processDeleteBlocks(
     }
   }
 
-  logger.log('processDeleteBlocks', '所有 VariableDelete 操作完成');
+  logger.debug('processDeleteBlocks', '所有 VariableDelete 操作完成');
   return { finalStat: currentStat, editLog };
 }

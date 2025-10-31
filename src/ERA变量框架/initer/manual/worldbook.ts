@@ -36,7 +36,7 @@ export async function initEraWorldbookEntries(): Promise<InitWorldbookResult> {
       return { success: false, reason, details: [] };
     }
   } else {
-    logger.log(funcName, `找到主世界书: 「${primaryWorldbook}」`);
+    logger.debug(funcName, `找到主世界书: 「${primaryWorldbook}」`);
   }
 
   const entriesToInject = [eraVarOperationRuleEntry, eraVarIntentEntry];

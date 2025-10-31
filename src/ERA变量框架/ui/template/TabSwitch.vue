@@ -50,13 +50,13 @@ watch(
   },
 ); // 外部变更时同步
 function setActive(k: 'pure' | 'full') {
-  logger.log('setActive', `用户点击，切换 tab 到: ${k}`);
+  logger.debug('setActive', `用户点击，切换 tab 到: ${k}`);
   innerActive.value = k;
   emit('update:active', k);
 } // 切换并抛出
 
 onMounted(() => {
-  //logger.log('onMounted', '组件已挂载', { props });
+  //logger.debug('onMounted', '组件已挂载', { props });
 });
 </script>
 

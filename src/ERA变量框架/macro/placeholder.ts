@@ -19,7 +19,7 @@ const logger = new Logger();
  */
 export async function ensurePlaceholder(message_id: number) {
   const funcName = 'ensurePlaceholder';
-  logger.log(funcName, `执行占位符保障，消息 ID: ${message_id}`);
+  logger.debug(funcName, `执行占位符保障，消息 ID: ${message_id}`);
 
   const settings = getScriptSettings();
   if (!settings.在ai消息尾部生成特殊符号) {
@@ -52,11 +52,11 @@ export async function ensurePlaceholder(message_id: number) {
   }
 
   const newMessage = (currentContent || '').trimEnd() + '\n' + placeholder;
-  logger.log(funcName, '准备更新消息，添加占位符。', { newMessage });
+  logger.debug(funcName, '准备更新消息，添加占位符。', { newMessage });
 
   try {
     await updateMessageContent(chat_message, newMessage, 'affected');
-    logger.log(funcName, '消息更新成功。');
+    logger.debug(funcName, '消息更新成功。');
   } catch (error) {
     logger.error(funcName, '更新消息时发生错误。', error);
   }

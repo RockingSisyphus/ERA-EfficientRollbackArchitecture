@@ -165,6 +165,6 @@ export async function processEditBlocks(
     }
   }
 
-  logger.log('processEditBlocks', '所有 VariableEdit 操作完成');
+  logger.debug('processEditBlocks', '所有 VariableEdit 操作完成');
   return { finalStat, editLog };
 }

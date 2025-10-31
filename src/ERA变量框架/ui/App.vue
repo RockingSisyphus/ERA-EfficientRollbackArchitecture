@@ -42,7 +42,7 @@ const loadThemeSetting = () => {
     if (themeManager.value) {
       themeManager.value.isDarkMode = darkModeValue;
     }
-    logger.log('loadThemeSetting', `主题已更新为: ${darkModeValue ? 'Dark' : 'Light'}`);
+    logger.debug('loadThemeSetting', `主题已更新为: ${darkModeValue ? 'Dark' : 'Light'}`);
   } catch (e) {
     logger.error('loadThemeSetting', '加载主题设置失败', e);
     isDarkMode.value = false; // Fallback to light mode

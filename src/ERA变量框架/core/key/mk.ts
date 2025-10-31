@@ -162,7 +162,7 @@ export async function ensureMessageKey(msg: any): Promise<{ mk: string; isNew: b
   const messageType = msg.role === 'user' ? 'user' : 'assistant';
   const dataString = `<${ERA_DATA_TAG}>{"era-message-key"="${newMk}","era-message-type"="${messageType}"}</${ERA_DATA_TAG}>`;
 
-  logger.log('ensureMessageKey', `为消息 (ID: ${msg.message_id}) 注入新的Key: ${newMk}`);
+  logger.debug('ensureMessageKey', `为消息 (ID: ${msg.message_id}) 注入新的Key: ${newMk}`);
 
   // 3. 构造新的消息内容并统一调用更新函数
   const currentContent = getMessageContent(msg) ?? '';
@@ -198,7 +198,7 @@ export const ensureMkForLatestMessage = async (): Promise<{
 
     // ensureMessageKey 会返回最终的 MK 和一个布尔值
     const { mk, isNew } = await ensureMessageKey(msg);
-    logger.log('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。 (是否新建: ${isNew})`);
+    logger.debug('ensureMkForLatestMessage', `已为最新消息 ${msg.message_id} 确保 MK 存在。 (是否新建: ${isNew})`);
     return { mk, message_id: msg.message_id, isNewKey: isNew };
   } catch (err: any) {
     logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, err);

@@ -143,7 +143,7 @@ async function performApiWrite(job: ApiWriteJob) {
   const originalContent = getMessageContent(lastAiMessage) ?? '';
   const newContent = originalContent + block;
 
-  logger.log('performApiWrite', `实时写入 API 任务 (${job.blockTag}) 到消息 ID ${lastAiMessage.message_id}...`);
+  logger.debug('performApiWrite', `实时写入 API 任务 (${job.blockTag}) 到消息 ID ${lastAiMessage.message_id}...`);
 
   // 3. 实时更新消息内容
   await updateMessageContent(lastAiMessage, newContent);
@@ -216,7 +216,7 @@ export function deleteByPath(path: string) {
  * @param {any} detail - 原始请求的 detail 对象。
  */
 export function handleGetCurrentVars(detail: any) {
-  logger.log('handleGetCurrentVars', `请求获取当前变量。`);
+  logger.debug('handleGetCurrentVars', `请求获取当前变量。`);
   const { stat, meta } = getEraData();
   const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
   const lastMk = selectedMks[selectedMks.length - 1] || '';
@@ -247,7 +247,7 @@ export function handleGetSnapshotAtMk(detail: any) {
     return;
   }
 
-  logger.log('handleGetSnapshotAtMk', `请求获取历史快照，MK: ${mk}`);
+  logger.debug('handleGetSnapshotAtMk', `请求获取历史快照，MK: ${mk}`);
   const stat = getStatAtMK(mk);
 
   if (stat) {
@@ -278,7 +278,7 @@ export function handleGetSnapshotAtMk(detail: any) {
 export function handleGetSnapshotsBetweenMks(detail: any) {
   const { startMk, endMk } = detail || {};
 
-  logger.log('handleGetSnapshotsBetweenMks', `请求获取批量快照，从: ${startMk || '开始'}, 到: ${endMk || '结束'}`);
+  logger.debug('handleGetSnapshotsBetweenMks', `请求获取批量快照，从: ${startMk || '开始'}, 到: ${endMk || '结束'}`);
   const results = getStatsBetweenMKs(startMk, endMk);
 
   if (results) {
@@ -311,7 +311,7 @@ export function handleGetSnapshotAtMId(detail: any) {
     return;
   }
 
-  logger.log('handleGetSnapshotAtMId', `请求获取历史快照，Message ID: ${message_id}`);
+  logger.debug('handleGetSnapshotAtMId', `请求获取历史快照，Message ID: ${message_id}`);
 
   const { meta } = getEraData();
   const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
@@ -356,7 +356,10 @@ export function handleGetSnapshotAtMId(detail: any) {
 export function handleGetSnapshotsBetweenMIds(detail: any) {
   const { startId, endId } = detail || {};
 
-  logger.log('handleGetSnapshotsBetweenMIds', `请求获取批量快照，从 ID: ${startId ?? '开始'}, 到 ID: ${endId ?? '结束'}`);
+  logger.debug(
+    'handleGetSnapshotsBetweenMIds',
+    `请求获取批量快照，从 ID: ${startId ?? '开始'}, 到 ID: ${endId ?? '结束'}`,
+  );
 
   const { meta } = getEraData();
   const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
@@ -405,9 +408,9 @@ export function handleGetSnapshotsBetweenMIds(detail: any) {
  * 请求 ERA 框架重新广播最新的 `writeDone` 事件。
  */
 export function handleRequestWriteDone() {
-  logger.log('handleRequestWriteDone', '接收到 writeDone 重播请求。');
+  logger.debug('handleRequestWriteDone', '接收到 writeDone 重播请求。');
   if (lastWriteDonePayload) {
-    logger.log('handleRequestWriteDone', '正在重播上一次的 writeDone 事件。');
+    logger.debug('handleRequestWriteDone', '正在重播上一次的 writeDone 事件。');
     emitWriteDoneEvent(lastWriteDonePayload);
   } else {
     logger.warn('handleRequestWriteDone', '没有可供重播的 writeDone 事件。');

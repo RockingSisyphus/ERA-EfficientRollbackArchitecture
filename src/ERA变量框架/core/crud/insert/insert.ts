@@ -140,6 +140,6 @@ export async function processInsertBlocks(
     }
   }
 
-  logger.log('processInsertBlocks', '所有 VariableInsert 操作完成');
+  logger.debug('processInsertBlocks', '所有 VariableInsert 操作完成');
   return { finalStat: currentStat, editLog };
 }

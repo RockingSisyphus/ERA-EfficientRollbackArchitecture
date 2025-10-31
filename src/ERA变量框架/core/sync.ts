@@ -66,6 +66,65 @@ const checkEditLogsAreEmpty = (mks: (string | null)[], metaData: any): boolean =
 };
 
 /**
+ * 比较当前消息历史与最后已知状态，以找到分歧的第一个点。
+ * 这决定了变量应从何处开始重新计算。
+ * 它还包括一个优化，如果仅删除了没有变量更改的消息，则执行“快速同步”。
+ *
+ * @param allMessages 当前所有消息的列表。
+ * @param oldSelectedMks 上次同步状态下的消息密钥 (MK) 列表。
+ * @param initialMeta 上次同步状态下的元数据，用于检查 EditLogs。
+ * @param forceFullResync 如果为 true，则强制从头开始重新计算。
+ * @returns 一个描述所需操作的对象。
+ */
+const findDivergencePoint = (
+  allMessages: any[],
+  oldSelectedMks: (string | null)[],
+  initialMeta: any,
+  forceFullResync: boolean,
+): { type: 'FULL_RECALC'; recalcId: number } | { type: 'FAST_SYNC'; newSelectedMks: (string | null)[] } => {
+  if (forceFullResync) {
+    logger.log('findDivergencePoint', '强制模式：设置重算起点为 0。');
+    return { type: 'FULL_RECALC', recalcId: 0 };
+  }
+
+  const currentMks = allMessages.map(getMkFromMsg);
+
+  // 1. 首先，无条件找到第一个分歧点
+  let firstMismatch = -1;
+  const minLength = Math.min(currentMks.length, oldSelectedMks.length);
+  for (let i = 0; i < minLength; i++) {
+    if (currentMks[i] !== oldSelectedMks[i]) {
+      firstMismatch = i;
+      break;
+    }
+  }
+  if (firstMismatch === -1 && currentMks.length !== oldSelectedMks.length) {
+    firstMismatch = minLength;
+  }
+
+  // 2. 处理“无分歧”的情况
+  if (firstMismatch === -1) {
+    const recalcId = allMessages.length > 0 ? allMessages.length - 1 : 0;
+    logger.log('findDivergencePoint', `所有MK均匹配。启动模拟写入，强制重算最后一条消息 (ID: ${recalcId})。`);
+    return { type: 'FULL_RECALC', recalcId };
+  }
+
+  // 3. 处理“有分歧”的情况
+  const deletedMks = _.difference(oldSelectedMks, currentMks);
+  const addedMks = _.difference(currentMks, oldSelectedMks);
+
+  // 唯一的优化机会：纯粹的无害删除
+  if (addedMks.length === 0 && deletedMks.length > 0 && checkEditLogsAreEmpty(deletedMks, initialMeta)) {
+    logger.log('findDivergencePoint', '检测到纯粹的无害删除。建议执行快速同步。');
+    return { type: 'FAST_SYNC', newSelectedMks: currentMks };
+  }
+
+  // 所有其他情况（有害删除、有新增、混合更改）都必须完全重算
+  logger.log('findDivergencePoint', `检测到需要完全重算。将从最早的分歧点 (ID: ${firstMismatch}) 开始。`);
+  return { type: 'FULL_RECALC', recalcId: firstMismatch };
+};
+
+/**
  * 当聊天记录发生变化（删除、切换分支）时，重新同步状态的核心函数
  * 实现了“逆序回滚，顺序重算”的逻辑。
  * 在没有检测到历史变化时，该函数还会自动回滚并重算最后一条消息，从而实现了“写入”操作的统一。
@@ -97,114 +156,21 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
     return;
   }
 
-  let firstRecalcId = -1;
+  // 1. 找出分歧点
+  const divergence = findDivergencePoint(allMessages, oldSelectedMks, initialMeta, forceFullResync);
 
-  if (forceFullResync) {
-    firstRecalcId = 0;
-    logger.log('resyncStateOnHistoryChange', '强制模式：设置重算起点为 0。');
+  // 2. 处理分歧结果
+  if (divergence.type === 'FAST_SYNC') {
+    logger.log('resyncStateOnHistoryChange', '执行快速同步...');
+    await updateEraMetaData(meta => {
+      _.set(meta, SEL_PATH, divergence.newSelectedMks);
+      return meta;
+    });
+    logger.log('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
+    return;
   }
-  // Case 1: 消息被删除 (新列表比旧列表短)
-  else if (allMessages.length < oldSelectedMks.length) {
-    logger.log('resyncStateOnHistoryChange', '检测到消息删除。');
-    // 从后往前，寻找第一个 "currentMk === oldMk_at_same_index" 的对齐点
-    for (let i = allMessages.length - 1; i >= 0; i--) {
-      const currentMk = getMkFromMsg(allMessages[i]);
-      const recordedMk = oldSelectedMks[i];
-      logger.debug(
-        'resyncStateOnHistoryChange',
-        `[删除-对齐检查] i=${i}, currentMk=${currentMk}, recordedMk=${recordedMk}`,
-      );
 
-      if (currentMk === recordedMk) {
-        firstRecalcId = i + 1;
-        logger.log(
-          'resyncStateOnHistoryChange',
-          `找到对齐点于 message_id=${i} (MK=${currentMk})。将从 ID ${firstRecalcId} 开始检查。`,
-        );
-        break;
-      }
-    }
-    if (firstRecalcId === -1) {
-      firstRecalcId = 0;
-      logger.log('resyncStateOnHistoryChange', '未找到任何对齐点，将从头开始检查。');
-    }
-
-    // 【优化】检查被删除的 MK 是否影响变量
-    // 稳健地找出被删除的 MK：对比新旧 MK 序列的差异
-    const currentMkSequence = allMessages.map(getMkFromMsg).filter(mk => mk);
-    const oldMkSequence = oldSelectedMks.filter(mk => mk);
-    const deletedMks = _.difference(oldMkSequence, currentMkSequence);
-
-    logger.debug('resyncStateOnHistoryChange', `旧MK序列: [${oldMkSequence.join(', ')}]`);
-    logger.debug('resyncStateOnHistoryChange', `新MK序列: [${currentMkSequence.join(', ')}]`);
-    logger.debug('resyncStateOnHistoryChange', `计算出的被删除MK: [${deletedMks.join(', ')}]`);
-
-    if (deletedMks.length > 0 && checkEditLogsAreEmpty(deletedMks, initialMeta)) {
-      logger.log(
-        'resyncStateOnHistoryChange',
-        `检测到被删除的 ${deletedMks.length} 条消息均不含变量修改，执行快速同步。`,
-      );
-      const newSelectedMks: (string | null)[] = [];
-      for (let i = 0; i < allMessages.length; i++) {
-        newSelectedMks[i] = getMkFromMsg(allMessages[i]);
-      }
-      await updateEraMetaData(meta => {
-        _.set(meta, SEL_PATH, newSelectedMks);
-        return meta;
-      });
-      logger.log('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
-      return;
-    }
-  }
-  // Case 2: 消息被修改/切换 (长度不变)
-  else if (allMessages.length === oldSelectedMks.length) {
-    logger.log('resyncStateOnHistoryChange', '检测到消息长度不变，可能为修改或切换。');
-    // 从后往前，寻找第一个不匹配的点
-    for (let i = allMessages.length - 1; i >= 0; i--) {
-      const currentMk = getMkFromMsg(allMessages[i]);
-      const recordedMk = oldSelectedMks[i];
-      logger.debug(
-        'resyncStateOnHistoryChange',
-        `[切换-对齐检查] i=${i}, currentMk=${currentMk}, recordedMk=${recordedMk}`,
-      );
-      if (currentMk !== recordedMk) {
-        firstRecalcId = i;
-      }
-    }
-    if (firstRecalcId === -1) {
-      // N.B. 在当前架构下，MK 已被直接写入消息内容，与内容强绑定。
-      // 因此，任何导致内容变化的操作（如 swipe）也必然会导致 MK 的变化。
-      // 这意味着，如果 MK 序列完全匹配，那么内容也必然完全匹配。
-      // logger.log('resyncStateOnHistoryChange', '所有MK均匹配，无需重算。');
-      // return; // 直接返回，终止同步。
-
-      // 【模拟写入】为了将“写入”操作统一到“同步”流程中，我们在此处模拟写入。
-      // 当所有 MK 匹配（即没有检测到历史变化）时，我们将重算点强制设置为最后一条消息。
-      // 这相当于“回滚并重写最后一条消息”，从而实现了写入操作。
-      //
-      // 【历史问题】过去，一个类似的“保险机制”曾导致 Bug：在同步逻辑更新完 selectedMK 和 editLog 后，
-      // 这个机制会错误地回滚最后一条消息，导致状态被破坏。
-      // 【安全性】但此处的修改是安全的，因为它发生在状态数组（selectedMks, editLogs）被修改之前，
-      // 属于同步流程的前置判断环节，因此不会造成过去的问题。
-      firstRecalcId = allMessages.length > 0 ? allMessages.length - 1 : 0;
-      logger.log(
-        'resyncStateOnHistoryChange',
-        `所有MK均匹配。启动模拟写入，强制重算最后一条消息 (ID: ${firstRecalcId})。`,
-      );
-    } else {
-      logger.log('resyncStateOnHistoryChange', `找到最早的不匹配点于 message_id=${firstRecalcId}。将从该点开始重算。`);
-    }
-  }
-  // Case 3: 消息被添加 (新列表比旧列表长)
-  else {
-    logger.log('resyncStateOnHistoryChange', '检测到消息添加。');
-    // 将重算起点设置为新消息的起始索引，让同步流程统一处理
-    firstRecalcId = oldSelectedMks.length;
-    logger.log(
-      'resyncStateOnHistoryChange',
-      `新增消息的写入逻辑已由同步流程接管。将从新增消息 (ID: ${firstRecalcId}) 开始处理。`,
-    );
-  }
+  const firstRecalcId = divergence.recalcId;
 
   // 3. 执行逆序回滚（内存中）
   // 确定重算的起始状态。默认为初始状态。

@@ -3,8 +3,8 @@
 import { ensureMkForLatestMessage } from '../core/key/mk';
 import { initializeExternalSettings } from '../initer/auto/settings';
 import { ensurePlaceholder } from '../macro/placeholder';
-import { getMessageContentWithRetry } from '../utils/message';
 import { logContext, Logger } from '../utils/log';
+import { getMessageContentWithRetry } from '../utils/message';
 import { handleApiEvent } from './handlers/api/dispatcher';
 import { handleSyncEvent } from './handlers/sync';
 import { handleUpdateMkOnlyEvent } from './handlers/updateMkOnly';
@@ -58,14 +58,14 @@ function handleRedundantRenderEvent(
   mkToIgnore: IgnoreRule | null,
 ): { shouldSkip: boolean; newIgnoreRule: IgnoreRule | null } {
   if (mkToIgnore && eventType === tavern_events.CHARACTER_MESSAGE_RENDERED && currentMk === mkToIgnore.mk) {
-    logger.log(
+    logger.debug(
       'handleRedundantRenderEvent',
       `忽略由 MK (${mkToIgnore.mk}) 注入触发的冗余渲染事件。剩余忽略次数: ${mkToIgnore.ignoreCount - 1}`,
     );
     mkToIgnore.ignoreCount--;
     if (mkToIgnore.ignoreCount <= 0) {
       mkToIgnore = null; // 忽略次数用完，重置
-      logger.log('handleRedundantRenderEvent', `忽略次数用完`);
+      logger.debug('handleRedundantRenderEvent', `忽略次数用完`);
     }
     return { shouldSkip: true, newIgnoreRule: mkToIgnore };
   }
@@ -115,6 +115,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     await getMessageContentWithRetry();
 
     // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
+    logger.log('dispatchAndExecuteTask', '调用 ensureMkForLatestMessage');
     const { mk, message_id: msgId, isNewKey } = await ensureMkForLatestMessage();
     if (!mk || msgId === null) {
       logger.warn('dispatchAndExecuteTask', '无法获取有效的 MK 或消息 ID，跳过任务执行。');
@@ -124,6 +125,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     message_id = msgId;
 
     // **前置保障**: 确保 AI 消息有占位符
+    logger.log('dispatchAndExecuteTask', '调用 ensurePlaceholder');
     await ensurePlaceholder(message_id);
 
     // 如果 ensureMkForLatestMessage 刚刚注入了一个新的 MK，就创建或更新忽略规则。
@@ -135,6 +137,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     }
 
     // **核心优化**: 检查并处理由 MK 注入触发的冗余渲染事件。
+    logger.debug('dispatchAndExecuteTask', '调用 handleRedundantRenderEvent');
     const { shouldSkip, newIgnoreRule } = handleRedundantRenderEvent(eventType, mk, mkToIgnore);
     mkToIgnore = newIgnoreRule; // 更新忽略规则的状态
     if (shouldSkip) {
@@ -155,19 +158,24 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
 
     switch (eventGroup) {
       case 'INIT':
+        logger.log('dispatchAndExecuteTask', '调用 initializeExternalSettings');
         initializeExternalSettings();
         // 为了兼容旧版酒馆的swipe逻辑，这里也调用同步
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();
+        logger.log('dispatchAndExecuteTask', '调用 handleSyncEvent for INIT');
         await handleSyncEvent(job, actionsTaken, payload);
         break;
       case 'SYNC':
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();
+        logger.log('dispatchAndExecuteTask', '调用 handleSyncEvent for SYNC');
         await handleSyncEvent(job, actionsTaken, payload);
         break;
       case 'API':
+        logger.log('dispatchAndExecuteTask', '调用 handleApiEvent');
         handleApiEvent(job, actionsTaken, payload);
         break;
       case 'UPDATE_MK_ONLY':
+        logger.log('dispatchAndExecuteTask', '调用 handleUpdateMkOnlyEvent');
         await handleUpdateMkOnlyEvent();
         break;
     }
