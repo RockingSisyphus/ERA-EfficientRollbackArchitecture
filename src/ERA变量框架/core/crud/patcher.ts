@@ -22,7 +22,7 @@
 'use strict';
 
 import { readMessageKey } from '../../core/key/mk';
-import { LOGS_PATH, SEL_PATH } from '../../utils/constants';
+import { EraConfig, LOGS_PATH, SEL_PATH } from '../../utils/constants';
 import { parseEditLog } from '../../utils/data';
 import { getEraData, updateEraMetaData, updateEraStatData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
@@ -55,12 +55,13 @@ export const ApplyVarChangeForMessage = async (
   msg: any,
   initialStat: any,
   meta: any,
+  config: Partial<EraConfig> = {},
 ): Promise<{ finalStat: any; finalEditLog: any[]; mk: string | null }> => {
   logger.debug('ApplyVarChangeForMessage (Pure)', `开始计算消息 (ID: ${msg.message_id})...`);
   const mk = readMessageKey(msg);
   try {
     // 1. 从消息中提取、解析并转义所有指令。
-    const { allInserts, allEdits, allDeletes } = extractAndParseCommands(msg);
+    const { allInserts, allEdits, allDeletes } = extractAndParseCommands(msg, config.繁体转简体);
 
     // --- 纯函数处理流水线：insert -> edit -> delete ---
 

@@ -44,7 +44,14 @@ export const SettingsSchema = z.object({
   开启黑夜模式: z.boolean().default(false),
   强制重载功能: z.boolean().default(false),
   强制重载消息数: z.number().default(2),
+  繁体转简体: z.boolean().default(false),
 });
+
+/**
+ * @type {EraConfig}
+ * @description ERA 框架的配置类型。
+ */
+export type EraConfig = z.infer<typeof SettingsSchema>;
 
 /**
  * @constant {object} CHAT_SCOPE

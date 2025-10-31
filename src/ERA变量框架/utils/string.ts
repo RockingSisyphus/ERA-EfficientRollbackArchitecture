@@ -4,6 +4,8 @@
 
 'use strict';
 
+import { Converter } from 'opencc-js';
+
 /**
  * 生成一个指定长度的随机字符串，用作唯一标识符。
  * @returns {string} 一个随机的、由数字和小写字母组成的字符串。
@@ -159,9 +161,14 @@ export function extractBlocksByRegex(text: string, tagNameRegex: RegExp): string
  *
  * @param {string} text - 包含标签的原始文本。
  * @param {RegExp} targetTagNameRegex - 用于匹配目标标签名的正则表达式。
+ * @param {boolean} [toSimplified=false] - 是否将提取的内容转换为简体中文。
  * @returns {string[]} 包含所有有效内容块的数组。
  */
-export function extractValidBlocks(text: string, targetTagNameRegex: RegExp): string[] {
+export function extractValidBlocks(
+  text: string,
+  targetTagNameRegex: RegExp,
+  toSimplified: boolean = false,
+): string[] {
   // 1. 预处理：移除所有包含 "think" 的标签块
   const thinkRegex = createTagRegex('think', 'contains');
   const processedText = removeTagsByRegex(text, thinkRegex);
@@ -180,9 +187,24 @@ export function extractValidBlocks(text: string, targetTagNameRegex: RegExp): st
     }
 
     if (cleanedBlock) {
-      validBlocks.push(cleanedBlock);
+      if (toSimplified) {
+        const simplifiedBlock = traditionalToSimplified(cleanedBlock);
+        validBlocks.push(simplifiedBlock);
+      } else {
+        validBlocks.push(cleanedBlock);
+      }
     }
   }
 
   return validBlocks;
+}
+
+/**
+ * 将字符串中的繁体中文字符转换为简体中文。
+ * @param {string} text - 待转换的字符串。
+ * @returns {string} 转换后的简体中文字符串。
+ */
+const converter = Converter({ from: 'tw', to: 'cn' });
+export function traditionalToSimplified(text: string): string {
+  return converter(text);
 }

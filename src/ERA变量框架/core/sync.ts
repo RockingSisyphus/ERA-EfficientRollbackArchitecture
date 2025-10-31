@@ -27,7 +27,7 @@
 
 import { LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { parseEditLog } from '../utils/data';
-import { getEraData, updateEraMetaData, updateEraStatData } from '../utils/era_data';
+import { getEraData, getScriptSettings, updateEraMetaData, updateEraStatData } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import { ApplyVarChangeForMessage } from './crud/patcher';
 import { readMessageKey } from './key/mk';
@@ -138,6 +138,12 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
       logger.log('resyncStateOnHistoryChange', '聊天记录变更，启动状态同步...');
     }
 
+    // 获取脚本设置并构建 config
+    const settings = getScriptSettings();
+    const config = {
+      繁体转简体: settings.繁体转简体,
+    };
+
     // 核心假设：getChatMessages 会重新生成 message_id，使其保持从 0 开始的连续序列。
     const allMessages = getChatMessages('0-{{lastMessageId}}', { include_swipes: true });
     logger.debug('resyncStateOnHistoryChange', '获取到的 allMessages:', allMessages);
@@ -209,7 +215,12 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
       // --- 修复结束 ---
 
       // 使用这个有正确作用域的上下文来调用纯函数
-      const { finalStat, finalEditLog, mk } = await ApplyVarChangeForMessage(msg, statForRecalc, contextMeta);
+      const { finalStat, finalEditLog, mk } = await ApplyVarChangeForMessage(
+        msg,
+        statForRecalc,
+        contextMeta,
+        config,
+      );
 
       newSelectedMks[i] = mk; // 记录当前消息的 MK
       logger.debug('resyncStateOnHistoryChange', `[重算] 正在处理消息索引: ${i}, MK: ${mk}`);

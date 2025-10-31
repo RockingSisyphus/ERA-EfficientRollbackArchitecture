@@ -222,15 +222,19 @@ export async function updateMessageContent(
  * 从消息对象中提取、解析并转义所有 ERA 指令块。
  *
  * @param {any} msg - 酒馆消息对象。
+ * @param {boolean} [toSimplified=false] - 是否将提取的指令内容转换为简体中文。
  * @returns {{ allInserts: any[], allEdits: any[], allDeletes: any[] }} - 包含已转义指令数据的对象。
  */
-export function extractAndParseCommands(msg: any): { allInserts: any[]; allEdits: any[]; allDeletes: any[] } {
+export function extractAndParseCommands(
+  msg: any,
+  toSimplified: boolean = false,
+): { allInserts: any[]; allEdits: any[]; allDeletes: any[] } {
   const rawContent = getMessageContent(msg) || '';
 
   // 1. 从消息内容中解析出所有指令块。
-  const insertBlocks = extractValidBlocks(rawContent, createTagRegex('VariableInsert', 'exact'));
-  const editBlocks = extractValidBlocks(rawContent, createTagRegex('VariableEdit', 'exact'));
-  const deleteBlocks = extractValidBlocks(rawContent, createTagRegex('VariableDelete', 'exact'));
+  const insertBlocks = extractValidBlocks(rawContent, createTagRegex('VariableInsert', 'exact'), toSimplified);
+  const editBlocks = extractValidBlocks(rawContent, createTagRegex('VariableEdit', 'exact'), toSimplified);
+  const deleteBlocks = extractValidBlocks(rawContent, createTagRegex('VariableDelete', 'exact'), toSimplified);
 
   log.debug('extractAndParseCommands', 'delete拿到的指令', deleteBlocks);
 
