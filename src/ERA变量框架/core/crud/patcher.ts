@@ -24,7 +24,7 @@
 import { readMessageKey } from '../../core/key/mk';
 import { LOGS_PATH, SEL_PATH } from '../../utils/constants';
 import { escapeEraData, parseEditLog, parseJsonl } from '../../utils/data';
-import { updateEraMetaData } from '../../utils/era_data';
+import { getEraData, updateEraMetaData, updateEraStatData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
 import { findLastAiMessage, getMessageContent, isUserMessage } from '../../utils/message';
 import { createTagRegex, extractValidBlocks } from '../../utils/string';
@@ -96,18 +96,33 @@ export const ApplyVarChangeForMessage = async (msg: any): Promise<string | null>
       after: { inserts: allInserts, edits: allEdits, deletes: allDeletes },
     });
 
-    const editLog: any[] = []; // 用于收集本轮操作产生的所有变更记录。
+    // --- 纯函数处理流水线：insert -> edit -> delete ---
 
-    // 2. --- 处理所有插入操作 (`<VariableInsert>`) ---
-    await processInsertBlocks(allInserts, editLog);
+    // 1. 获取初始状态
+    const { stat: initialStat, meta } = getEraData();
 
-    // 3. --- 处理所有编辑操作 (`<VariableEdit>`) ---
-    await processEditBlocks(allEdits, editLog, messageId);
+    // 2. 处理插入操作
+    const { finalStat: statAfterInsert, editLog: insertLog } = await processInsertBlocks(allInserts, initialStat);
 
-    // 4. --- 处理所有删除操作 (`<VariableDelete>`) ---
-    await processDeleteBlocks(allDeletes, editLog);
+    // 3. 处理编辑操作
+    const { finalStat: statAfterEdit, editLog: editBlockLog } = await processEditBlocks(
+      allEdits,
+      messageId,
+      statAfterInsert,
+      meta,
+    );
 
-    // 5. --- 覆盖式写入 EditLog ---
+    // 4. 处理删除操作
+    const { finalStat: statAfterDelete, editLog: deleteLog } = await processDeleteBlocks(allDeletes, statAfterEdit);
+
+    // 5. 一次性写入最终状态
+    // 在所有纯函数操作完成后，将最终计算出的状态一次性写回。
+    await updateEraStatData(() => statAfterDelete);
+
+    // 6. 合并所有日志
+    const editLog = [...(insertLog || []), ...(editBlockLog || []), ...(deleteLog || [])];
+
+    // 7. --- 覆盖式写入 EditLog ---
     /*
      * 核心逻辑：无论本轮是否产生了有效的变量修改，都必须用当前的 editLog (哪怕是空数组) 覆盖旧的 EditLog。
      *

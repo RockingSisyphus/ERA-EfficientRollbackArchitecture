@@ -11,7 +11,6 @@
  */
 'use strict';
 
-import { updateEraStatData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
 
 const logger = new Logger();
@@ -94,26 +93,34 @@ function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, edit
 }
 
 /**
- * 处理所有 `<VariableDelete>` 指令块。
+ * **【纯函数】** 处理所有 `<VariableDelete>` 指令块。
  *
  * @param {any[]} allDeletes - 从消息中解析出的所有 delete 指令对象。
- * @param {any[]} editLog - 用于收集变更记录的日志数组。
+ * @param {any} initialStat - 操作开始前的初始 `stat_data` 状态。
+ * @returns {Promise<{ finalStat: any, editLog: any[] }>} - 返回一个包含操作完成后的最终状态和生成的编辑日志的对象。
  */
-export async function processDeleteBlocks(allDeletes: any[], editLog: any[]) {
-  if (allDeletes.length > 0) {
-    for (const deleteRoot of allDeletes) {
-      if (!_.isPlainObject(deleteRoot) || _.isEmpty(deleteRoot)) continue;
-      try {
-        await updateEraStatData(stat => {
-          logger.debug('processDeleteBlocks', `处理 deleteRoot: ${JSON.stringify(deleteRoot)}`);
-          // 从根路径开始递归
-          applyDeleteAtLevel(stat, '', deleteRoot, editLog);
-          return stat;
-        });
-      } catch (e: any) {
-        logger.error('processDeleteBlocks', `处理 deleteRoot 失败: ${e?.message || e}`, e);
-      }
-    }
-    logger.log('processDeleteBlocks', '所有 VariableDelete 操作完成');
+export async function processDeleteBlocks(
+  allDeletes: any[],
+  initialStat: any,
+): Promise<{ finalStat: any; editLog: any[] }> {
+  if (!allDeletes || allDeletes.length === 0) {
+    return { finalStat: initialStat, editLog: [] };
   }
+
+  const currentStat = _.cloneDeep(initialStat);
+  const editLog: any[] = [];
+
+  for (const deleteRoot of allDeletes) {
+    if (!_.isPlainObject(deleteRoot) || _.isEmpty(deleteRoot)) continue;
+    try {
+      logger.debug('processDeleteBlocks', `处理 deleteRoot: ${JSON.stringify(deleteRoot)}`);
+      // 从根路径开始递归
+      applyDeleteAtLevel(currentStat, '', deleteRoot, editLog);
+    } catch (e: any) {
+      logger.error('processDeleteBlocks', `处理 deleteRoot 失败: ${e?.message || e}`, e);
+    }
+  }
+
+  logger.log('processDeleteBlocks', '所有 VariableDelete 操作完成');
+  return { finalStat: currentStat, editLog };
 }

@@ -259,3 +259,84 @@ export function calculateAllStatsBetweenMks(
 
   return results;
 }
+
+/**
+ * **【历史追溯】**
+ * 向上追溯 `selectedMks` 历史，查找某个变量路径在指定消息之前的最后一个值 (`value_new`)。
+ * 这是一个纯函数，用于在生成 `update` 日志时准确地记录下 `value_old`。
+ *
+ * @param {string} path - 要查找的变量的完整路径。
+ * @param {number} startMessageId - 从此消息 ID (在 selectedMks 中的索引) 的**前一条**消息开始向上查找。
+ * @param {string[]} selectedMks - 完整的、有序的 MK 序列。
+ * @param {{ [mk: string]: string }} allLogs - 包含所有 EditLog 的对象，键为 MK，值为原始日志字符串。
+ * @returns {any} 返回找到的 `value_new`。如果追溯到开头都未找到，则返回 `null`。
+ */
+export function findLatestNewValue(
+  path: string,
+  startMessageId: number,
+  selectedMks: (string | null)[],
+  allLogs: { [mk: string]: string },
+): any {
+  logger?.debug('findLatestNewValue', `开始为路径 <${path}> 从消息索引 <${startMessageId}> 向上追溯历史值...`);
+
+  if (startMessageId < 0 || startMessageId > selectedMks.length) {
+    logger?.warn('findLatestNewValue', `错误：起始消息索引 ${startMessageId} 超出范围。`);
+    return null;
+  }
+
+  // 1. 从起始消息的前一条开始，向上（向旧）遍历 `selectedMks` 数组。
+  for (let i = startMessageId - 1; i >= 0; i--) {
+    const mk = selectedMks[i];
+    if (!mk) continue;
+
+    // 2. 通过 mk 从 allLogs 中获取当前 mk 对应的 EditLog。
+    const editLogForMkRaw = allLogs[mk];
+    const editLogForMk = parseEditLog(editLogForMkRaw);
+
+    if (!editLogForMk || editLogForMk.length === 0) continue;
+
+    // 3. 关键：从后向前遍历当前 MK 的 EditLog，这样找到的第一个匹配项就是最新的。
+    for (let j = editLogForMk.length - 1; j >= 0; j--) {
+      const logEntry = editLogForMk[j];
+      if (!logEntry || !logEntry.path) continue;
+
+      // Case 1: 精确路径匹配。
+      if (logEntry.path === path) {
+        if (logEntry.op === 'delete') {
+          logger?.warn(
+            'findLatestNewValue',
+            `>> 在 MK:${mk} 中为路径 <${path}> 找到了 'delete' 记录。这可能意味着正在尝试编辑一个已被删除的变量，因此其旧值应为 null。`,
+          );
+          return null;
+        }
+        logger?.debug(
+          'findLatestNewValue',
+          `>> 成功! 在 MK:${mk} 中找到精确路径 <${path}> 的值为: `,
+          logEntry.value_new,
+        );
+        return _.cloneDeep(logEntry.value_new);
+      }
+
+      // Case 2: 查找的路径是日志条目路径的子路径 (即 logEntry.path 是父级)。
+      // 例如, 查找 "a.b.c.d", 而日志中有对 "a.b" 的修改。
+      // `_.get` 可以处理任意深度的子路径 (如 "c.d")，因此不需要递归。
+      if (path.startsWith(logEntry.path + '.')) {
+        const subPath = path.substring(logEntry.path.length + 1);
+        const parentNewVal = logEntry.value_new;
+        if (_.isPlainObject(parentNewVal) && _.has(parentNewVal, subPath)) {
+          const foundVal = _.get(parentNewVal, subPath);
+          logger?.debug(
+            'findLatestNewValue',
+            `>> 成功! 在 MK:${mk} 中找到父级路径 <${logEntry.path}>, 并从中提取子路径 <${subPath}> 的值为:`,
+            foundVal,
+          );
+          return _.cloneDeep(foundVal);
+        }
+      }
+    }
+  }
+
+  // 如果追溯到开头都未找到，说明这是该变量的首次出现。
+  logger?.debug('findLatestNewValue', `向上追溯未找到路径 ${path} 的任何历史值，将使用 null 作为旧值`);
+  return null;
+}

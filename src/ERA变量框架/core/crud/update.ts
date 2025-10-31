@@ -12,15 +12,15 @@
  */
 'use strict';
 
+import { LOGS_PATH, SEL_PATH } from '../../utils/constants';
 import { sanitizeArrays } from '../../utils/data';
-import { updateEraStatData } from '../../utils/era_data';
 import { Logger } from '../../utils/log';
-import { findLatestNewValue } from '../rollback';
+import { findLatestNewValue } from '../timetravel';
 
 const logger = new Logger();
 
 /**
- * **【递归编辑】**
+ * **【内部辅助函数 | 递归编辑】**
  * 实现了 `<VariableEdit>` 的核心逻辑：**只修改已存在的路径**。
  *
  * **核心规则**:
@@ -30,20 +30,22 @@ const logger = new Logger();
  *    查找顺序为：首先通过 `findLatestNewValue` 在历史 `EditLog` 中回溯；如果找不到，
  *    则从当前消息处理开始时的变量快照中获取。这是确保日志准确性的关键。
  *
- * @param {any} statData - 状态数据对象 (即 `stat_data`)。
+ * @param {any} statData - 要修改的状态数据对象 (会直接被修改)。
  * @param {string} basePath - 当前递归层级的基础路径。
  * @param {any} patchObj - 要应用的补丁对象。
- * @param {any[]} editLog - 用于收集变更记录的日志数组。
+ * @param {any[]} editLog - 用于收集变更记录的日志数组 (会直接被修改)。
  * @param {number} messageId - 当前正在处理的消息的 ID，用于历史追溯。
- * @param {Map<string, any>} intraMessageState - 用于跟踪在**同一条消息内部**对同一变量的连续修改。
+ * @param {string[]} selectedMks - 完整的、有序的 MK 序列。
+ * @param {{ [mk: string]: string }} allLogs - 包含所有 EditLog 的对象。
  */
-export async function applyEditAtLevel(
+async function applyEditAtLevel(
   statData: any,
   basePath: string,
   patchObj: any,
   editLog: any[],
   messageId: number,
-  intraMessageState: Map<string, any>,
+  selectedMks: (string | null)[],
+  allLogs: { [mk: string]: string },
 ) {
   // --- 1. 路径和存在性检查 ---
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
@@ -79,7 +81,7 @@ export async function applyEditAtLevel(
     // **策略一：递归深入**
     // 如果指令的值是对象，则继续向内递归。
     if (_.isPlainObject(valNew)) {
-      await applyEditAtLevel(statData, subPath, valNew, editLog, messageId, intraMessageState);
+      await applyEditAtLevel(statData, subPath, valNew, editLog, messageId, selectedMks, allLogs);
       continue; // 继续处理下一个键。
     }
 
@@ -95,8 +97,10 @@ export async function applyEditAtLevel(
     // a. 查找旧值 (`valOld`)
     // 这是确保回滚准确性的核心。
     logger.debug('applyEditAtLevel', `[旧值查找] 准备为路径 <${subPath}> 从消息 ID <${messageId}> 向上追溯...`);
-    let valOld = await findLatestNewValue(subPath, messageId);
+    let valOld = findLatestNewValue(subPath, messageId, selectedMks, allLogs);
     if (valOld === null) {
+      // 如果历史追溯未找到，则从当前（可能已被本轮其他指令修改过的）statData 中获取。
+      // 这确保了在同一个 <VariableEdit> 块内对同一变量的连续修改能正确记录旧值。
       valOld = _.get(statData, subPath);
       logger.debug(
         'applyEditAtLevel',
@@ -118,35 +122,49 @@ export async function applyEditAtLevel(
       value_old: _.cloneDeep(valOld),
       value_new: _.cloneDeep(cleaned),
     });
-    // c. 更新楼内状态 Map，以便同一消息内的后续操作能正确追溯到这个新值。
-    intraMessageState.set(subPath, _.cloneDeep(cleaned));
   }
 }
 
 /**
- * 处理所有 `<VariableEdit>` 指令块。
+ * 处理所有 `<VariableEdit>` 指令块，并返回修改后的状态和日志。
+ * 这是一个纯函数，它接收初始状态并返回一个全新的结果对象，不会修改任何外部状态。
  *
  * @param {any[]} allEdits - 从消息中解析出的所有 edit 指令对象。
- * @param {any[]} editLog - 用于收集变更记录的日志数组。
  * @param {number} messageId - 当前正在处理的消息的 ID。
+ * @param {any} initialStat - 操作开始前的初始 `stat` 对象。
+ * @param {any} meta - 包含 `selectedMks` 和 `allLogs` 的元数据对象。
+ * @returns {Promise<{ finalStat: any, editLog: any[] }>} 一个包含最终状态和生成日志的对象。
  */
-export async function processEditBlocks(allEdits: any[], editLog: any[], messageId: number) {
-  if (allEdits.length > 0) {
-    const intraMessageState = new Map<string, any>(); // 用于跟踪在**本消息内部**对变量的连续修改。
-    // N.B. 同样，编辑操作也需要独立调用以确保能读取到同一消息中、此前已完成的插入或编辑操作的结果。
-    for (const editRoot of allEdits) {
-      if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
-      try {
-        await updateEraStatData(async stat => {
-          logger.debug('processEditBlocks', `处理 editRoot: ${JSON.stringify(editRoot)}`);
-          // 从根路径 '' 开始统一递归入口，保持逻辑一致性。
-          await applyEditAtLevel(stat, '', editRoot, editLog, messageId, intraMessageState);
-          return stat;
-        });
-      } catch (e: any) {
-        logger.error('processEditBlocks', `处理 editRoot 失败: ${e?.message || e}`, e);
-      }
-    }
-    logger.log('processEditBlocks', '所有 VariableEdit 操作完成');
+export async function processEditBlocks(
+  allEdits: any[],
+  messageId: number,
+  initialStat: any,
+  meta: any,
+): Promise<{ finalStat: any; editLog: any[] }> {
+  if (!allEdits || allEdits.length === 0) {
+    return { finalStat: _.cloneDeep(initialStat), editLog: [] };
   }
+
+  // 创建初始状态的深拷贝，以避免副作用。
+  const finalStat = _.cloneDeep(initialStat);
+  const editLog: any[] = [];
+
+  const selectedMks: string[] = _.get(meta, SEL_PATH, []);
+  const allLogs: { [mk: string]: string } = _.get(meta, LOGS_PATH, {});
+
+  // 遍历所有 <VariableEdit> 指令块。
+  for (const editRoot of allEdits) {
+    if (!_.isPlainObject(editRoot) || _.isEmpty(editRoot)) continue;
+    try {
+      logger.debug('processEditBlocks', `处理 editRoot: ${JSON.stringify(editRoot)}`);
+      // 从根路径 '' 开始统一递归入口，保持逻辑一致性。
+      // applyEditAtLevel 会直接修改 finalStat 和 editLog。
+      await applyEditAtLevel(finalStat, '', editRoot, editLog, messageId, selectedMks, allLogs);
+    } catch (e: any) {
+      logger.error('processEditBlocks', `处理 editRoot 失败: ${e?.message || e}`, e);
+    }
+  }
+
+  logger.log('processEditBlocks', '所有 VariableEdit 操作完成');
+  return { finalStat, editLog };
 }

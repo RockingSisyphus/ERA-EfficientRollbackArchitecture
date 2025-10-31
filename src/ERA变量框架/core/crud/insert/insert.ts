@@ -13,7 +13,6 @@
 'use strict';
 
 import { sanitizeArrays } from '../../../utils/data';
-import { updateEraStatData } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log';
 import { applyTemplateToPatch, getInheritedTemplateContent, resolveTemplate } from './template';
 
@@ -105,36 +104,42 @@ export function applyInsertAtLevel(
 }
 
 /**
- * 处理所有 `<VariableInsert>` 指令块。
+ * **【纯函数】** 处理所有 `<VariableInsert>` 指令块。
  *
  * @param {any[]} allInserts - 从消息中解析出的所有 insert 指令对象。
- * @param {any[]} editLog - 用于收集变更记录的日志数组。
+ * @param {any} initialStat - 操作开始前的初始 `stat_data` 状态。
+ * @returns {Promise<{ finalStat: any, editLog: any[] }>} - 返回一个包含操作完成后的最终状态和生成的编辑日志的对象。
  */
-export async function processInsertBlocks(allInserts: any[], editLog: any[]) {
-  if (allInserts.length > 0) {
-    await updateEraStatData(async stat => {
-      logger.debug('processInsertBlocks', '[初始状态] 进入 processInsertBlocks 时的 statData:', _.cloneDeep(stat));
-      return stat;
-    });
-    /*
-     * N.B. 必须对每个 insertRoot 单独调用 updateVariablesWith，而不是将所有操作合并到一次调用中。
-     * 这是为了确保在同一条消息内，前一个 <VariableInsert> 块中插入的模板或数据，
-     * 可以被后一个 <VariableInsert> 或 <VariableEdit> 块访问和使用。
-     * 每次 await updateVariablesWith 完成后，变量状态都会被刷新，从而使后续操作能看到最新的结果。
-     */
-    for (const insertRoot of allInserts) {
-      if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
-      try {
-        await updateEraStatData(stat => {
-          logger.debug('processInsertBlocks', `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
-          // 从根路径 '' 开始统一递归入口，顶层调用时，父节点为 null
-          applyInsertAtLevel(stat, '', insertRoot, editLog, null, null);
-          return stat;
-        });
-      } catch (e: any) {
-        logger.error('processInsertBlocks', `处理 insertRoot 失败: ${e?.message || e}`, e);
-      }
-    }
-    logger.log('processInsertBlocks', '所有 VariableInsert 操作完成');
+export async function processInsertBlocks(
+  allInserts: any[],
+  initialStat: any,
+): Promise<{ finalStat: any; editLog: any[] }> {
+  if (!allInserts || allInserts.length === 0) {
+    return { finalStat: initialStat, editLog: [] };
   }
+
+  logger.debug('processInsertBlocks', '[初始状态] 进入 processInsertBlocks 时的 statData:', _.cloneDeep(initialStat));
+
+  const currentStat = _.cloneDeep(initialStat);
+  const editLog: any[] = [];
+
+  /*
+   * 循环处理每个 insertRoot。
+   * 在纯函数模式下，每个 insertRoot 都在上一个 insertRoot 修改后的 `currentStat` 基础上进行操作，
+   * 从而确保了在同一消息内，前一个 <VariableInsert> 块中插入的数据，
+   * 可以被后一个 <VariableInsert> 块访问和使用。
+   */
+  for (const insertRoot of allInserts) {
+    if (!_.isPlainObject(insertRoot) || _.isEmpty(insertRoot)) continue;
+    try {
+      logger.debug('processInsertBlocks', `处理 insertRoot: ${JSON.stringify(insertRoot)}`);
+      // 从根路径 '' 开始统一递归入口，顶层调用时，父节点为 null
+      applyInsertAtLevel(currentStat, '', insertRoot, editLog, null, null);
+    } catch (e: any) {
+      logger.error('processInsertBlocks', `处理 insertRoot 失败: ${e?.message || e}`, e);
+    }
+  }
+
+  logger.log('processInsertBlocks', '所有 VariableInsert 操作完成');
+  return { finalStat: currentStat, editLog };
 }
