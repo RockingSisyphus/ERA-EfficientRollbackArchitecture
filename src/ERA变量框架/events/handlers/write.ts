@@ -1,8 +1,6 @@
 'use strict';
 
-import { ApplyVarChange } from '../../core/crud/patcher';
-import { readMessageKey, updateLatestSelectedMk } from '../../core/key/mk';
-import { rollbackByMk } from '../../core/rollback';
+import { resyncStateOnHistoryChange } from '../../core/sync';
 import { forceRenderRecentMessages } from '../../ui/patch';
 import { ERA_EVENT_EMITTER, WriteDonePayload } from '../../utils/constants';
 import { emitWriteDoneEvent } from '../emitters/events';
@@ -16,18 +14,11 @@ export async function handleWriteEvent(
 ): Promise<void> {
   const { type: eventType } = job;
 
-  // 关键：写入前先回滚，确保操作的幂等性。
-  // 即使事件被意外触发多次，也只会产生一次有效写入。
-  const msg = getChatMessages(-1, { include_swipes: true })?.[0];
-  if (msg) {
-    const MK = readMessageKey(msg);
-    if (MK) {
-      await rollbackByMk(MK, true);
-      actionsTaken.rollback = true;
-    }
-  }
-  await ApplyVarChange();
-  actionsTaken.apply = true;
+  // 通过调用 resyncStateOnHistoryChange 来统一处理写入逻辑。
+  // 该函数在没有检测到历史变化时，会自动回滚并重算最后一条消息，
+  // 从而实现了幂等的写入操作。
+  await resyncStateOnHistoryChange();
+  actionsTaken.apply = true; // 标记为已执行写入/同步操作
 
   // 如果是 API 触发的写入，则标记
   if (eventType === ERA_EVENT_EMITTER.API_WRITE) {
@@ -37,7 +28,6 @@ export async function handleWriteEvent(
   // 在变量写入完成后，强制重新渲染消息以触发宏
   forceRenderRecentMessages();
 
-  // 更新状态并发送事件
-  await updateLatestSelectedMk();
+  // 发送事件
   emitWriteDoneEvent(payload);
 }

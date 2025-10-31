@@ -224,16 +224,38 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
   logger.log('resyncStateOnHistoryChange', `从 ID ${firstRecalcId} 开始顺序重算...`);
   const newSelectedMks: (string | null)[] = oldSelectedMks.slice(0, firstRecalcId); // 继承匹配部分
 
+  // 获取回滚后的初始状态，这将作为重算的起点
+  let { stat: statForRecalc, meta: metaForRecalc } = getEraData();
+
   for (let i = firstRecalcId; i < allMessages.length; i++) {
     const msg = allMessages[i];
-    logger.debug('resyncStateOnHistoryChange', `[重算] 正在处理消息索引: ${i}`);
-    const newMk = await ApplyVarChangeForMessage(msg);
-    newSelectedMks[i] = newMk; // 使用重算后的新 message_id (即 i) 作为索引
+    const mk = getMkFromMsg(msg);
+    newSelectedMks[i] = mk; // 记录当前消息的 MK
+
+    logger.debug('resyncStateOnHistoryChange', `[重算] 正在处理消息索引: ${i}, MK: ${mk}`);
+
+    if (!mk) {
+      logger.debug('resyncStateOnHistoryChange', `消息 (ID: ${i}) 无 MK，跳过变量计算。`);
+      continue; // 如果是用户消息等，则跳过
+    }
+
+    // 使用当前循环中的状态调用纯函数，计算出下一个状态
+    const { finalStat, finalEditLog } = await ApplyVarChangeForMessage(msg, statForRecalc, metaForRecalc);
+
+    // 更新状态，为下一次循环做准备
+    statForRecalc = finalStat;
+    // 将新生成的日志写入元数据，同样为下一次循环做准备
+    // N.B. 这里的写入是针对 metaForRecalc 这个内存中的对象，不是全局状态
+    _.set(metaForRecalc, [LOGS_PATH, mk], finalEditLog);
   }
   logger.log('resyncStateOnHistoryChange', '顺序重算完成。');
 
-  // 5. 更新 SelectedMks 数组
+  // 5. 循环结束后，一次性将最终计算出的状态写入全局
+  await updateEraStatData(() => statForRecalc);
   await updateEraMetaData(meta => {
+    // 使用重算过程中累积的日志来更新全局 meta
+    _.set(meta, LOGS_PATH, _.get(metaForRecalc, LOGS_PATH, {}));
+    // 更新 SelectedMks 数组
     _.set(meta, SEL_PATH, newSelectedMks);
     return meta;
   });
