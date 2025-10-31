@@ -146,6 +146,12 @@ ERA 框架采用**事件驱动架构**与外部脚本进行交互。您不直接
 * `era:getCurrentVars`: 请求获取当前最新的变量状态。
 * `era:getSnapshotAtMk`: 请求获取指定消息密钥（MK）所在时间点的历史变量快照。
 * `era:getSnapshotsBetweenMks`: 请求获取两个消息密钥（MK）之间（包含两者）的所有历史变量快照。
+* `era:getSnapshotAtMId`: 请求获取指定**消息 ID** 所在时间点的历史变量快照。
+* `era:getSnapshotsBetweenMIds`: 请求获取两个**消息 ID** 之间（包含两者）的所有历史变量快照。
+
+#### 其他事件
+
+* `era:requestWriteDone`: 请求 ERA 框架重新广播上一次的 `era:writeDone` 事件，用于 UI 初始化等场景。
 
 ### 广播的事件 (ERA -> 外部)
 

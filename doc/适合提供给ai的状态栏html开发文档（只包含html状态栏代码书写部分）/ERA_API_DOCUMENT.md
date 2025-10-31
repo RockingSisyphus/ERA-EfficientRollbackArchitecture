@@ -174,6 +174,52 @@ ERA 框架采用**事件驱动架构**与外部脚本进行交互。这种设计
     });
     ```
 
+#### `era:getSnapshotAtMId`
+
+* **描述**: 请求获取指定**消息 ID** 所在时间点的历史变量快照。
+* **参数 (`detail`)**:
+  * `message_id` (`number`): 目标历史状态的消息 ID。
+* **响应**: 触发 `era:queryResult` 事件，其 `detail.queryType` 为 `getSnapshotAtMId`，`detail.result` 为单个 `QueryResultItem` 对象。
+* **示例**:
+
+    ```javascript
+    eventEmit('era:getSnapshotAtMId', { message_id: 15 });
+    ```
+
+#### `era:getSnapshotsBetweenMIds`
+
+* **描述**: 请求获取两个**消息 ID** 之间（包含两者）的所有历史变量快照。
+* **参数 (`detail`)**:
+  * `startId` (`number`, 可选): 起始消息 ID。如果省略，则从第一条消息（ID 0）开始。
+  * `endId` (`number`, 可选): 结束消息 ID。如果省略，则到最后一条消息结束。
+* **响应**: 触发 `era:queryResult` 事件，其 `detail.queryType` 为 `getSnapshotsBetweenMIds`，`detail.result` 为一个 `QueryResultItem` 对象数组。
+* **示例**:
+
+    ```javascript
+    // 获取从消息 ID 10 到 20 的所有状态
+    eventEmit('era:getSnapshotsBetweenMIds', {
+      startId: 10,
+      endId: 20
+    });
+    ```
+
+### 其他事件
+
+#### `era:requestWriteDone`
+
+* **描述**: 请求 ERA 框架重新广播**上一次**的 `era:writeDone` 事件。这在某些 UI 组件（如新打开的面板）需要获取当前最新状态以进行初始化时非常有用，而无需执行任何写入操作。
+* **参数 (`detail`)**: (无)
+* **响应**: 触发一次 `era:writeDone` 事件，其内容与最近一次的 `writeDone` 事件完全相同。如果从未发生过写入，则此事件无响应。
+* **示例**:
+
+    ```javascript
+    // 在你的 UI 组件挂载时
+    onMounted(() => {
+      // 请求获取当前状态以初始化界面
+      eventEmit('era:requestWriteDone');
+    });
+    ```
+
 ---
 
 ## 广播的事件 (ERA -> 外部)
@@ -228,18 +274,22 @@ ERA 框架采用**事件驱动架构**与外部脚本进行交互。这种设计
 
 ### `era:queryResult`
 
-* **描述**: 作为所有**查询类 API 事件** (`era:getCurrentVars`, `era:getSnapshotAtMk`, `era:getSnapshotsBetweenMks`) 的统一响应事件。
+* **描述**: 作为所有**查询类 API 事件**的统一响应事件。
 * **参数 (`detail`)**: `QueryResultPayload` (`object`) - 一个包含查询请求和结果的对象。其结构如下：
 
     ```typescript
     // QueryResultPayload 结构
     {
       // 原始查询的类型
-      queryType: 'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks';
+      queryType: 'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks' | 'getSnapshotAtMId' | 'getSnapshotsBetweenMIds';
       // 原始查询的 detail 对象
       request: any;
       // 查询的结果。根据 queryType，可以是单个 QueryResultItem 或 QueryResultItem 数组。
-      result: QueryResultItem | QueryResultItem[];
+      result: QueryResultItem | QueryResultItem[] | null;
+      // 查询执行时，整个聊天会话的已选择消息密钥链 (Selected Message Keys)
+      selectedMks: (string | null)[];
+      // 查询执行时，完整的编辑日志对象 (EditLogs)
+      editLogs: { [key: string]: any[] };
     }
     ```
 

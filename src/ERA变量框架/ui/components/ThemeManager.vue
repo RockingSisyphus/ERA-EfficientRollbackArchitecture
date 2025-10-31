@@ -139,6 +139,12 @@ defineExpose({
   --snapshot-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
   --snapshot-outer-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   --snapshot-focus-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+  /* Custom Button Colors */
+  --snapshot-btn-bg: #f5f5f0;
+  --snapshot-btn-text: #333;
+  --snapshot-btn-hover-bg: #e9e9e0;
+  --snapshot-btn-active-bg: #dcdccf;
 }
 
 /* 暗色主题 */
@@ -268,5 +274,11 @@ defineExpose({
   --snapshot-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --snapshot-outer-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   --snapshot-focus-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+
+  /* Custom Button Colors */
+  --snapshot-btn-bg: #4a4a4a;
+  --snapshot-btn-text: #eee;
+  --snapshot-btn-hover-bg: #5a5a5a;
+  --snapshot-btn-active-bg: #3a3a3a;
 }
 </style>

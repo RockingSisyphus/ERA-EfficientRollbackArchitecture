@@ -5,16 +5,34 @@
       <!-- 外层容器：保留，改为纵向布局更协调 -->
       <div class="select-field" role="group" aria-labelledby="mk-label">
         <!-- 字段容器：用于浮动标题 -->
-        <label id="mk-label" for="mk-selector" class="field-label">查看快照</label>
+        <label id="mk-label" for="mk-selector" class="field-label">按消息密钥(MK)查看</label>
         <!-- 浮动小标题：不再占用水平空间 -->
         <div class="select-container">
           <!-- 下拉容器：保留右侧箭头与阴影效果 -->
           <select id="mk-selector" v-model="selectedMk" class="mk-selector" @change="handleSelectionChange">
+            <option :value="null" disabled>-- 从列表中选择 --</option>
             <option v-for="(mk, index) in reversedSelectedMks" :key="mk || `null-${index}`" :value="mk">
               {{ formatMkForDisplay(mk, index) }}
               <!-- 选项显示文本 -->
             </option>
           </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="selector-wrapper">
+      <div class="select-field" role="group" aria-labelledby="mid-label">
+        <label id="mid-label" for="mid-input" class="field-label">按消息ID查看</label>
+        <div class="id-query-container">
+          <input
+            id="mid-input"
+            v-model.number="messageIdInput"
+            type="number"
+            class="mk-selector id-input"
+            placeholder="输入消息 ID..."
+            @keyup.enter="queryByMId"
+          />
+          <button class="query-button" @click="queryByMId">查找</button>
         </div>
       </div>
     </div>
@@ -42,8 +60,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { QueryResultItem, QueryResultPayload, WriteDonePayload } from '../../utils/constants';
-import { isUserMessage } from '../../utils/message';
 import { Logger } from '../../utils/log';
+import { isUserMessage } from '../../utils/message';
 import EraAccordion from '../template/EraAccordion.vue';
 import PrettyJsonViewer from '../template/PrettyJsonViewer.vue';
 import TabSwitch from '../template/TabSwitch.vue';
@@ -60,6 +78,7 @@ const logger = new Logger();
 
 const latestMkFromProps = computed(() => props.latestData?.mk ?? null);
 const selectedMk = ref<string | null>(latestMkFromProps.value);
+const messageIdInput = ref<number | null>(null);
 const historicalSnapshot = ref<QueryResultItem | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -75,10 +94,16 @@ const reversedSelectedMks = computed(() => {
 });
 
 const displayData = computed<DisplayData | null>(() => {
+  // 优先显示查询到的历史快照
+  if (historicalSnapshot.value) {
+    return historicalSnapshot.value;
+  }
+  // 如果没有历史快照，且当前选中了最新的MK（或默认状态），则显示最新的数据
   if (selectedMk.value === latestMkFromProps.value) {
     return props.latestData;
   }
-  return historicalSnapshot.value;
+  // 其他情况（如列表选中了非最新项但还没返回结果）不显示
+  return null;
 });
 
 const isUserMessageComputed = computed(() => {
@@ -95,44 +120,67 @@ const isUserMessageComputed = computed(() => {
 watch(
   () => latestMkFromProps.value,
   newLatestMk => {
-    if (selectedMk.value !== newLatestMk) {
-      selectedMk.value = newLatestMk;
-      historicalSnapshot.value = null;
-    }
+    // 当外部数据更新时，重置UI到最新状态
+    selectedMk.value = newLatestMk;
+    historicalSnapshot.value = null;
+    messageIdInput.value = null;
     error.value = null;
     loading.value = false;
   },
+  { immediate: true },
 );
 
 const handleSelectionChange = () => {
   const mk = selectedMk.value;
+  // 清理其他查询方式的状态
+  messageIdInput.value = null;
+  historicalSnapshot.value = null;
+  error.value = null;
 
-  if (mk === latestMkFromProps.value) {
-    historicalSnapshot.value = null;
-    error.value = null;
+  if (!mk || mk === latestMkFromProps.value) {
     loading.value = false;
     return;
   }
 
-  if (mk) {
-    loading.value = true;
-    error.value = null;
-    historicalSnapshot.value = null;
-    logger.debug('SnapshotManager', `请求快照，mk: ${mk}`);
-    eventEmit('era:getSnapshotAtMk', { mk });
+  loading.value = true;
+  logger.debug('SnapshotManager', `(MK Select) 请求快照, mk: ${mk}`);
+  eventEmit('era:getSnapshotAtMk', { mk });
+};
+
+const queryByMId = () => {
+  if (messageIdInput.value === null || messageIdInput.value < 0) {
+    error.value = '请输入一个有效的、非负的消息 ID。';
+    return;
   }
+  // 清理其他查询方式的状态
+  selectedMk.value = null; // 从下拉列表中取消选择
+  historicalSnapshot.value = null;
+  error.value = null;
+  loading.value = true;
+
+  logger.debug('SnapshotManager', `(ID Query) 请求快照, message_id: ${messageIdInput.value}`);
+  eventEmit('era:getSnapshotAtMId', { message_id: messageIdInput.value });
 };
 
 const handleQueryResult = (detail: QueryResultPayload) => {
-  if (detail.queryType === 'getSnapshotAtMk' && detail.request.mk === selectedMk.value) {
-    loading.value = false;
-    if (detail.result) {
-      historicalSnapshot.value = detail.result as QueryResultItem;
+  loading.value = false;
+
+  const handleResult = (result: QueryResultItem | null, errorMsg: string) => {
+    if (result) {
+      historicalSnapshot.value = result;
+      // 同步下拉框的选中项
+      selectedMk.value = result.mk;
       error.value = null;
     } else {
-      error.value = `未找到与 mk "${selectedMk.value}" 相关的快照。`;
       historicalSnapshot.value = null;
+      error.value = errorMsg;
     }
+  };
+
+  if (detail.queryType === 'getSnapshotAtMk' && detail.request.mk === selectedMk.value) {
+    handleResult(detail.result as QueryResultItem | null, `未找到与 MK "${selectedMk.value}" 相关的快照。`);
+  } else if (detail.queryType === 'getSnapshotAtMId' && detail.request.message_id === messageIdInput.value) {
+    handleResult(detail.result as QueryResultItem | null, `未找到与消息 ID "${messageIdInput.value}" 相关的快照。`);
   }
 };
 
@@ -160,6 +208,51 @@ onUnmounted(() => {
 
 <!-- ★ 取消 scoped，统一以 #era-snapshot-ui 作为“伪作用域”根选择器 -->
 <style>
+/* ───────── 局部主题变量映射：让本组件随全局明/暗主题自动变色 ───────── */
+:where(#era-snapshot-ui) {
+  /* 文本与背景（映射全局变量，若不存在则使用安全回退值） */
+  --snapshot-text: var(--text-normal, #1f2328); /* 常规文字色 */
+  --snapshot-muted: var(--muted, #6b7280); /* 次级文字色 */
+  --snapshot-bg: var(--paper, #ffffff); /* 控件/卡片底色 */
+  --snapshot-bg-gradient: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--paper, #fff), transparent 92%),
+    transparent
+  );
+
+  /* 线条与描边 */
+  --snapshot-stroke: var(--line, rgba(0, 0, 0, 0.12)); /* 统一描边色 */
+
+  /* 品牌/强调色（优先使用 --primary；否则退回 --accent，再退回一个安全紫靛） */
+  --snapshot-accent: var(--primary, var(--accent, #4f46e5));
+  --on-accent: var(--on-accent, #ffffff); /* 强调底上的可读前景色 */
+
+  /* 软光环/阴影（随主题微调） */
+  --snapshot-accent-soft: color-mix(in oklab, var(--snapshot-accent), transparent 82%);
+  --snapshot-outer-shadow: 0 6px 18px color-mix(in oklab, #000, transparent 90%);
+  --snapshot-inner-shadow: inset 0 1px 0 color-mix(in oklab, #fff, transparent 92%);
+  --snapshot-focus-inner-shadow: inset 0 1px 0 color-mix(in oklab, #fff, transparent 90%);
+
+  /* 危险/错误色（映射全局 danger，没有则回退红色系） */
+  --snapshot-danger: var(--danger, #e11d48);
+  --snapshot-danger-soft: color-mix(in oklab, var(--snapshot-danger), transparent 88%);
+}
+
+/* （可选）若你的 ThemeToggle 通过 data-theme 切换，这段让暗色阴影层次更自然 */
+:where(html[data-theme='dark'] #era-snapshot-ui),
+:where(body[data-theme='dark'] #era-snapshot-ui) {
+  --snapshot-outer-shadow: 0 8px 22px color-mix(in oklab, #000, transparent 70%);
+  --snapshot-inner-shadow: inset 0 1px 0 color-mix(in oklab, #fff, transparent 94%);
+}
+
+/* （亦可选）系统级暗色偏好时的微调：双保险 */
+@media (prefers-color-scheme: dark) {
+  #era-snapshot-ui {
+    --snapshot-outer-shadow: 0 8px 22px color-mix(in oklab, #000, transparent 72%);
+    --snapshot-inner-shadow: inset 0 1px 0 color-mix(in oklab, #fff, transparent 94%);
+  }
+}
+
 /* =========================
    ERA Snapshot 下拉框主题（仅限本组件）
    通过唯一根选择器 #era-snapshot-ui 约束作用范围
@@ -170,7 +263,7 @@ onUnmounted(() => {
   /* 仅限本组件根容器 */
   display: flex; /* 弹性布局：竖向栈 */
   flex-direction: column; /* 纵向排列 */
-  gap: 12px; /* 行距 */
+  gap: 16px; /* 行距 */
 }
 
 /* ---- 选择器区域：标签与下拉并排 ---- */
@@ -292,10 +385,10 @@ onUnmounted(() => {
 
 /* ---- 错误态：更醒目的红系提示，但保持柔和 ---- */
 #era-snapshot-ui .error-message {
-  /* 错误卡片 */
-  color: var(--text-error, #a81818); /* 错误文字 */
-  background: var(--bg-error-soft, rgba(235, 68, 90, 0.08)); /* 柔和底色 */
-  border-color: var(--border-error, rgba(235, 68, 90, 0.45)); /* 错误描边 */
+  /* ❗三件套全部改为 snapshot danger 系列，自动随主题适配 */
+  color: var(--snapshot-danger);
+  background: var(--snapshot-danger-soft);
+  border-color: color-mix(in oklab, var(--snapshot-danger), transparent 55%);
 }
 
 /* ---- 细节优化：在低运动偏好下关闭动画 ---- */
@@ -358,5 +451,85 @@ onUnmounted(() => {
 #era-snapshot-ui .select-container:focus-within::after {
   transform: translateY(-50%) rotate(180deg); /* 旋转指示展开感 */
   color: var(--snapshot-accent); /* 与焦点高亮同步 */
+}
+
+/* =========================
+   ID 查询输入框与按钮
+   ========================= */
+#era-snapshot-ui .id-query-container {
+  display: flex;
+  gap: 8px;
+}
+
+#era-snapshot-ui .id-input {
+  flex-grow: 1; /* 占据大部分空间 */
+}
+
+/* 查询按钮：与输入框保持一致的圆角/描边/光环，并随主题变色 */
+#era-snapshot-ui .query-button {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background-color: var(--snapshot-btn-bg);
+  color: var(--snapshot-btn-text);
+  border: 1px solid var(--snapshot-stroke);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+  box-shadow: var(--snapshot-outer-shadow);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+#era-snapshot-ui .query-button:hover {
+  background-color: var(--snapshot-btn-hover-bg);
+  border-color: color-mix(in oklab, var(--snapshot-stroke), var(--snapshot-text) 10%);
+}
+
+#era-snapshot-ui .query-button:active {
+  transform: scale(0.97);
+  background-color: var(--snapshot-btn-active-bg);
+  box-shadow: var(--snapshot-inner-shadow);
+}
+
+#era-snapshot-ui .query-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--snapshot-accent-soft),
+    var(--snapshot-outer-shadow);
+}
+
+#era-snapshot-ui .id-input {
+  /* 确保输入框和按钮高度一致 */
+  padding-top: 10px;
+  padding-bottom: 10px;
+  /* 调整右侧圆角，与按钮无缝衔接 */
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right-width: 0; /* 移除右边框，由按钮左边框代替 */
+}
+
+#era-snapshot-ui .id-query-container {
+  display: flex;
+  /* 让子元素在获焦时整体发光 */
+  transition: box-shadow 0.18s ease;
+  border-radius: 10px; /* 容器圆角 */
+}
+
+#era-snapshot-ui .id-query-container:focus-within {
+  box-shadow: 0 0 0 3px var(--snapshot-accent-soft);
+}
+
+#era-snapshot-ui .id-input:focus {
+  /* 当输入框获焦时，移除它自己的阴影，由父容器的阴影代替 */
+  box-shadow: none;
+  border-color: var(--snapshot-stroke); /* 保持边框颜色不变 */
 }
 </style>

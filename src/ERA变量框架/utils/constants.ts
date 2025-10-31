@@ -132,6 +132,12 @@ export const ERA_API_EVENTS = {
   GET_SNAPSHOT_AT_MK: 'era:getSnapshotAtMk',
   /** 获取两个 MK 之间的所有历史变量快照 */
   GET_SNAPSHOTS_BETWEEN_MKS: 'era:getSnapshotsBetweenMks',
+  /** 获取指定 message_id 的历史变量快照 */
+  GET_SNAPSHOT_AT_MID: 'era:getSnapshotAtMId',
+  /** 获取两个 message_id 之间的所有历史变量快照 */
+  GET_SNAPSHOTS_BETWEEN_MIDS: 'era:getSnapshotsBetweenMIds',
+  /** 请求 ERA 重新广播最新的 `writeDone` 事件 */
+  REQUEST_WRITE_DONE: 'era:requestWriteDone',
 } as const;
 
 /**
@@ -221,9 +227,22 @@ export interface QueryResultItem {
  */
 export interface QueryResultPayload {
   /** 原始查询的类型 */
-  queryType: 'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks';
+  queryType:
+    | 'getCurrentVars'
+    | 'getSnapshotAtMk'
+    | 'getSnapshotsBetweenMks'
+    | 'getSnapshotAtMId'
+    | 'getSnapshotsBetweenMIds';
   /** 原始查询的 detail 对象 */
   request: any;
   /** 查询的结果。根据 queryType，可以是单个结果或结果数组。 */
   result: QueryResultItem | QueryResultItem[];
+  /**
+   * 查询执行时，整个聊天会话的**已选择消息密钥链 (Selected Message Keys)** 的最新状态。
+   */
+  selectedMks: (string | null)[];
+  /**
+   * 查询执行时，`chat` 变量中存储的**完整的编辑日志对象 (EditLogs)**。
+   */
+  editLogs: { [key: string]: any[] };
 }

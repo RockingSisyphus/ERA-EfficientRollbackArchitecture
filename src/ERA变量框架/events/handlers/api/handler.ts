@@ -17,14 +17,18 @@
  */
 
 import { getStatAtMK, getStatsBetweenMKs } from '../../../core/snapshot';
-import { SEL_PATH } from '../../../utils/constants';
+import { SEL_PATH, WriteDonePayload } from '../../../utils/constants';
 import { J, unescapeEraData } from '../../../utils/data';
 import { getEraData, removeMetaFields } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log';
 import { findLastAiMessage, getMessageContent, isUserMessage, updateMessageContent } from '../../../utils/message';
-import { debouncedEmitApiWrite, emitQueryResultEvent } from '../../emitters/events';
+import { debouncedEmitApiWrite, emitQueryResultEvent, emitWriteDoneEvent } from '../../emitters/events';
 
 const logger = new Logger();
+let lastWriteDonePayload: WriteDonePayload | null = null;
+eventOn('era:writeDone', (payload: WriteDonePayload) => {
+  lastWriteDonePayload = payload;
+});
 
 // API 写入任务的接口定义
 interface ApiWriteJob {
@@ -292,5 +296,120 @@ export function handleGetSnapshotsBetweenMks(detail: any) {
     emitQueryResultEvent('getSnapshotsBetweenMks', detail, finalResults);
   } else {
     logger.error('handleGetSnapshotsBetweenMks', '获取批量快照失败。');
+  }
+}
+
+/**
+ * **【处理器】** 处理 `era:getSnapshotAtMId` 事件。
+ * 计算指定 message_id 的历史快照，并通过 `era:queryResult` 事件发回结果。
+ * @param {any} detail - 从事件中获取的 `detail` 对象，应包含 `message_id`。
+ */
+export function handleGetSnapshotAtMId(detail: any) {
+  const message_id = detail?.message_id;
+  if (typeof message_id !== 'number') {
+    logger.error('handleGetSnapshotAtMId', '请求缺少 "message_id" 参数或类型不正确。');
+    return;
+  }
+
+  logger.log('handleGetSnapshotAtMId', `请求获取历史快照，Message ID: ${message_id}`);
+
+  const { meta } = getEraData();
+  const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+
+  if (message_id < 0 || message_id >= selectedMks.length) {
+    logger.error('handleGetSnapshotAtMId', `Message ID ${message_id} 超出范围 [0, ${selectedMks.length - 1}]。`);
+    return;
+  }
+
+  const mk = selectedMks[message_id];
+  if (!mk) {
+    logger.warn('handleGetSnapshotAtMId', `Message ID ${message_id} 处没有找到有效的 MK。`);
+    // 即使没有 MK，也返回一个空结果，让调用者知道查询已执行
+    emitQueryResultEvent('getSnapshotAtMId', detail, null);
+    return;
+  }
+
+  const stat = getStatAtMK(mk);
+
+  if (stat) {
+    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+    const message = messages[message_id];
+
+    const resultItem = {
+      mk,
+      message_id,
+      is_user: message ? isUserMessage(message) : false,
+      stat: unescapeEraData(stat),
+      statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
+    };
+    emitQueryResultEvent('getSnapshotAtMId', detail, resultItem);
+  } else {
+    logger.error('handleGetSnapshotAtMId', `获取快照失败，MK: ${mk} (来自 Message ID: ${message_id})`);
+  }
+}
+
+/**
+ * **【处理器】** 处理 `era:getSnapshotsBetweenMIds` 事件。
+ * 计算两个 message_id 之间的所有历史快照，并通过 `era:queryResult` 事件发回结果数组。
+ * @param {any} detail - 从事件中获取的 `detail` 对象，应包含 `startId` 和 `endId`。
+ */
+export function handleGetSnapshotsBetweenMIds(detail: any) {
+  const { startId, endId } = detail || {};
+
+  logger.log('handleGetSnapshotsBetweenMIds', `请求获取批量快照，从 ID: ${startId ?? '开始'}, 到 ID: ${endId ?? '结束'}`);
+
+  const { meta } = getEraData();
+  const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+
+  const startIndex = startId ?? 0;
+  const endIndex = endId ?? selectedMks.length - 1;
+
+  if (startIndex > endIndex || startIndex < 0 || endIndex >= selectedMks.length) {
+    logger.error(
+      'handleGetSnapshotsBetweenMIds',
+      `ID 范围 [${startIndex}, ${endIndex}] 无效或超出范围 [0, ${selectedMks.length - 1}]。`,
+    );
+    return;
+  }
+
+  // 使用第一个和最后一个有效的 MK 来调用现有的批量获取函数
+  const startMk = selectedMks[startIndex];
+  const endMk = selectedMks[endIndex];
+
+  if (!startMk || !endMk) {
+    logger.error('handleGetSnapshotsBetweenMIds', '指定的 ID 范围内没有找到有效的起始或结束 MK。');
+    return;
+  }
+
+  const results = getStatsBetweenMKs(startMk, endMk);
+
+  if (results) {
+    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+    const finalResults = results.map(item => {
+      const message = messages[item.message_id];
+      return {
+        ...item,
+        is_user: message ? isUserMessage(message) : false,
+        stat: unescapeEraData(item.stat),
+        statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
+      };
+    });
+    emitQueryResultEvent('getSnapshotsBetweenMIds', detail, finalResults);
+  } else {
+    logger.error('handleGetSnapshotsBetweenMIds', '获取批量快照失败。');
+  }
+}
+
+/**
+ * **【处理器】** 处理 `era:requestWriteDone` 事件。
+ * 请求 ERA 框架重新广播最新的 `writeDone` 事件。
+ */
+export function handleRequestWriteDone() {
+  logger.log('handleRequestWriteDone', '接收到 writeDone 重播请求。');
+  if (lastWriteDonePayload) {
+    logger.log('handleRequestWriteDone', '正在重播上一次的 writeDone 事件。');
+    emitWriteDoneEvent(lastWriteDonePayload);
+  } else {
+    logger.warn('handleRequestWriteDone', '没有可供重播的 writeDone 事件。');
   }
 }

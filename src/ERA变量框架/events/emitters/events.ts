@@ -69,19 +69,18 @@ export function emitWriteDoneEvent(payload: DispatcherPayload) {
  * **【广播器】** 触发 `era:queryResult` 事件。
  * 用于响应所有 `GET_...` 系列的 API 请求。
  *
- * @param {'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks'} queryType - 原始查询的类型。
+ * @param {QueryResultPayload['queryType']} queryType - 原始查询的类型。
  * @param {any} request - 原始查询的 `detail` 对象。
  * @param {any} result - 查询的结果（单个 QueryResultItem 或 QueryResultItem 数组）。
  */
-export function emitQueryResultEvent(
-  queryType: 'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks',
-  request: any,
-  result: any,
-) {
+export function emitQueryResultEvent(queryType: QueryResultPayload['queryType'], request: any, result: any) {
+  const { meta } = getEraData();
   const payload: QueryResultPayload = {
     queryType,
     request,
     result,
+    selectedMks: _.get(meta, SEL_PATH, []),
+    editLogs: _.get(meta, LOGS_PATH, {}),
   };
 
   eventEmit(ERA_EVENT_EMITTER.VARS_QUERY_RESULT, payload);
