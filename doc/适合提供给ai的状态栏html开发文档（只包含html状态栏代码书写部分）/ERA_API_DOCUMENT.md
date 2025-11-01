@@ -235,6 +235,7 @@ ERA 框架采用**事件驱动架构**与外部脚本进行交互。这种设计
     {
       mk: string; // 本次更新的消息密钥
       message_id: number; // 本次更新的消息 ID
+      is_user: boolean; // 消息是否由用户发送
       actions: {
         rollback: boolean; // 是否执行了回滚
         apply: boolean;    // 是否应用了来自AI输出的变量变更
@@ -275,7 +276,26 @@ ERA 框架采用**事件驱动架构**与外部脚本进行交互。这种设计
 ### `era:queryResult`
 
 * **描述**: 作为所有**查询类 API 事件**的统一响应事件。
-* **参数 (`detail`)**: `QueryResultPayload` (`object`) - 一个包含查询请求和结果的对象。其结构如下：
+* **参数 (`detail`)**: `QueryResultPayload` (`object`) - 一个包含查询请求和结果的对象。
+
+* **错误处理**:
+    **非常重要**：在处理查询响应时，**必须**首先检查 `detail.result` 对象中是否存在 `error` 字段。如果存在，说明查询失败，`error` 字段会包含具体的错误信息字符串。
+
+    ```javascript
+    eventOn('era:queryResult', (detail) => {
+      if (detail.result && detail.result.error) {
+        // 查询失败，处理错误
+        console.error(`ERA 查询 [${detail.queryType}] 失败:`, detail.result.error);
+        // 在这里可以向用户显示错误提示，或者执行回退逻辑
+        return;
+      }
+
+      // 查询成功，继续处理 detail.result
+      console.log('查询成功:', detail.result);
+    });
+    ```
+
+* **Payload 结构**:
 
     ```typescript
     // QueryResultPayload 结构
@@ -284,8 +304,10 @@ ERA 框架采用**事件驱动架构**与外部脚本进行交互。这种设计
       queryType: 'getCurrentVars' | 'getSnapshotAtMk' | 'getSnapshotsBetweenMks' | 'getSnapshotAtMId' | 'getSnapshotsBetweenMIds';
       // 原始查询的 detail 对象
       request: any;
-      // 查询的结果。根据 queryType，可以是单个 QueryResultItem 或 QueryResultItem 数组。
-      result: QueryResultItem | QueryResultItem[] | null;
+      // 查询的结果。
+      // 成功时：单个 QueryResultItem 或 QueryResultItem 数组。
+      // 失败时：一个包含 error 信息的对象，如 { error: "错误信息" }。
+      result: QueryResultItem | QueryResultItem[] | { error: string };
       // 查询执行时，整个聊天会话的已选择消息密钥链 (Selected Message Keys)
       selectedMks: (string | null)[];
       // 查询执行时，完整的编辑日志对象 (EditLogs)
