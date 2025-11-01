@@ -8,7 +8,7 @@
       <div class="panel-content-wrapper">
         <template v-if="data">
           <EraAccordion title="最新消息元数据" :default-open="false">
-            <MetaHeader :mk="data.mk" :message-id="data.message_id" />
+            <MetaHeader :mk="data.mk" :message-id="data.message_id" :is-user="data.is_user" />
           </EraAccordion>
 
           <OperationDetails :data="data" />
@@ -24,7 +24,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
 import type { WriteDonePayload } from '../../utils/constants';
 import { Logger } from '../../utils/log';
 import EraAccordion from '../template/EraAccordion.vue';

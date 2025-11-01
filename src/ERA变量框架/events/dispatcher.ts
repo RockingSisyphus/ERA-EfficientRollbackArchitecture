@@ -4,7 +4,7 @@ import { ensureMkForLatestMessage } from '../core/key/mk';
 import { initializeExternalSettings } from '../initer/auto/settings';
 import { ensurePlaceholder } from '../macro/placeholder';
 import { logContext, Logger } from '../utils/log';
-import { getMessageContentWithRetry } from '../utils/message';
+import { getMessageContentWithRetry, isUserMessage } from '../utils/message';
 import { handleApiEvent } from './handlers/api/dispatcher';
 import { handleSyncEvent } from './handlers/sync';
 import { handleUpdateMkOnlyEvent } from './handlers/updateMkOnly';
@@ -114,15 +114,23 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     // 即使最终失败，也继续执行，目的只是为了“等待”。
     await getMessageContentWithRetry();
 
+    const latestMessage = getChatMessages(-1, { include_swipes: true })?.[0];
+    if (!latestMessage) {
+      logger.warn('dispatchAndExecuteTask', '无法获取最新消息，跳过任务执行。');
+      return mkToIgnore;
+    }
+
     // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
     logger.log('dispatchAndExecuteTask', '调用 ensureMkForLatestMessage');
-    const { mk, message_id: msgId, isNewKey } = await ensureMkForLatestMessage();
+    const { mk, message_id: msgId, isNewKey } = await ensureMkForLatestMessage(latestMessage);
     if (!mk || msgId === null) {
       logger.warn('dispatchAndExecuteTask', '无法获取有效的 MK 或消息 ID，跳过任务执行。');
       return mkToIgnore;
     }
     logContext.mk = mk;
     message_id = msgId;
+
+    const is_user = isUserMessage(latestMessage);
 
     // **前置保障**: 确保 AI 消息有占位符
     logger.log('dispatchAndExecuteTask', '调用 ensurePlaceholder');
@@ -152,6 +160,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     const payload: DispatcherPayload = {
       mk: mk,
       message_id: message_id,
+      is_user: is_user,
       actions: actionsTaken,
       consecutiveProcessingCount: 1, // 初始值
     };

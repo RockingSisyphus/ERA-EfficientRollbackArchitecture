@@ -179,20 +179,22 @@ export async function ensureMessageKey(msg: any): Promise<{ mk: string; isNew: b
  * **【确保最新消息的 MK】**
  * 这是一个便捷函数，专门用于确保当前聊天记录中的最后一条消息拥有 MK。
  * 它通常在监听到新消息生成等事件时被调用，以确保新消息能被 ERA 系统正确追踪。
+ * @param {any} msg - 从 `getChatMessages(-1)` 获取的最新消息对象。
  * @returns {Promise<{mk: string, message_id: number | null, isNewKey: boolean}>} 返回包含 MK、消息 ID 和一个布尔值的对象，该布尔值指示是否创建了新的 MK。
  */
-export const ensureMkForLatestMessage = async (): Promise<{
+export const ensureMkForLatestMessage = async (
+  msg: any,
+): Promise<{
   mk: string;
   message_id: number | null;
   isNewKey: boolean;
 }> => {
   try {
-    const msg = getChatMessages(-1, { include_swipes: true })?.[0];
     // 保留此日志，因为它对于调试事件触发时的消息状态至关重要。
-    logger.debug('ensureMkForLatestMessage', `获取到的最新消息对象 (msg)`, msg);
+    logger.debug('ensureMkForLatestMessage', `接收到的最新消息对象 (msg)`, msg);
 
     if (!msg || typeof msg.message_id !== 'number') {
-      logger.warn('ensureMkForLatestMessage', '无法读取最新消息或其ID，退出', { latestMessage: msg });
+      logger.warn('ensureMkForLatestMessage', '无效的最新消息对象或其ID，退出', { latestMessage: msg });
       return { mk: '', message_id: null, isNewKey: false };
     }
 
@@ -203,7 +205,7 @@ export const ensureMkForLatestMessage = async (): Promise<{
   } catch (err: any) {
     logger.error('ensureMkForLatestMessage', `确保MK时异常: ${err?.message || err}`, {
       error: err,
-      latestMessage: getChatMessages(-1, { include_swipes: true })?.[0],
+      latestMessage: msg, // 使用传入的 msg 对象进行日志记录
     });
     return { mk: '', message_id: null, isNewKey: false };
   }

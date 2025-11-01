@@ -217,22 +217,28 @@ export function deleteByPath(path: string) {
  */
 export function handleGetCurrentVars(detail: any) {
   logger.debug('handleGetCurrentVars', `请求获取当前变量。`);
-  const { stat, meta } = getEraData();
-  const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
-  const lastMk = selectedMks[selectedMks.length - 1] || '';
-  const lastMessageId = selectedMks.length - 1;
-  const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
-  const lastMessage = messages[lastMessageId];
+  let result: any;
+  try {
+    const { stat, meta } = getEraData();
+    const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+    const lastMk = selectedMks[selectedMks.length - 1] || '';
+    const lastMessageId = selectedMks.length - 1;
+    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+    const lastMessage = messages[lastMessageId];
 
-  const resultItem = {
-    mk: lastMk,
-    message_id: lastMessageId,
-    is_user: lastMessage ? isUserMessage(lastMessage) : false,
-    stat: unescapeEraData(stat),
-    statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
-  };
-
-  emitQueryResultEvent('getCurrentVars', detail, resultItem);
+    result = {
+      mk: lastMk,
+      message_id: lastMessageId,
+      is_user: lastMessage ? isUserMessage(lastMessage) : false,
+      stat: unescapeEraData(stat),
+      statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
+    };
+  } catch (error) {
+    const errorMessage = `获取当前变量时发生错误: ${error instanceof Error ? error.message : String(error)}`;
+    logger.error('handleGetCurrentVars', errorMessage);
+    result = { error: errorMessage };
+  }
+  emitQueryResultEvent('getCurrentVars', detail, result);
 }
 
 /**
@@ -241,33 +247,42 @@ export function handleGetCurrentVars(detail: any) {
  * @param {any} detail - 从事件中获取的 `detail` 对象，应包含 `mk`。
  */
 export function handleGetSnapshotAtMk(detail: any) {
-  const mk = detail?.mk;
-  if (!mk) {
-    logger.error('handleGetSnapshotAtMk', '请求缺少 "mk" 参数。');
-    return;
+  logger.debug('handleGetSnapshotAtMk', `请求获取历史快照...`);
+  let result: any;
+  try {
+    const mk = detail?.mk;
+    if (!mk) {
+      throw new Error('请求缺少 "mk" 参数。');
+    }
+
+    logger.debug('handleGetSnapshotAtMk', `MK: ${mk}`);
+    const stat = getStatAtMK(mk);
+
+    if (stat) {
+      const { meta } = getEraData();
+      const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+      const message_id = selectedMks.indexOf(mk);
+      const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+      const message = messages[message_id];
+
+      result = {
+        mk,
+        message_id,
+        is_user: message ? isUserMessage(message) : false,
+        stat: unescapeEraData(stat),
+        statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
+      };
+    } else {
+      const errorMessage = `找不到 MK "${mk}" 对应的快照。`;
+      logger.warn('handleGetSnapshotAtMk', errorMessage);
+      result = { error: errorMessage, stat: null };
+    }
+  } catch (error) {
+    const errorMessage = `获取快照时发生错误: ${error instanceof Error ? error.message : String(error)}`;
+    logger.error('handleGetSnapshotAtMk', errorMessage);
+    result = { error: errorMessage };
   }
-
-  logger.debug('handleGetSnapshotAtMk', `请求获取历史快照，MK: ${mk}`);
-  const stat = getStatAtMK(mk);
-
-  if (stat) {
-    const { meta } = getEraData();
-    const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
-    const message_id = selectedMks.indexOf(mk);
-    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
-    const message = messages[message_id];
-
-    const resultItem = {
-      mk,
-      message_id,
-      is_user: message ? isUserMessage(message) : false,
-      stat: unescapeEraData(stat),
-      statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
-    };
-    emitQueryResultEvent('getSnapshotAtMk', detail, resultItem);
-  } else {
-    logger.error('handleGetSnapshotAtMk', `获取快照失败，MK: ${mk}`);
-  }
+  emitQueryResultEvent('getSnapshotAtMk', detail, result);
 }
 
 /**
@@ -277,26 +292,36 @@ export function handleGetSnapshotAtMk(detail: any) {
  */
 export function handleGetSnapshotsBetweenMks(detail: any) {
   const { startMk, endMk } = detail || {};
+  logger.debug(
+    'handleGetSnapshotsBetweenMks',
+    `请求获取批量快照，从: ${startMk || '开始'}, 到: ${endMk || '结束'}`,
+  );
+  let finalResult: any;
 
-  logger.debug('handleGetSnapshotsBetweenMks', `请求获取批量快照，从: ${startMk || '开始'}, 到: ${endMk || '结束'}`);
-  const results = getStatsBetweenMKs(startMk, endMk);
+  try {
+    const results = getStatsBetweenMKs(startMk, endMk);
 
-  if (results) {
-    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
-    // 为每个结果添加 statWithoutMeta
-    const finalResults = results.map(item => {
-      const message = messages[item.message_id];
-      return {
-        ...item,
-        is_user: message ? isUserMessage(message) : false,
-        stat: unescapeEraData(item.stat),
-        statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
-      };
-    });
-    emitQueryResultEvent('getSnapshotsBetweenMks', detail, finalResults);
-  } else {
-    logger.error('handleGetSnapshotsBetweenMks', '获取批量快照失败。');
+    if (results) {
+      const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+      finalResult = results.map(item => {
+        const message = messages[item.message_id];
+        return {
+          ...item,
+          is_user: message ? isUserMessage(message) : false,
+          stat: unescapeEraData(item.stat),
+          statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
+        };
+      });
+    } else {
+      logger.warn('handleGetSnapshotsBetweenMks', '在指定范围内没有找到快照，或范围无效。');
+      finalResult = [];
+    }
+  } catch (error) {
+    const errorMessage = `获取批量快照时发生错误: ${error instanceof Error ? error.message : String(error)}`;
+    logger.error('handleGetSnapshotsBetweenMks', errorMessage);
+    finalResult = { error: errorMessage };
   }
+  emitQueryResultEvent('getSnapshotsBetweenMks', detail, finalResult);
 }
 
 /**
@@ -305,47 +330,52 @@ export function handleGetSnapshotsBetweenMks(detail: any) {
  * @param {any} detail - 从事件中获取的 `detail` 对象，应包含 `message_id`。
  */
 export function handleGetSnapshotAtMId(detail: any) {
-  const message_id = detail?.message_id;
-  if (typeof message_id !== 'number') {
-    logger.error('handleGetSnapshotAtMId', '请求缺少 "message_id" 参数或类型不正确。');
-    return;
+  logger.debug('handleGetSnapshotAtMId', `请求获取历史快照...`);
+  let result: any;
+  try {
+    const message_id = detail?.message_id;
+    if (typeof message_id !== 'number') {
+      throw new Error('请求缺少 "message_id" 参数或类型不正确。');
+    }
+
+    logger.debug('handleGetSnapshotAtMId', `Message ID: ${message_id}`);
+
+    const { meta } = getEraData();
+    const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+
+    if (message_id < 0 || message_id >= selectedMks.length) {
+      throw new Error(`Message ID ${message_id} 超出范围 [0, ${selectedMks.length - 1}]。`);
+    }
+
+    const mk = selectedMks[message_id];
+    if (!mk) {
+      const errorMessage = `Message ID ${message_id} 处没有找到有效的 MK。`;
+      logger.warn('handleGetSnapshotAtMId', errorMessage);
+      result = { error: errorMessage, stat: null };
+    } else {
+      const stat = getStatAtMK(mk);
+      if (stat) {
+        const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+        const message = messages[message_id];
+        result = {
+          mk,
+          message_id,
+          is_user: message ? isUserMessage(message) : false,
+          stat: unescapeEraData(stat),
+          statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
+        };
+      } else {
+        const errorMessage = `获取快照失败，MK: ${mk} (来自 Message ID: ${message_id})。可能该快照已被清理。`;
+        logger.error('handleGetSnapshotAtMId', errorMessage);
+        result = { error: errorMessage, stat: null };
+      }
+    }
+  } catch (error) {
+    const errorMessage = `获取快照时发生错误: ${error instanceof Error ? error.message : String(error)}`;
+    logger.error('handleGetSnapshotAtMId', errorMessage);
+    result = { error: errorMessage };
   }
-
-  logger.debug('handleGetSnapshotAtMId', `请求获取历史快照，Message ID: ${message_id}`);
-
-  const { meta } = getEraData();
-  const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
-
-  if (message_id < 0 || message_id >= selectedMks.length) {
-    logger.error('handleGetSnapshotAtMId', `Message ID ${message_id} 超出范围 [0, ${selectedMks.length - 1}]。`);
-    return;
-  }
-
-  const mk = selectedMks[message_id];
-  if (!mk) {
-    logger.warn('handleGetSnapshotAtMId', `Message ID ${message_id} 处没有找到有效的 MK。`);
-    // 即使没有 MK，也返回一个空结果，让调用者知道查询已执行
-    emitQueryResultEvent('getSnapshotAtMId', detail, null);
-    return;
-  }
-
-  const stat = getStatAtMK(mk);
-
-  if (stat) {
-    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
-    const message = messages[message_id];
-
-    const resultItem = {
-      mk,
-      message_id,
-      is_user: message ? isUserMessage(message) : false,
-      stat: unescapeEraData(stat),
-      statWithoutMeta: unescapeEraData(removeMetaFields(stat)),
-    };
-    emitQueryResultEvent('getSnapshotAtMId', detail, resultItem);
-  } else {
-    logger.error('handleGetSnapshotAtMId', `获取快照失败，MK: ${mk} (来自 Message ID: ${message_id})`);
-  }
+  emitQueryResultEvent('getSnapshotAtMId', detail, result);
 }
 
 /**
@@ -355,52 +385,53 @@ export function handleGetSnapshotAtMId(detail: any) {
  */
 export function handleGetSnapshotsBetweenMIds(detail: any) {
   const { startId, endId } = detail || {};
-
   logger.debug(
     'handleGetSnapshotsBetweenMIds',
     `请求获取批量快照，从 ID: ${startId ?? '开始'}, 到 ID: ${endId ?? '结束'}`,
   );
+  let finalResult: any;
 
-  const { meta } = getEraData();
-  const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
+  try {
+    const { meta } = getEraData();
+    const selectedMks: (string | null)[] = _.get(meta, SEL_PATH, []);
 
-  const startIndex = startId ?? 0;
-  const endIndex = endId ?? selectedMks.length - 1;
+    const startIndex = startId ?? 0;
+    const endIndex = endId ?? selectedMks.length - 1;
 
-  if (startIndex > endIndex || startIndex < 0 || endIndex >= selectedMks.length) {
-    logger.error(
-      'handleGetSnapshotsBetweenMIds',
-      `ID 范围 [${startIndex}, ${endIndex}] 无效或超出范围 [0, ${selectedMks.length - 1}]。`,
-    );
-    return;
+    if (startIndex > endIndex || startIndex < 0 || endIndex >= selectedMks.length) {
+      throw new Error(`ID 范围 [${startIndex}, ${endIndex}] 无效或超出范围 [0, ${selectedMks.length - 1}]。`);
+    }
+
+    const startMk = selectedMks[startIndex];
+    const endMk = selectedMks[endIndex];
+
+    if (!startMk || !endMk) {
+      throw new Error('指定的 ID 范围内没有找到有效的起始或结束 MK。');
+    }
+
+    const results = getStatsBetweenMKs(startMk, endMk);
+
+    if (results) {
+      const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
+      finalResult = results.map(item => {
+        const message = messages[item.message_id];
+        return {
+          ...item,
+          is_user: message ? isUserMessage(message) : false,
+          stat: unescapeEraData(item.stat),
+          statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
+        };
+      });
+    } else {
+      logger.warn('handleGetSnapshotsBetweenMIds', '在指定 ID 范围内没有找到快照。');
+      finalResult = [];
+    }
+  } catch (error) {
+    const errorMessage = `获取批量快照时发生错误: ${error instanceof Error ? error.message : String(error)}`;
+    logger.error('handleGetSnapshotsBetweenMIds', errorMessage);
+    finalResult = { error: errorMessage };
   }
-
-  // 使用第一个和最后一个有效的 MK 来调用现有的批量获取函数
-  const startMk = selectedMks[startIndex];
-  const endMk = selectedMks[endIndex];
-
-  if (!startMk || !endMk) {
-    logger.error('handleGetSnapshotsBetweenMIds', '指定的 ID 范围内没有找到有效的起始或结束 MK。');
-    return;
-  }
-
-  const results = getStatsBetweenMKs(startMk, endMk);
-
-  if (results) {
-    const messages = getChatMessages('0-{{lastMessageId}}', { include_swipes: false });
-    const finalResults = results.map(item => {
-      const message = messages[item.message_id];
-      return {
-        ...item,
-        is_user: message ? isUserMessage(message) : false,
-        stat: unescapeEraData(item.stat),
-        statWithoutMeta: unescapeEraData(removeMetaFields(item.stat)),
-      };
-    });
-    emitQueryResultEvent('getSnapshotsBetweenMIds', detail, finalResults);
-  } else {
-    logger.error('handleGetSnapshotsBetweenMIds', '获取批量快照失败。');
-  }
+  emitQueryResultEvent('getSnapshotsBetweenMIds', detail, finalResult);
 }
 
 /**

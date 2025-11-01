@@ -175,6 +175,10 @@ export interface WriteDonePayload {
    */
   message_id: number;
   /**
+   * 最后操作的消息是否由用户发送。
+   */
+  is_user: boolean;
+  /**
    * 描述在本轮事件处理中，执行了哪些核心操作。
    * 这对于外部脚本理解状态变更的原因至关重要。
    */

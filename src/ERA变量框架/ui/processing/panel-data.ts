@@ -3,17 +3,7 @@
  * @description Processes raw event data and generates static HTML for the EraDataPanel component.
  */
 
-export type Actions = { rollback: boolean; apply: boolean; resync: boolean; api: boolean; apiWrite: boolean };
-export interface WriteDonePayload {
-  mk: string;
-  message_id: number;
-  actions: Actions;
-  selectedMks: (string | null)[];
-  editLogs: Record<string, any[]>;
-  stat: any;
-  statWithoutMeta: any;
-  consecutiveProcessingCount: number;
-}
+import type { WriteDonePayload } from '../../utils/constants';
 
 // --- HTML Generation Functions ---
 
@@ -121,6 +111,7 @@ export function createPanelBodyHtml(payload: WriteDonePayload | null): string {
     <div class="meta-header">
       <span>MK: ${payload.mk}</span>
       <span>Message ID: ${payload.message_id}</span>
+      <span>来源: ${payload.is_user ? '用户' : 'AI'}</span>
     </div>
   `;
 
