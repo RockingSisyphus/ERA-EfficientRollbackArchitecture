@@ -25,7 +25,7 @@ export const EVENT_GROUPS = {
   API: Object.values(ERA_API_EVENTS),
   /** 仅更新MK的事件 */
   UPDATE_MK_ONLY: [tavern_events.MESSAGE_SENT],
-    /** 仅用于对冲检测的事件，本身不触发逻辑 */
+  /** 仅用于对冲检测的事件，本身不触发逻辑 */
   COLLISION_DETECTORS: [tavern_events.GENERATION_STARTED],
   /** 用于组合事件的起始事件 */
   COMBO_STARTERS: [tavern_events.MESSAGE_UPDATED],

@@ -49,9 +49,7 @@ import { Logger } from './utils';
         try {
           if (typeof TavernHelper !== 'undefined' && typeof TavernHelper.getChatMessages === 'function') {
             const lastMessageId =
-              typeof TavernHelper.getLastMessageId === 'function'
-                ? TavernHelper.getLastMessageId()
-                : undefined;
+              typeof TavernHelper.getLastMessageId === 'function' ? TavernHelper.getLastMessageId() : undefined;
             const range =
               typeof lastMessageId === 'number' && Number.isFinite(lastMessageId) && lastMessageId >= 0
                 ? `0-${lastMessageId}`
