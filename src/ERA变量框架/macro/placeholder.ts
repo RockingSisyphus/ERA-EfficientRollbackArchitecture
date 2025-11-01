@@ -1,7 +1,7 @@
 'use strict';
 
 import { Logger } from '../utils/log';
-import { getScriptSettings } from '../utils/era_data';
+import { settings } from '../utils/era_data';
 import { isUserMessage, getMessageContent, updateMessageContent } from '../utils/message';
 
 /**
@@ -21,8 +21,7 @@ export async function ensurePlaceholder(message_id: number) {
   const funcName = 'ensurePlaceholder';
   logger.debug(funcName, `执行占位符保障，消息 ID: ${message_id}`);
 
-  const settings = getScriptSettings();
-  if (!settings.在ai消息尾部生成特殊符号) {
+  if (!settings.value.在ai消息尾部生成特殊符号) {
     logger.debug(funcName, '功能未启用，已跳过。');
     return;
   }
@@ -41,7 +40,7 @@ export async function ensurePlaceholder(message_id: number) {
   }
   logger.debug(funcName, `消息 ${message_id} 是 AI 消息，继续处理。`);
 
-  const placeholder = settings.特殊符号值;
+  const placeholder = settings.value.特殊符号值;
   const currentContent = getMessageContent(chat_message);
   logger.debug(funcName, '读取到消息内容:', { content: currentContent });
   logger.debug(funcName, '使用的占位符:', { placeholder });

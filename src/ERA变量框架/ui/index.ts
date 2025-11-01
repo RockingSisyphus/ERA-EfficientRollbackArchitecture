@@ -1,6 +1,6 @@
 import { createPinia } from 'pinia';
 import { createApp, App as VueApp } from 'vue';
-import { getScriptSettings } from '../utils/era_data';
+import { settings } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import App from './App.vue';
 import { useUiStore } from './store';
@@ -51,8 +51,7 @@ function unloadUI() {
 
 // 在加载时执行
 $(() => {
-  const settings = getScriptSettings();
-  if (settings['开启悬浮球'] === false) {
+  if (settings.value['开启悬浮球'] === false) {
     logger.log('initialize', '悬浮球设置为关闭，开始卸载UI...');
     unloadUI();
     return;

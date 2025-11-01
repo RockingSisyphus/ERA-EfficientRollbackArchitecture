@@ -5,9 +5,35 @@
 'use strict';
 
 import _ from 'lodash';
-import { CHAT_SCOPE, META_DATA_PATH, STAT_DATA_PATH, SettingsSchema } from './constants';
+import { CHAT_SCOPE, META_DATA_PATH, STAT_DATA_PATH, SettingsSchema, EraConfig } from './constants';
+import { ref, readonly, DeepReadonly, Ref } from 'vue';
 
 declare function getScriptId(): string;
+
+// --- 响应式配置中心 ---
+
+/**
+ * @description 存储全局脚本设置的响应式引用。
+ * @internal
+ */
+const scriptSettingsRef: Ref<EraConfig> = ref(SettingsSchema.parse({}));
+
+/**
+ * @description 供外部模块使用的只读的脚本设置。
+ * @example
+ * import { settings } from './utils/era_data';
+ * if (settings.value.调试模式) { ... }
+ */
+export const settings: DeepReadonly<Ref<EraConfig>> = readonly(scriptSettingsRef);
+
+/**
+ * @description 初始化脚本设置，从酒馆变量中读取并填充到响应式引用中。
+ * 应在脚本启动时调用一次。
+ */
+export function initEraSettings() {
+  const rawSettings = getVariables({ type: 'script', script_id: getScriptId() });
+  scriptSettingsRef.value = SettingsSchema.parse(rawSettings ?? {});
+}
 
 /**
  * 递归地从对象中移除所有以 `$` 开头的字段（如 `$meta`, `$template`）。
@@ -84,28 +110,19 @@ export async function updateEraMetaData(updater: (currentMetaData: any) => any |
 }
 
 /**
- * 获取并解析脚本设置
- * @returns {z.infer<typeof SettingsSchema>}
- */
-export function getScriptSettings(): z.infer<typeof SettingsSchema> {
-  const rawSettings = getVariables({ type: 'script', script_id: getScriptId() });
-  return SettingsSchema.parse(rawSettings ?? {});
-}
-
-/**
  * 原子性地更新脚本设置
- * @param {(currentSettings: z.infer<typeof SettingsSchema>) => z.infer<typeof SettingsSchema>} updater
+ * @param {(currentSettings: EraConfig) => EraConfig | Promise<EraConfig>} updater
  * @returns {Promise<void>}
  */
 export async function updateScriptSettings(
-  updater: (
-    currentSettings: z.infer<typeof SettingsSchema>,
-  ) => z.infer<typeof SettingsSchema> | Promise<z.infer<typeof SettingsSchema>>,
+  updater: (currentSettings: EraConfig) => EraConfig | Promise<EraConfig>,
 ): Promise<void> {
   await updateVariablesWith(
     async rawSettings => {
       const currentSettings = SettingsSchema.parse(rawSettings ?? {});
       const newSettings = await updater(currentSettings);
+      // 更新内存中的响应式引用
+      scriptSettingsRef.value = newSettings;
       return newSettings;
     },
     { type: 'script', script_id: getScriptId() },

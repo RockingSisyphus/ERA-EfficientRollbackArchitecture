@@ -109,7 +109,7 @@ import { reactive, ref } from 'vue'; // 中文注释：Vue 响应式 API
 import toastr from 'toastr';
 import { z } from 'zod';
 import { SettingsSchema } from '../../../utils/constants';
-import { getScriptSettings, updateScriptSettings } from '../../../utils/era_data';
+import { settings, updateScriptSettings } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log'; // 中文注释：项目内日志工具
 
 const logger = new Logger(); // 中文注释：实例化日志
@@ -149,7 +149,7 @@ function safeStringify(v: any): string {
 function loadVars() {
   try {
     logger.debug('loadVars', '尝试读取脚本设置...');
-    const obj = getScriptSettings();
+    const obj = settings.value;
     logger.debug('loadVars', '成功读取脚本设置:', obj);
 
     if (!obj || Object.keys(obj).length === 0) {

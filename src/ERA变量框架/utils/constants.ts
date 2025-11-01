@@ -45,6 +45,7 @@ export const SettingsSchema = z.object({
   强制重载功能: z.boolean().default(false),
   强制重载消息数: z.number().default(2),
   繁体转简体: z.boolean().default(false),
+  调试模式: z.boolean().default(false),
 });
 
 /**

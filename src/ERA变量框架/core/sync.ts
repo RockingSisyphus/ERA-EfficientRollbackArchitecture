@@ -27,7 +27,7 @@
 
 import { LOGS_PATH, SEL_PATH } from '../utils/constants';
 import { parseEditLog } from '../utils/data';
-import { getEraData, getScriptSettings, updateEraMetaData, updateEraStatData } from '../utils/era_data';
+import { getEraData, settings, updateEraMetaData, updateEraStatData } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import { ApplyVarChangeForMessage } from './crud/patcher';
 import { readMessageKey } from './key/mk';
@@ -139,9 +139,8 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
     }
 
     // 获取脚本设置并构建 config
-    const settings = getScriptSettings();
     const config = {
-      繁体转简体: settings.繁体转简体,
+      繁体转简体: settings.value.繁体转简体,
     };
 
     // 核心假设：getChatMessages 会重新生成 message_id，使其保持从 0 开始的连续序列。

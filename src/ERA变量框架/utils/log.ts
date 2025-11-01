@@ -4,6 +4,8 @@
 
 'use strict';
 
+import { settings } from './era_data';
+
 // --- 新的运行时调试配置系统 (V3) ---
 
 /**
@@ -250,6 +252,9 @@ export class Logger {
     } else {
       console.warn(`%c${formattedMessage}`, 'color: #f39c12;');
     }
+    if (settings.value.调试模式) {
+      toastr.warning(formattedMessage);
+    }
   }
 
   error(funcName: string, message: any, errorObj?: any) {
@@ -258,6 +263,9 @@ export class Logger {
       console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;', errorObj);
     } else {
       console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;');
+    }
+    if (settings.value.调试模式) {
+      toastr.error(formattedMessage);
     }
   }
 }

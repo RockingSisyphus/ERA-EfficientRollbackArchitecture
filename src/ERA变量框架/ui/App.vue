@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { getScriptSettings } from '../utils/era_data';
+import { settings } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import EraPanel from './components/EraPanel.vue';
 import FloatingBall from './components/FloatingBall.vue';
@@ -36,8 +36,7 @@ const isDarkMode = ref(false);
 
 const loadThemeSetting = () => {
   try {
-    const settings = getScriptSettings();
-    const darkModeValue = settings?.['开启黑夜模式'] ?? false;
+    const darkModeValue = settings.value?.['开启黑夜模式'] ?? false;
     isDarkMode.value = darkModeValue;
     if (themeManager.value) {
       themeManager.value.isDarkMode = darkModeValue;
