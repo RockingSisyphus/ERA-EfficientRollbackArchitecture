@@ -24,13 +24,16 @@ defineExpose({
   --bg-solid: #fff;
   --bg-soft: rgba(255, 255, 255, 0.6);
   --bg-empty: rgba(255, 255, 255, 0.5);
+  --paper: #fff; /* Component/Card background color */
   --border-strong: rgba(255, 255, 255, 0.6);
   --border-normal: rgba(0, 0, 0, 0.08);
   --border-soft: rgba(0, 0, 0, 0.06);
   --border-dashed: rgba(0, 0, 0, 0.08);
+  --line: rgba(0, 0, 0, 0.08); /* Generic line color */
   --text-title: #1f2937;
   --text-subtitle: #374151;
   --text-normal: #6b7280;
+  --muted: #6b7280; /* Muted text color */
   --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.18);
   --shadow-button: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-button-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
@@ -155,13 +158,16 @@ defineExpose({
   --bg-solid: #2d2f37;
   --bg-soft: rgba(60, 63, 73, 0.5);
   --bg-empty: rgba(60, 63, 73, 0.25);
+  --paper: #2d2f37; /* Component/Card background color */
   --border-strong: rgba(255, 255, 255, 0.12);
   --border-normal: rgba(255, 255, 255, 0.1);
   --border-soft: rgba(255, 255, 255, 0.08);
   --border-dashed: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.1); /* Generic line color */
   --text-title: #f9fafb;
   --text-subtitle: #d1d5db;
   --text-normal: #9ca3af;
+  --muted: #9ca3af; /* Muted text color */
   --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.3);
   --shadow-button: 0 2px 8px rgba(0, 0, 0, 0.25);
   --shadow-button-hover: 0 6px 16px rgba(0, 0, 0, 0.35);

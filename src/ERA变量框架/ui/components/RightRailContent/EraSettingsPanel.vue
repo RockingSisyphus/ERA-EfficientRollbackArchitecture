@@ -220,7 +220,29 @@ function discardEdits() {
 // === 保存修改 ===
 async function saveEdits() {
   // 中文注释：保存到脚本域
+  const originalRows = JSON.parse(JSON.stringify(rows.value)); // 深拷贝原始数据用于回滚
+
   try {
+    // 1. 乐观更新 UI
+    const updatedSettings: Record<string, any> = {};
+    rows.value.forEach(row => {
+      if (row.type === 'json') {
+        if (jsonState[row.key]?.bad) {
+          throw new Error(`键 ${row.key} 的 JSON 格式不正确`);
+        }
+        if (jsonBuffers[row.key] != null) {
+          const newValue = JSON.parse(jsonBuffers[row.key]);
+          row.value = newValue;
+          updatedSettings[row.key] = newValue;
+        }
+      } else if (edits[row.key] !== undefined) {
+        row.value = edits[row.key];
+        updatedSettings[row.key] = edits[row.key];
+      }
+    });
+    toastr.success('界面已更新。正在后台保存...', '操作成功');
+
+    // 2. 异步后台保存
     await updateScriptSettings(currentSettings => {
       const next: z.infer<typeof SettingsSchema> = { ...currentSettings };
 
@@ -245,10 +267,20 @@ async function saveEdits() {
     logger.log('saveEdits', '脚本变量已保存');
     toastr.success('设置已成功保存到脚本变量。', '保存成功');
     window.dispatchEvent(new CustomEvent('era-settings-updated'));
-    loadVars();
+    // 乐观更新成功，不需要再 loadVars()
   } catch (e) {
     logger.error('saveEdits', '保存失败：', e);
-    toastr.error(`保存失败：${(e as any)?.message ?? e}`, '保存失败');
+    toastr.error(`保存失败：${(e as any)?.message ?? e}。正在回滚界面。`, '保存失败');
+    // 3. 错误处理：回滚 UI
+    rows.value = originalRows;
+    // 重新填充 edits 和 jsonBuffers 以匹配回滚后的 UI
+    originalRows.forEach((row: Row) => {
+      if (row.type === 'json') {
+        jsonBuffers[row.key] = safeStringify(row.value);
+      } else {
+        edits[row.key] = row.value;
+      }
+    });
   }
 }
 </script>

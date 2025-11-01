@@ -210,18 +210,18 @@ onUnmounted(() => {
 <style>
 /* ───────── 局部主题变量映射：让本组件随全局明/暗主题自动变色 ───────── */
 :where(#era-snapshot-ui) {
-  /* 文本与背景（映射全局变量，若不存在则使用安全回退值） */
-  --snapshot-text: var(--text-normal, #1f2328); /* 常规文字色 */
-  --snapshot-muted: var(--muted, #6b7280); /* 次级文字色 */
-  --snapshot-bg: var(--paper, #ffffff); /* 控件/卡片底色 */
+  /* 文本与背景（映射全局变量） */
+  --snapshot-text: var(--text-normal); /* 常规文字色 */
+  --snapshot-muted: var(--muted); /* 次级文字色 */
+  --snapshot-bg: var(--paper); /* 控件/卡片底色 */
   --snapshot-bg-gradient: linear-gradient(
     to bottom,
-    color-mix(in oklab, var(--paper, #fff), transparent 92%),
+    color-mix(in oklab, var(--paper), transparent 92%),
     transparent
   );
 
   /* 线条与描边 */
-  --snapshot-stroke: var(--line, rgba(0, 0, 0, 0.12)); /* 统一描边色 */
+  --snapshot-stroke: var(--line); /* 统一描边色 */
 
   /* 品牌/强调色（优先使用 --primary；否则退回 --accent，再退回一个安全紫靛） */
   --snapshot-accent: var(--primary, var(--accent, #4f46e5));
