@@ -39,6 +39,7 @@ const eventsToListen = [
   ...EVENT_GROUPS.UPDATE_MK_ONLY,
   ...EVENT_GROUPS.COLLISION_DETECTORS,
   ...EVENT_GROUPS.COMBO_STARTERS,
+  ...EVENT_GROUPS.DIRECTED_SYNC,
 ];
 
 // 遍历事件列表，为每个事件注册一个回调函数。

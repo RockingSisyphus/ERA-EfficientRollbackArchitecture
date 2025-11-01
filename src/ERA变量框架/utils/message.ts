@@ -14,6 +14,94 @@ import { parseCharacterMacros } from './text';
 
 const log = new Logger();
 
+export function extractMessageIdFromDetail(detail: any): number | null {
+  if (detail === null || detail === undefined) {
+    log.debug('extractMessageIdFromDetail', 'detail 为空，无法解析 message_id。');
+    return null;
+  }
+
+  if (typeof detail === 'number') {
+    if (Number.isFinite(detail)) {
+      log.debug('extractMessageIdFromDetail', '从 number detail 获取 message_id。', { message_id: detail });
+      return detail;
+    }
+    log.debug('extractMessageIdFromDetail', 'number detail 非有限值，忽略。', { detail });
+    return null;
+  }
+
+  if (typeof detail === 'string') {
+    const parsed = Number(detail);
+    if (Number.isFinite(parsed)) {
+      log.debug('extractMessageIdFromDetail', '从 string detail 解析 message_id。', {
+        raw: detail,
+        message_id: parsed,
+      });
+      return parsed;
+    }
+    log.debug('extractMessageIdFromDetail', 'string detail 无法解析为有效数字，忽略。', { raw: detail });
+    return null;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const parsed = Number(detail[0]);
+    if (Number.isFinite(parsed)) {
+      log.debug('extractMessageIdFromDetail', '从数组 detail[0] 解析 message_id。', {
+        raw: detail[0],
+        message_id: parsed,
+      });
+      return parsed;
+    }
+    log.debug('extractMessageIdFromDetail', '数组 detail[0] 无法解析为有效数字，忽略。', { raw: detail[0] });
+    return null;
+  }
+
+  if (typeof detail === 'object') {
+    if (typeof detail.message_id === 'number') {
+      if (Number.isFinite(detail.message_id)) {
+        log.debug('extractMessageIdFromDetail', '从对象 detail.message_id(number) 获取 message_id。', {
+          message_id: detail.message_id,
+        });
+        return detail.message_id;
+      }
+      log.debug('extractMessageIdFromDetail', '对象 detail.message_id(number) 不是有限值，忽略。', {
+        message_id: detail.message_id,
+      });
+      return null;
+    }
+    if (typeof detail.message_id === 'string') {
+      const parsed = Number(detail.message_id);
+      if (Number.isFinite(parsed)) {
+        log.debug('extractMessageIdFromDetail', '从对象 detail.message_id(string) 解析 message_id。', {
+          raw: detail.message_id,
+          message_id: parsed,
+        });
+        return parsed;
+      }
+      log.debug('extractMessageIdFromDetail', '对象 detail.message_id(string) 无法解析为有效数字，忽略。', {
+        raw: detail.message_id,
+      });
+      return null;
+    }
+    if (Array.isArray(detail.eventArgs) && detail.eventArgs.length > 0) {
+      const parsed = Number(detail.eventArgs[0]);
+      if (Number.isFinite(parsed)) {
+        log.debug('extractMessageIdFromDetail', '从对象 detail.eventArgs[0] 解析 message_id。', {
+          raw: detail.eventArgs[0],
+          message_id: parsed,
+        });
+        return parsed;
+      }
+      log.debug('extractMessageIdFromDetail', '对象 detail.eventArgs[0] 无法解析为有效数字，忽略。', {
+        raw: detail.eventArgs[0],
+      });
+      return null;
+    }
+  }
+
+  log.debug('extractMessageIdFromDetail', '未能从事件 detail 中解析出有效的 message_id。', { detail });
+  return null;
+}
+
 /**
  * @type {EraData} - 定义了存储在 `<era_data>` 块中的元数据结构。
  */

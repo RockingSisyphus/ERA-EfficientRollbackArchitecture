@@ -25,10 +25,12 @@ export const EVENT_GROUPS = {
   API: Object.values(ERA_API_EVENTS),
   /** 仅更新MK的事件 */
   UPDATE_MK_ONLY: [tavern_events.MESSAGE_SENT],
-  /** 仅用于对冲检测的事件，本身不触发逻辑 */
+    /** 仅用于对冲检测的事件，本身不触发逻辑 */
   COLLISION_DETECTORS: [tavern_events.GENERATION_STARTED],
   /** 用于组合事件的起始事件 */
   COMBO_STARTERS: [tavern_events.MESSAGE_UPDATED],
+  /** 定向同步事件组，用于针对指定消息的重算 */
+  DIRECTED_SYNC: [tavern_events.MESSAGE_EDITED],
 };
 
 /**
@@ -112,6 +114,7 @@ export function getEventGroup(eventType: string): string {
   if ((EVENT_GROUPS.UPDATE_MK_ONLY as string[]).includes(eventType)) return 'UPDATE_MK_ONLY';
   if ((EVENT_GROUPS.COLLISION_DETECTORS as string[]).includes(eventType)) return 'COLLISION_DETECTORS';
   if ((EVENT_GROUPS.COMBO_STARTERS as string[]).includes(eventType)) return 'COMBO_STARTERS';
+  if ((EVENT_GROUPS.DIRECTED_SYNC as string[]).includes(eventType)) return 'DIRECTED_SYNC';
   return 'UNKNOWN';
 }
 

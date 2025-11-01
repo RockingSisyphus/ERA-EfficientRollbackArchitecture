@@ -50,8 +50,8 @@ export class Logger {
    * @param {string} funcName - 函数名。
    * @param {any} message - 日志内容。
    */
-  debug(funcName: string, message: any) {
-    console.debug(this.formatMessage(funcName, message));
+  debug(funcName: string, message: any, ...details: any[]) {
+    console.debug(this.formatMessage(funcName, message), ...details);
   }
 
   /**
@@ -59,8 +59,8 @@ export class Logger {
    * @param {string} funcName - 函数名。
    * @param {any} message - 日志内容。
    */
-  log(funcName: string, message: any) {
-    console.log(`%c${this.formatMessage(funcName, message)}`, 'color: #3498db;');
+  log(funcName: string, message: any, ...details: any[]) {
+    console.log(`%c${this.formatMessage(funcName, message)}`, 'color: #3498db;', ...details);
   }
 
   /**
@@ -68,20 +68,20 @@ export class Logger {
    * @param {string} funcName - 函数名。
    * @param {any} message - 日志内容。
    */
-  warn(funcName: string, message: any) {
-    console.warn(`%c${this.formatMessage(funcName, message)}`, 'color: #f39c12;');
+  warn(funcName: string, message: any, ...details: any[]) {
+    console.warn(`%c${this.formatMessage(funcName, message)}`, 'color: #f39c12;', ...details);
   }
 
   /**
    * 记录一条 error 级别的日志。
    * @param {string} funcName - 函数名。
    * @param {any} message - 日志内容。
-   * @param {any} [errorObj] - 可选的、附加到日志中的错误对象。
+   * @param {...any} details - 可选的、附加到日志中的错误对象或上下文。
    */
-  error(funcName: string, message: any, errorObj?: any) {
+  error(funcName: string, message: any, ...details: any[]) {
     const formattedMessage = this.formatMessage(funcName, message);
-    if (errorObj) {
-      console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;', errorObj);
+    if (details.length > 0) {
+      console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;', ...details);
     } else {
       console.error(`%c${formattedMessage}`, 'color: #e74c3c; font-weight: bold;');
     }

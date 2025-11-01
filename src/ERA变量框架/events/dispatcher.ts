@@ -4,7 +4,7 @@ import { ensureMkForLatestMessage } from '../core/key/mk';
 import { initializeExternalSettings } from '../initer/auto/settings';
 import { ensurePlaceholder } from '../macro/placeholder';
 import { logContext, Logger } from '../utils/log';
-import { getMessageContentWithRetry, isUserMessage } from '../utils/message';
+import { extractMessageIdFromDetail, getMessageContentWithRetry, isUserMessage } from '../utils/message';
 import { handleApiEvent } from './handlers/api/dispatcher';
 import { handleSyncEvent } from './handlers/sync';
 import { handleUpdateMkOnlyEvent } from './handlers/updateMkOnly';
@@ -105,6 +105,7 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
   const { type: eventType } = job;
   const eventGroup = getEventGroup(eventType);
   let message_id: number | null = null;
+  const eventDetail = job.detail;
 
   // 在每轮任务开始时，初始化操作记录器
   const actionsTaken: ActionsTaken = { rollback: false, apply: false, resync: false, api: false, apiWrite: false };
@@ -187,6 +188,21 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
         logger.log('dispatchAndExecuteTask', '调用 handleUpdateMkOnlyEvent');
         await handleUpdateMkOnlyEvent();
         break;
+      case 'DIRECTED_SYNC': {
+        payload.consecutiveProcessingCount = updateConsecutiveMkCount();
+        const targetedMessageId = extractMessageIdFromDetail(eventDetail);
+        if (targetedMessageId === null) {
+          logger.warn('dispatchAndExecuteTask', '定向同步事件缺少有效的 message_id，按普通同步处理。', { eventDetail });
+          await handleSyncEvent(job, actionsTaken, payload);
+          break;
+        }
+        logger.log(
+          'dispatchAndExecuteTask',
+          `调用 handleSyncEvent for DIRECTED_SYNC (message_id: ${targetedMessageId})`,
+        );
+        await handleSyncEvent(job, actionsTaken, payload, targetedMessageId);
+        break;
+      }
     }
   } catch (error) {
     logger.error('dispatchAndExecuteTask', `事件 ${eventType} 处理异常: ${error}`, error);

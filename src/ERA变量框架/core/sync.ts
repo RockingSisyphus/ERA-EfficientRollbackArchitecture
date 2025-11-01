@@ -83,7 +83,7 @@ const findDivergencePoint = (
   forceFullResync: boolean,
 ): { type: 'FULL_RECALC'; recalcId: number } | { type: 'FAST_SYNC'; newSelectedMks: (string | null)[] } => {
   if (forceFullResync) {
-    logger.log('findDivergencePoint', '强制模式：设置重算起点为 0。');
+    logger.debug('findDivergencePoint', '强制模式：设置重算起点为 0。');
     return { type: 'FULL_RECALC', recalcId: 0 };
   }
 
@@ -105,7 +105,7 @@ const findDivergencePoint = (
   // 2. 处理“无分歧”的情况
   if (firstMismatch === -1) {
     const recalcId = allMessages.length > 0 ? allMessages.length - 1 : 0;
-    logger.log('findDivergencePoint', `所有MK均匹配。启动模拟写入，强制重算最后一条消息 (ID: ${recalcId})。`);
+    logger.debug('findDivergencePoint', `所有MK均匹配。启动模拟写入，强制重算最后一条消息 (ID: ${recalcId})。`);
     return { type: 'FULL_RECALC', recalcId };
   }
 
@@ -115,12 +115,12 @@ const findDivergencePoint = (
 
   // 唯一的优化机会：纯粹的无害删除
   if (addedMks.length === 0 && deletedMks.length > 0 && checkEditLogsAreEmpty(deletedMks, initialMeta)) {
-    logger.log('findDivergencePoint', '检测到纯粹的无害删除。建议执行快速同步。');
+    logger.debug('findDivergencePoint', '检测到纯粹的无害删除。建议执行快速同步。');
     return { type: 'FAST_SYNC', newSelectedMks: currentMks };
   }
 
   // 所有其他情况（有害删除、有新增、混合更改）都必须从最早的分歧点重算
-  logger.log('findDivergencePoint', `检测到需要分歧点重算。将从最早的分歧点 (ID: ${firstMismatch}) 开始。`);
+  logger.debug('findDivergencePoint', `检测到需要分歧点重算。将从最早的分歧点 (ID: ${firstMismatch}) 开始。`);
   return { type: 'FULL_RECALC', recalcId: firstMismatch };
 };
 
@@ -130,12 +130,12 @@ const findDivergencePoint = (
  * 在没有检测到历史变化时，该函数还会自动回滚并重算最后一条消息，从而实现了“写入”操作的统一。
  * @param {boolean} [forceFullResync=false] - 如果为 true，则强制从头开始完全重算，忽略差异检测。
  */
-export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
+export const resyncStateOnHistoryChange = async (forceFullResync = false, targetMessageId?: number) => {
   try {
     if (forceFullResync) {
       logger.warn('resyncStateOnHistoryChange', '强制完全重算模式已启动！');
     } else {
-      logger.log('resyncStateOnHistoryChange', '聊天记录变更，启动状态同步...');
+      logger.debug('resyncStateOnHistoryChange', '聊天记录变更，启动状态同步...');
     }
 
     // 获取脚本设置并构建 config
@@ -158,21 +158,33 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
     );
 
     if (!allMessages || allMessages.length === 0) {
-      logger.log('resyncStateOnHistoryChange', '当前聊天记录为空，不执行任何操作，同步终止。');
+      logger.debug('resyncStateOnHistoryChange', '当前聊天记录为空，不执行任何操作，同步终止。');
       return;
     }
 
     // 1. 找出分歧点
-    const divergence = findDivergencePoint(allMessages, oldSelectedMks, initialMeta, forceFullResync);
+    let divergence:
+      | { type: 'FULL_RECALC'; recalcId: number }
+      | { type: 'FAST_SYNC'; newSelectedMks: (string | null)[] };
+    if (typeof targetMessageId === 'number' && Number.isFinite(targetMessageId)) {
+      const normalizedTargetId = Number(targetMessageId);
+      logger.debug(
+        'resyncStateOnHistoryChange',
+        `检测到定向同步请求，直接以消息 ID ${normalizedTargetId} 作为重算起点。`,
+      );
+      divergence = { type: 'FULL_RECALC', recalcId: normalizedTargetId };
+    } else {
+      divergence = findDivergencePoint(allMessages, oldSelectedMks, initialMeta, forceFullResync);
+    }
 
     // 2. 处理分歧结果
     if (divergence.type === 'FAST_SYNC') {
-      logger.log('resyncStateOnHistoryChange', '执行快速同步...');
+      logger.debug('resyncStateOnHistoryChange', '执行快速同步...');
       await updateEraMetaData(meta => {
         _.set(meta, SEL_PATH, divergence.newSelectedMks);
         return meta;
       });
-      logger.log('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
+      logger.debug('resyncStateOnHistoryChange', '快速同步完成，仅修正 SelectedMks 数组。');
       return;
     }
 
@@ -187,15 +199,15 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
       const targetMK = firstRecalcId > 0 ? oldSelectedMks[firstRecalcId - 1] : undefined;
 
       if (currentMK) {
-        logger.log('resyncStateOnHistoryChange', `准备一次性回滚。从: ${currentMK}, 到: ${targetMK || '初始状态'}`);
+        logger.debug('resyncStateOnHistoryChange', `准备一次性回滚。从: ${currentMK}, 到: ${targetMK || '初始状态'}`);
         // 回滚结果作为重算的起点
         statForRecalc = rollbackStatToMK(targetMK, currentMK, initialStat, oldSelectedMks, allLogs);
-        logger.log('resyncStateOnHistoryChange', '逆序回滚完成（内存中）。');
+        logger.debug('resyncStateOnHistoryChange', '逆序回滚完成（内存中）。');
       }
     }
 
     // 4. 从不匹配点开始，顺序重新应用变量修改，并构建新的 selectedMks
-    logger.log('resyncStateOnHistoryChange', `从 ID ${firstRecalcId} 开始顺序重算...`);
+    logger.debug('resyncStateOnHistoryChange', `从 ID ${firstRecalcId} 开始顺序重算...`);
     const newSelectedMks: (string | null)[] = oldSelectedMks.slice(0, firstRecalcId); // 继承匹配部分
 
     // 为重算过程创建一个 meta 的可变副本
@@ -229,7 +241,7 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
       // 将新生成的日志写入主 metaForRecalc 对象，为下一次循环的 clone 做准备
       _.set(metaForRecalc, [LOGS_PATH, mk], finalEditLog);
     }
-    logger.log('resyncStateOnHistoryChange', '顺序重算完成。');
+    logger.debug('resyncStateOnHistoryChange', '顺序重算完成。');
 
     // 5. 循环结束后，一次性将最终计算出的状态写入全局
     // statForRecalc 已经是最终的 stat
@@ -238,7 +250,7 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false) => {
 
     await updateEraStatData(() => statForRecalc);
     await updateEraMetaData(() => metaForRecalc);
-    logger.log('resyncStateOnHistoryChange', '状态同步完成。');
+    logger.debug('resyncStateOnHistoryChange', '状态同步完成。');
   } catch (error: any) {
     logger.error('resyncStateOnHistoryChange', `状态同步时发生严重错误: ${error?.message || error}`, {
       error,
