@@ -292,10 +292,7 @@ export function handleGetSnapshotAtMk(detail: any) {
  */
 export function handleGetSnapshotsBetweenMks(detail: any) {
   const { startMk, endMk } = detail || {};
-  logger.debug(
-    'handleGetSnapshotsBetweenMks',
-    `请求获取批量快照，从: ${startMk || '开始'}, 到: ${endMk || '结束'}`,
-  );
+  logger.debug('handleGetSnapshotsBetweenMks', `请求获取批量快照，从: ${startMk || '开始'}, 到: ${endMk || '结束'}`);
   let finalResult: any;
 
   try {

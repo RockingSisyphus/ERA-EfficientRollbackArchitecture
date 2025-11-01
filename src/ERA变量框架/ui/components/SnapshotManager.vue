@@ -214,11 +214,7 @@ onUnmounted(() => {
   --snapshot-text: var(--text-normal); /* 常规文字色 */
   --snapshot-muted: var(--muted); /* 次级文字色 */
   --snapshot-bg: var(--paper); /* 控件/卡片底色 */
-  --snapshot-bg-gradient: linear-gradient(
-    to bottom,
-    color-mix(in oklab, var(--paper), transparent 92%),
-    transparent
-  );
+  --snapshot-bg-gradient: linear-gradient(to bottom, color-mix(in oklab, var(--paper), transparent 92%), transparent);
 
   /* 线条与描边 */
   --snapshot-stroke: var(--line); /* 统一描边色 */
