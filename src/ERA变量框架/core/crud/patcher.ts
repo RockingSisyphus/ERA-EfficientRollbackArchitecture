@@ -22,11 +22,9 @@
 'use strict';
 
 import { readMessageKey } from '../../core/key/mk';
-import { EraConfig, LOGS_PATH, SEL_PATH } from '../../utils/constants';
-import { parseEditLog } from '../../utils/data';
-import { getEraData, updateEraMetaData, updateEraStatData } from '../../utils/era_data';
+import { EraConfig } from '../../utils/constants';
 import { Logger } from '../../utils/log';
-import { extractAndParseCommands, findLastAiMessage, isUserMessage } from '../../utils/message';
+import { extractAndParseCommands } from '../../utils/message';
 import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert/insert';
 import { processEditBlocks } from './update';
@@ -59,14 +57,25 @@ export const ApplyVarChangeForMessage = async (
 ): Promise<{ finalStat: any; finalEditLog: any[]; mk: string | null }> => {
   logger.debug('ApplyVarChangeForMessage (Pure)', `开始计算消息 (ID: ${msg.message_id})...`);
   const mk = readMessageKey(msg);
+  logger.debug('ApplyVarChangeForMessage (Pure)', `获取到当前消息mk`, mk);
   try {
+    logger.debug('ApplyVarChangeForMessage (Pure)', `开始指令转义`);
     // 1. 从消息中提取、解析并转义所有指令。
     const { allInserts, allEdits, allDeletes } = extractAndParseCommands(msg, config.繁体转简体);
 
     // --- 纯函数处理流水线：insert -> edit -> delete ---
-
+    logger.debug('ApplyVarChangeForMessage (Pure)', '准备开始处理变量更改语句，当前语句为：', {
+      allInserts,
+      allEdits,
+      allDeletes,
+    });
     // 2. 处理插入操作
     const { finalStat: statAfterInsert, editLog: insertLog } = await processInsertBlocks(allInserts, initialStat);
+
+    logger.debug('ApplyVarChangeForMessage (Pure)', '完成插入，输出stat和editLog为：', {
+      statAfterInsert,
+      insertLog,
+    });
 
     // 3. 处理编辑操作
     const { finalStat: statAfterEdit, editLog: editBlockLog } = await processEditBlocks(
@@ -76,8 +85,18 @@ export const ApplyVarChangeForMessage = async (
       meta,
     );
 
+    logger.debug('ApplyVarChangeForMessage (Pure)', '完成编辑，输出stat和editLog为：', {
+      statAfterEdit,
+      editBlockLog,
+    });
+
     // 4. 处理删除操作
     const { finalStat: statAfterDelete, editLog: deleteLog } = await processDeleteBlocks(allDeletes, statAfterEdit);
+
+    logger.debug('ApplyVarChangeForMessage (Pure)', '完成删除，输出stat和editLog为：', {
+      statAfterDelete,
+      deleteLog,
+    });
 
     // 5. 合并所有日志
     const finalEditLog = [...(insertLog || []), ...(editBlockLog || []), ...(deleteLog || [])];

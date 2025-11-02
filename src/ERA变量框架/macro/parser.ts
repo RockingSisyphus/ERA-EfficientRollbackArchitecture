@@ -20,6 +20,7 @@ export function parseEraMacros(text: string): string {
 
   // 获取 stat_data
   const { stat } = getEraData();
+  logger.debug('parseEraMacros', 'ERA宏模块，获取到当前最新的stat', stat);
   if (!stat) {
     logger.warn('parseEraMacros', '无法获取到 stat_data, 宏替换失败.');
     // 如果没有 stat_data, 任何宏都无法解析, 直接返回原文本

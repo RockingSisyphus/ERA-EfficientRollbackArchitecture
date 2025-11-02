@@ -324,7 +324,7 @@ export function extractAndParseCommands(
   const editBlocks = extractValidBlocks(rawContent, createTagRegex('VariableEdit', 'exact'), toSimplified);
   const deleteBlocks = extractValidBlocks(rawContent, createTagRegex('VariableDelete', 'exact'), toSimplified);
 
-  log.debug('extractAndParseCommands', 'delete拿到的指令', deleteBlocks);
+  log.debug('extractAndParseCommands', '拿到的消息指令块', { insertBlocks, editBlocks, deleteBlocks });
 
   if (!insertBlocks.length && !editBlocks.length && !deleteBlocks.length) {
     log.debug('extractAndParseCommands', `消息 (ID: ${msg.message_id}) 未检测到变量修改标签。`);
@@ -333,16 +333,12 @@ export function extractAndParseCommands(
   const rawInserts = insertBlocks.flatMap((s: string) => parseJsonl(s));
   const rawEdits = editBlocks.flatMap((s: string) => parseJsonl(s));
   const rawDeletes = deleteBlocks.flatMap((s: string) => parseJsonl(s));
-
+  log.debug('extractAndParseCommands', '转为json后的指令块', { rawInserts, rawEdits, rawDeletes });
   // 在这里对从消息中解析出的原始数据进行转义，确保所有后续处理都使用转义后的数据。
   const allInserts = escapeEraData(rawInserts);
   const allEdits = escapeEraData(rawEdits);
   const allDeletes = escapeEraData(rawDeletes);
-
-  log.debug('extractAndParseCommands', '数据转义完成', {
-    before: { inserts: rawInserts, edits: rawEdits, deletes: rawDeletes },
-    after: { inserts: allInserts, edits: allEdits, deletes: allDeletes },
-  });
+  log.debug('extractAndParseCommands', '原始数据转义后的指令块', { allInserts, allEdits, allDeletes });
 
   return { allInserts, allEdits, allDeletes };
 }

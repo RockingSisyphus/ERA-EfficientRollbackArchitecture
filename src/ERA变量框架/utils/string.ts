@@ -129,8 +129,79 @@ export function removeTagsByRegex(text: string, tagNameRegex: RegExp): string {
  * @returns {boolean} 如果包含则返回 true，否则返回 false。
  */
 export function containsXMLTags(text: string, tagNameRegex?: RegExp): boolean {
-  const regex = tagNameRegex ? new RegExp(`</?${tagNameRegex.source}>`) : /<\/?\s*[a-zA-Z][a-zA-Z0-9_]*\s*>/;
-  return regex.test(text);
+  if (!text) {
+    return false;
+  }
+
+  const tagRegex = tagNameRegex ? new RegExp(`</?${tagNameRegex.source}>`) : /<\/?\s*[a-zA-Z][a-zA-Z0-9_]*\s*>/;
+
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let backslashRun = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (ch === '\\') {
+      backslashRun += 1;
+      continue;
+    }
+
+    const isEscaped = backslashRun % 2 === 1;
+    backslashRun = 0;
+
+    if (ch === '"' && !isEscaped && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    if (ch === "'" && !isEscaped && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    if (ch === '<' && !isEscaped && !inSingleQuote && !inDoubleQuote) {
+      let j = i + 1;
+      let innerSingleQuote = false;
+      let innerDoubleQuote = false;
+      let innerBackslashRun = 0;
+
+      for (; j < text.length; j++) {
+        const innerCh = text[j];
+
+        if (innerCh === '\\') {
+          innerBackslashRun += 1;
+          continue;
+        }
+
+        const innerEscaped = innerBackslashRun % 2 === 1;
+        innerBackslashRun = 0;
+
+        if (innerCh === '"' && !innerEscaped && !innerSingleQuote) {
+          innerDoubleQuote = !innerDoubleQuote;
+          continue;
+        }
+
+        if (innerCh === "'" && !innerEscaped && !innerDoubleQuote) {
+          innerSingleQuote = !innerSingleQuote;
+          continue;
+        }
+
+        if (innerCh === '>' && !innerEscaped && !innerSingleQuote && !innerDoubleQuote) {
+          const rawTag = text.slice(i, j + 1);
+          if (tagRegex.test(rawTag)) {
+            return true;
+          }
+          break;
+        }
+      }
+
+      i = j;
+      backslashRun = 0;
+    }
+  }
+
+  return false;
 }
 
 /**

@@ -92,12 +92,12 @@ function parseEraData(messageContent: string | null | undefined): EraData | null
  */
 export function readMessageKey(msg: any): string {
   if (!msg) return '';
-
+  //logger.debug('readMessageKey', '开始获取mk');
   // 核心逻辑：始终且仅根据 getMessageContent 的结果来解析 MK。
   const content = getMessageContent(msg);
-
+  //logger.debug('readMessageKey', '拿到消息内容', content);
   const mk = parseEraData(content)?.['era-message-key'] || '';
-
+  //logger.debug('readMessageKey', '从消息内容中获取到mk', mk);
   // 移除遍历其他 swipes 的错误逻辑。如果当前激活的内容没有 MK，就必须返回空字符串，
   // 以强制 ensureMessageKey 生成新的 MK。
   return mk;
