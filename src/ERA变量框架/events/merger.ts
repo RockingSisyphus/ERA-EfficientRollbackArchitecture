@@ -19,8 +19,8 @@ export const EVENT_GROUPS = {
     tavern_events.CHAT_CHANGED,
     'manual_sync',
     'manual_full_sync',
-    /** 由 message_updated 和 generation_started 组合而成的同步事件 */
-    'combo_sync',
+    /** 由 message_updated 和 generation_started 组合而成的“编辑并继续”事件 */
+    'combo_edit_and_continue',
   ],
   API: Object.values(ERA_API_EVENTS),
   /** 仅更新MK的事件 */
@@ -30,7 +30,11 @@ export const EVENT_GROUPS = {
   /** 用于组合事件的起始事件 */
   COMBO_STARTERS: [tavern_events.MESSAGE_UPDATED],
   /** 定向同步事件组，用于针对指定消息的重算 */
-  DIRECTED_SYNC: [tavern_events.MESSAGE_EDITED],
+  DIRECTED_SYNC: [
+    tavern_events.MESSAGE_EDITED,
+    /** 由 swiped 和 generation_started 组合而成的“滑动并重新生成”事件 */
+    'combo_swipe_and_regenerate',
+  ],
 };
 
 /**
@@ -47,9 +51,7 @@ export const EVENT_GROUPS = {
  *   [tavern_events.MESSAGE_SWIPED, { next: tavern_events.GENERATION_STARTED, maxInterval: 500 }]
  * ])
  */
-export const EVENT_COLLISION_MAP = new Map<string, { next: string; maxInterval: number }>([
-  [tavern_events.MESSAGE_SWIPED, { next: tavern_events.GENERATION_STARTED, maxInterval: 600 }],
-]);
+export const EVENT_COLLISION_MAP = new Map<string, { next: string; maxInterval: number }>([]);
 
 /**
  * @constant {Map<string, { next: string; resultType: string; maxInterval: number }>} EVENT_COMBO_MAP
@@ -68,7 +70,11 @@ export const EVENT_COLLISION_MAP = new Map<string, { next: string; maxInterval: 
 export const EVENT_COMBO_MAP = new Map<string, { next: string; resultType: string; maxInterval: number }>([
   [
     tavern_events.MESSAGE_UPDATED,
-    { next: tavern_events.GENERATION_STARTED, resultType: 'combo_sync', maxInterval: 1600 },
+    { next: tavern_events.GENERATION_STARTED, resultType: 'combo_edit_and_continue', maxInterval: 1600 },
+  ],
+  [
+    tavern_events.MESSAGE_SWIPED,
+    { next: tavern_events.GENERATION_STARTED, resultType: 'combo_swipe_and_regenerate', maxInterval: 600 },
   ],
 ]);
 
@@ -87,7 +93,7 @@ export const EVENT_COMBO_MAP = new Map<string, { next: string; resultType: strin
  * ])
  */
 export const EVENT_DEBOUNCE_MAP = new Map<string, number>([
-  [tavern_events.MESSAGE_SWIPED, 500], // 对冲事件的前置事件
+  [tavern_events.MESSAGE_SWIPED, 500], // 组合事件的前置事件
   [tavern_events.MESSAGE_UPDATED, 1500], // 组合事件的前置事件
 ]);
 

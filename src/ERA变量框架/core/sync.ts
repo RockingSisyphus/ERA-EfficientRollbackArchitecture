@@ -129,8 +129,14 @@ const findDivergencePoint = (
  * 实现了“逆序回滚，顺序重算”的逻辑。
  * 在没有检测到历史变化时，该函数还会自动回滚并重算最后一条消息，从而实现了“写入”操作的统一。
  * @param {boolean} [forceFullResync=false] - 如果为 true，则强制从头开始完全重算，忽略差异检测。
+ * @param {number} [targetMessageId] - 如果提供，则将重算起点强制设置为此消息 ID。
+ * @param {boolean} [stopAtTarget=false] - 如果为 true，重算将在处理完作为重算起点的消息后停止。
  */
-export const resyncStateOnHistoryChange = async (forceFullResync = false, targetMessageId?: number) => {
+export const resyncStateOnHistoryChange = async (
+  forceFullResync = false,
+  targetMessageId?: number,
+  stopAtTarget = false,
+) => {
   try {
     if (forceFullResync) {
       logger.warn('resyncStateOnHistoryChange', '强制完全重算模式已启动！');
@@ -214,6 +220,11 @@ export const resyncStateOnHistoryChange = async (forceFullResync = false, target
     const metaForRecalc = _.cloneDeep(initialMeta);
 
     for (let i = firstRecalcId; i < allMessages.length; i++) {
+      // 如果是定向同步，并且已经处理完目标消息，则中止循环
+      if (stopAtTarget && i > firstRecalcId) {
+        logger.debug('resyncStateOnHistoryChange', `定向同步完成，已处理至目标消息 ID: ${firstRecalcId}。中止重算。`);
+        break;
+      }
       const msg = allMessages[i];
 
       // --- 关键修复 ---

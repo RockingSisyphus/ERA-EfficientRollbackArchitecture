@@ -190,17 +190,38 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
         break;
       case 'DIRECTED_SYNC': {
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();
-        const targetedMessageId = extractMessageIdFromDetail(eventDetail);
-        if (targetedMessageId === null) {
-          logger.warn('dispatchAndExecuteTask', '定向同步事件缺少有效的 message_id，按普通同步处理。', { eventDetail });
+        let targetedMessageId: number | null = null;
+
+        // 检查是否是“滑动并重新生成”的组合事件
+        if (eventType === 'combo_swipe_and_regenerate') {
+          // 目标是前一条消息
+          targetedMessageId = message_id - 1;
+          logger.log(
+            'dispatchAndExecuteTask',
+            `检测到 combo_swipe_and_regenerate 事件，目标消息 ID 设置为: ${targetedMessageId}`,
+          );
+        } else {
+          // 其他定向同步事件（如 MESSAGE_EDITED）
+          targetedMessageId = extractMessageIdFromDetail(eventDetail);
+        }
+
+        if (targetedMessageId === null || targetedMessageId < 0) {
+          logger.warn('dispatchAndExecuteTask', '定向同步事件缺少或无效的 message_id，按普通同步处理。', {
+            eventDetail,
+            calculatedId: targetedMessageId,
+          });
           await handleSyncEvent(job, actionsTaken, payload);
           break;
         }
+
+        // 决定是否要在目标处停止
+        const stopAtTarget = eventType === 'combo_swipe_and_regenerate';
+
         logger.log(
           'dispatchAndExecuteTask',
-          `调用 handleSyncEvent for DIRECTED_SYNC (message_id: ${targetedMessageId})`,
+          `调用 handleSyncEvent for DIRECTED_SYNC (message_id: ${targetedMessageId}, stopAtTarget: ${stopAtTarget})`,
         );
-        await handleSyncEvent(job, actionsTaken, payload, targetedMessageId);
+        await handleSyncEvent(job, actionsTaken, payload, targetedMessageId, stopAtTarget);
         break;
       }
     }
