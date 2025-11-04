@@ -137,10 +137,7 @@ function removeMacroAutoRefresh() {
  * @param generate_data - 包含提示词的对象。
  * @param dry_run - 是否为演习运行。
  */
-const handleGenerateAfterData = (
-  generate_data: { prompt: SillyTavern.SendingMessage[] },
-  dry_run: boolean,
-) => {
+const handleGenerateAfterData = (generate_data: { prompt: SillyTavern.SendingMessage[] }, dry_run: boolean) => {
   if (dry_run) {
     return;
   }
@@ -165,10 +162,7 @@ const handleGenerateAfterData = (
 
   const statSnapshot = getStatAtMK(mk);
   if (!statSnapshot) {
-    logger.warn(
-      'handleGenerateAfterData',
-      `无法为 MK "${mk}" 获取变量快照，跳过宏替换。`,
-    );
+    logger.warn('handleGenerateAfterData', `无法为 MK "${mk}" 获取变量快照，跳过宏替换。`);
     return;
   }
 
