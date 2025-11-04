@@ -2,8 +2,6 @@ import { ERA_EVENT_EMITTER, type WriteDonePayload } from '../utils/constants';
 import { unescapeEraData } from '../utils/data';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { Logger } from '../utils/log';
-import { getStatAtMK } from '../core/snapshot';
-import { readMessageKey } from '../core/key/mk';
 
 const logger = new Logger('MacroParser');
 
@@ -14,58 +12,59 @@ const logger = new Logger('MacroParser');
  * @param stat_data - 可选的，用于宏替换的特定变量快照。如果未提供，则使用最新的全局状态。
  * @returns - 替换宏后的字符串。
  */
-export function parseEraMacros(text: string, stat_data?: object | null): string {
+export function parseEraMacros(
+  text: string,
+  statWithMeta?: object | null,
+  statWithoutMeta?: object | null,
+): string {
   const macroRegex = /{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi;
 
-  // 如果文本中不包含宏特征字符串, 直接返回以优化性能
   if (!text.includes('{{ERA')) {
     return text;
   }
 
-  // 优先使用传入的 stat_data，否则获取最新的全局 stat
-  const stat = stat_data ?? getEraData().stat;
-
-  logger.debug('parseEraMacros', 'ERA宏模块，获取到用于替换的stat', stat);
-  if (!stat) {
-    logger.warn('parseEraMacros', '无法获取到 stat_data, 宏替换失败.');
-    // 如果没有 stat_data, 任何宏都无法解析, 直接返回原文本
-    return text;
-  }
+  // 如果没有提供特定的 stat，则从全局获取
+  const finalStatWithMeta = statWithMeta ?? getEraData().stat;
+  const finalStatWithoutMeta = statWithoutMeta ?? removeMetaFields(getEraData().stat);
 
   return text.replace(macroRegex, (substring, withMeta, path) => {
     const funcName = 'parseEraMacros';
     const trimmedPath = path.trim();
     const includeMeta = !!withMeta;
 
+    // 根据用户要求，选择正确的数据源
+    const statToUse = includeMeta ? finalStatWithMeta : finalStatWithoutMeta;
+
+    if (!statToUse) {
+      logger.warn(funcName, `无法获取到宏替换所需的数据 (includeMeta: ${includeMeta})`);
+      return substring; // 返回原始宏以避免破坏内容
+    }
+
     let data;
     if (trimmedPath === '$ALLDATA') {
-      data = stat;
+      data = statToUse;
     } else {
-      data = _.get(stat, trimmedPath);
+      data = _.get(statToUse, trimmedPath);
     }
 
     if (data === undefined) {
-      logger.warn(funcName, `在 stat_data 中未找到路径 "${trimmedPath}", 宏将替换为空字符串.`);
+      logger.warn(funcName, `在数据源中未找到路径 "${trimmedPath}", 宏将替换为空字符串.`);
       return ''; // 路径未找到, 返回空字符串
     }
 
-    // 根据 withMeta 标志决定是否移除 $meta 字段
-    const dataBeforeUnescape = includeMeta ? data : removeMetaFields(data);
+    // 因为我们已经从正确的数据源获取了数据，所以不再需要在这里手动移除 meta 字段
+    // 直接反转义即可
+    const finalData = unescapeEraData(data);
 
-    // 在返回数据前进行反转义
-    const finalData = unescapeEraData(dataBeforeUnescape);
-
-    logger.debug('parseEraMacros', `宏替换数据反转义: ${trimmedPath}`, {
-      before: dataBeforeUnescape,
+    logger.debug(funcName, `宏替换数据反转义: ${trimmedPath}`, {
+      before: data,
       after: finalData,
     });
 
-    // 如果是对象或数组, 转换为 JSON 字符串
     if (typeof finalData === 'object' && finalData !== null) {
       return JSON.stringify(finalData);
     }
 
-    // 如果是原始类型, 直接转换为字符串
     return String(finalData);
   });
 }
@@ -103,8 +102,8 @@ const handleWriteDone = (payload: WriteDonePayload) => {
       return;
     }
 
-    // 直接在当前已渲染的 HTML 上解析 ERA 宏
-    const newHtml = parseEraMacros(currentHtml);
+    // 使用 payload 中的数据来解析宏
+    const newHtml = parseEraMacros(currentHtml, payload.stat, payload.statWithoutMeta);
 
     // 仅当内容发生变化时才更新 DOM，以避免不必要的重绘
     if (newHtml !== currentHtml) {
@@ -142,45 +141,62 @@ const handleGenerateAfterData = (generate_data: { prompt: SillyTavern.SendingMes
     return;
   }
 
-  // 1. 使用正确的 API 获取最后一条用户消息
-  const userMessages = getChatMessages('0-{{lastMessageId}}', { role: 'user' });
-  if (userMessages.length === 0) {
-    logger.warn('handleGenerateAfterData', '未找到任何用户消息，无法确定宏替换的上下文，跳过。');
-    return;
-  }
-  const lastUserMessage = userMessages[userMessages.length - 1];
+  // 检查提示中是否真的有宏，没有就直接返回，避免不必要的事件开销
+  const hasMacro = generate_data.prompt.some(
+    (p) => typeof p.content === 'string' && p.content.includes('{{ERA'),
+  );
 
-  // 2. 获取该消息的快照
-  const mk = readMessageKey(lastUserMessage);
-  if (!mk) {
-    logger.warn(
-      'handleGenerateAfterData',
-      `最后一条用户消息 (ID: ${lastUserMessage.message_id}) 没有有效的 MK，无法获取快照，跳过。`,
-    );
+  if (!hasMacro) {
     return;
   }
 
-  const statSnapshot = getStatAtMK(mk);
-  if (!statSnapshot) {
-    logger.warn('handleGenerateAfterData', `无法为 MK "${mk}" 获取变量快照，跳过宏替换。`);
-    return;
-  }
+  // 定义一次性事件处理器
+  const processMacros = (detail: any) => {
+    // 确保这是我们想要的查询结果
+    if (detail.queryType !== 'getCurrentVars') {
+      return;
+    }
+    // 移除监听器，避免内存泄漏和重复执行
+    eventRemoveListener('era:queryResult', processMacros);
 
-  logger.debug('handleGenerateAfterData', '成功获取到基于最后一条用户消息的变量快照，准备替换宏。', {
-    message_id: lastUserMessage.message_id,
-    mk,
-  });
+    // 检查错误
+    if (detail.result && detail.result.error) {
+      logger.error('handleGenerateAfterData', `ERA 查询 [getCurrentVars] 失败:`, detail.result.error);
+      return;
+    }
 
-  // 3. 使用快照替换所有消息中的宏
-  for (const message of generate_data.prompt) {
-    if (typeof message.content === 'string' && message.content.includes('{{ERA')) {
-      const originalContent = message.content;
-      message.content = parseEraMacros(originalContent, statSnapshot);
-      if (originalContent !== message.content) {
-        logger.log('handleGenerateAfterData', `成功替换了 role: ${message.role} 消息中的 ERA 宏。`);
+    const statWithMeta = detail.result?.stat;
+    const statWithoutMeta = detail.result?.statWithoutMeta;
+
+    if (!statWithMeta || !statWithoutMeta) {
+      logger.warn(
+        'handleGenerateAfterData',
+        `无法从 era:queryResult 事件中获取完整的变量快照，跳过宏替换。`,
+      );
+      return;
+    }
+
+    logger.debug('handleGenerateAfterData', '成功通过事件获取到当前变量快照，准备替换宏。');
+
+    // 使用快照替换所有消息中的宏
+    for (const message of generate_data.prompt) {
+      if (typeof message.content === 'string' && message.content.includes('{{ERA')) {
+        const originalContent = message.content;
+        // 将两个 stat 对象都传递给新的 parseEraMacros
+        message.content = parseEraMacros(originalContent, statWithMeta, statWithoutMeta);
+        if (originalContent !== message.content) {
+          logger.log('handleGenerateAfterData', `成功替换了 role: ${message.role} 消息中的 ERA 宏。`);
+        }
       }
     }
-  }
+  };
+
+  // 监听查询结果事件
+  eventOn('era:queryResult', processMacros);
+
+  // 发送事件请求最新的变量状态
+  logger.debug('handleGenerateAfterData', '发送 era:getCurrentVars 事件以获取宏替换所需的状态。');
+  eventEmit('era:getCurrentVars');
 };
 
 $(() => {
