@@ -12,11 +12,7 @@ const logger = new Logger('MacroParser');
  * @param stat_data - 可选的，用于宏替换的特定变量快照。如果未提供，则使用最新的全局状态。
  * @returns - 替换宏后的字符串。
  */
-export function parseEraMacros(
-  text: string,
-  statWithMeta?: object | null,
-  statWithoutMeta?: object | null,
-): string {
+export function parseEraMacros(text: string, statWithMeta?: object | null, statWithoutMeta?: object | null): string {
   const macroRegex = /{{\s*ERA(-withmeta)?\s*:\s*([^}]+?)\s*}}/gi;
 
   if (!text.includes('{{ERA')) {
@@ -142,9 +138,7 @@ const handleGenerateAfterData = (generate_data: { prompt: SillyTavern.SendingMes
   }
 
   // 检查提示中是否真的有宏，没有就直接返回，避免不必要的事件开销
-  const hasMacro = generate_data.prompt.some(
-    (p) => typeof p.content === 'string' && p.content.includes('{{ERA'),
-  );
+  const hasMacro = generate_data.prompt.some(p => typeof p.content === 'string' && p.content.includes('{{ERA'));
 
   if (!hasMacro) {
     return;
@@ -169,10 +163,7 @@ const handleGenerateAfterData = (generate_data: { prompt: SillyTavern.SendingMes
     const statWithoutMeta = detail.result?.statWithoutMeta;
 
     if (!statWithMeta || !statWithoutMeta) {
-      logger.warn(
-        'handleGenerateAfterData',
-        `无法从 era:queryResult 事件中获取完整的变量快照，跳过宏替换。`,
-      );
+      logger.warn('handleGenerateAfterData', `无法从 era:queryResult 事件中获取完整的变量快照，跳过宏替换。`);
       return;
     }
 
