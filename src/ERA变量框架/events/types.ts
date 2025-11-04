@@ -1,14 +1,8 @@
 'use strict';
 
-import { WriteDonePayload } from '../utils/constants';
+import type { ActionsTaken, WriteDonePayload } from '../utils/constants';
 
-export interface ActionsTaken {
-  rollback: boolean;
-  apply: boolean;
-  resync: boolean;
-  api: boolean;
-  apiWrite: boolean;
-}
+export type { ActionsTaken };
 
 /**
  * @interface DispatcherPayload

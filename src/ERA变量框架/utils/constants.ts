@@ -162,6 +162,27 @@ export const ERA_EVENT_EMITTER = {
 } as const;
 
 /**
+ * 描述在一次事件处理循环中，执行了哪些核心操作。
+ * 这对于外部脚本理解状态变更的原因至关重要。
+ */
+export interface ActionsTaken {
+  /** 是否执行了 `rollbackByMk` 操作 */
+  rollback: boolean;
+  /** 是否执行了 `ApplyVarChange` 操作 */
+  apply: boolean;
+  /** 是否执行了 `resyncStateOnHistoryChange` 操作 */
+  resync: boolean;
+  /** 是否执行了 API 调用 */
+  api: boolean;
+  /** 是否是由API调用触发的后续逻辑 */
+  apiWrite: boolean;
+  /** 是否因编辑消息而触发了重新同步 */
+  editedResync: boolean;
+  /** 是否因滑动消息而触发了变量回退 */
+  swipedRollback: boolean;
+}
+
+/**
  * `era:writeDone` 事件的负载对象结构。它提供了关于一次成功写入操作的完整上下文。
  */
 export interface WriteDonePayload {
@@ -180,20 +201,8 @@ export interface WriteDonePayload {
   is_user: boolean;
   /**
    * 描述在本轮事件处理中，执行了哪些核心操作。
-   * 这对于外部脚本理解状态变更的原因至关重要。
    */
-  actions: {
-    /** 是否执行了 `rollbackByMk` 操作 */
-    rollback: boolean;
-    /** 是否执行了 `ApplyVarChange` 操作 */
-    apply: boolean;
-    /** 是否执行了 `resyncStateOnHistoryChange` 操作 */
-    resync: boolean;
-    /** 是否执行了 API 调用 */
-    api: boolean;
-    /** 是否是由API调用触发的后续逻辑 */
-    apiWrite: boolean;
-  };
+  actions: ActionsTaken;
   /**
    * 事件处理完成**之后**，整个聊天会话的**已选择消息密钥链 (Selected Message Keys)** 的最新状态。
    * 这是一个稀疏数组，其索引约等于消息 ID，值是对应楼层消息的 MK。

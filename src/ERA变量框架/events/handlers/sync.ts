@@ -26,6 +26,8 @@ export async function handleSyncEvent(
   if (eventType != 'combo_sync') forceRenderRecentMessages();
 
   // 更新状态并发送事件
-  await updateLatestSelectedMk();
+  await updateLatestSelectedMk(payload.mk);
+  const allMessages = getChatMessages('0-{{lastMessageId}}', { include_swipes: true });
+  logger.debug('handleSyncEvent', '完成sync处理后的消息列表', allMessages);
   emitWriteDoneEvent(payload);
 }

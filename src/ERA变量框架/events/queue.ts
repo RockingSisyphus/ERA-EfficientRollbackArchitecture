@@ -16,7 +16,7 @@
 'use strict';
 
 import { Logger } from '../utils/log';
-import { dispatchAndExecuteTask, IgnoreRule } from './dispatcher';
+import { dispatchAndExecuteTask } from './dispatcher';
 import { EVENT_DEBOUNCE_MAP, EventJob, getEventGroup, mergeEventBatch } from './merger';
 
 const logger = new Logger();
@@ -95,7 +95,7 @@ async function processQueue() {
 
   // 【循环处理】
   // 只要队列不为空，就持续处理。这能确保在防抖期间新到达的事件也被纳入处理范围。
-  let mkToIgnore: IgnoreRule | null = null;
+  // let mkToIgnore: IgnoreRule | null = null; // 已弃用
   while (eventQueue.length > 0) {
     const batchToProcess = eventQueue.splice(0, eventQueue.length);
     const finalJobs = mergeEventBatch(batchToProcess);
@@ -106,8 +106,9 @@ async function processQueue() {
     );
 
     for (const job of finalJobs) {
-      const newIgnoreRule = await dispatchAndExecuteTask(job, mkToIgnore);
-      mkToIgnore = newIgnoreRule;
+      // const newIgnoreRule = await dispatchAndExecuteTask(job, mkToIgnore);
+      // mkToIgnore = newIgnoreRule;
+      await dispatchAndExecuteTask(job, null);
     }
     logger.debug('processQueue', '本轮批次处理完毕。');
   }

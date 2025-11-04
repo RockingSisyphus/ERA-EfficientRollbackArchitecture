@@ -13,21 +13,21 @@ import { ActionsTaken, DispatcherPayload } from './types';
 
 const logger = new Logger();
 
-/**
- * @constant {number} RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION
- * @description 当 `ensureMessageKey` 注入一个新的 MK 后，需要忽略的由该操作触发的 `character_message_rendered` 事件的数量。
- * 通常设置为 1，因为一次消息内容更新通常只会触发一次渲染事件。
- */
-const RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION = 1;
+// /**
+//  * @constant {number} RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION
+//  * @description 当 `ensureMessageKey` 注入一个新的 MK 后，需要忽略的由该操作触发的 `character_message_rendered` 事件的数量。
+//  * 通常设置为 1，因为一次消息内容更新通常只会触发一次渲染事件。
+//  */
+// const RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION = 1;
 
-/**
- * @interface IgnoreRule
- * @description 定义了因 MK 注入而需要忽略后续渲染事件的规则。
- */
-export interface IgnoreRule {
-  mk: string;
-  ignoreCount: number;
-}
+// /**
+//  * @interface IgnoreRule
+//  * @description 定义了因 MK 注入而需要忽略后续渲染事件的规则。
+//  */
+// export interface IgnoreRule {
+//   mk: string;
+//   ignoreCount: number;
+// }
 
 /**
  * @interface ConsecutiveMkState
@@ -45,32 +45,32 @@ export interface ConsecutiveMkState {
  */
 let consecutiveMkState: ConsecutiveMkState | null = null;
 
-/**
- * **【辅助函数】处理由 MK 注入触发的冗余渲染事件**
- * @param eventType - 当前事件的类型。
- * @param currentMk - 当前消息的 MK。
- * @param mkToIgnore - 当前的忽略规则。
- * @returns {{ shouldSkip: boolean; newIgnoreRule: IgnoreRule | null }} - 返回是否应跳过此事件，以及更新后的忽略规则。
- */
-function handleRedundantRenderEvent(
-  eventType: string,
-  currentMk: string | null,
-  mkToIgnore: IgnoreRule | null,
-): { shouldSkip: boolean; newIgnoreRule: IgnoreRule | null } {
-  if (mkToIgnore && eventType === tavern_events.CHARACTER_MESSAGE_RENDERED && currentMk === mkToIgnore.mk) {
-    logger.debug(
-      'handleRedundantRenderEvent',
-      `忽略由 MK (${mkToIgnore.mk}) 注入触发的冗余渲染事件。剩余忽略次数: ${mkToIgnore.ignoreCount - 1}`,
-    );
-    mkToIgnore.ignoreCount--;
-    if (mkToIgnore.ignoreCount <= 0) {
-      mkToIgnore = null; // 忽略次数用完，重置
-      logger.debug('handleRedundantRenderEvent', `忽略次数用完`);
-    }
-    return { shouldSkip: true, newIgnoreRule: mkToIgnore };
-  }
-  return { shouldSkip: false, newIgnoreRule: mkToIgnore };
-}
+// /**
+//  * **【辅助函数】处理由 MK 注入触发的冗余渲染事件**
+//  * @param eventType - 当前事件的类型。
+//  * @param currentMk - 当前消息的 MK。
+//  * @param mkToIgnore - 当前的忽略规则。
+//  * @returns {{ shouldSkip: boolean; newIgnoreRule: IgnoreRule | null }} - 返回是否应跳过此事件，以及更新后的忽略规则。
+//  */
+// function handleRedundantRenderEvent(
+//   eventType: string,
+//   currentMk: string | null,
+//   mkToIgnore: IgnoreRule | null,
+// ): { shouldSkip: boolean; newIgnoreRule: IgnoreRule | null } {
+//   if (mkToIgnore && eventType === tavern_events.CHARACTER_MESSAGE_RENDERED && currentMk === mkToIgnore.mk) {
+//     logger.debug(
+//      'handleRedundantRenderEvent',
+//      `忽略由 MK (${mkToIgnore.mk}) 注入触发的冗余渲染事件。剩余忽略次数: ${mkToIgnore.ignoreCount - 1}`,
+//     );
+//     mkToIgnore.ignoreCount--;
+//     if (mkToIgnore.ignoreCount <= 0) {
+//       mkToIgnore = null; // 忽略次数用完，重置
+//       logger.debug('handleRedundantRenderEvent', `忽略次数用完`);
+//     }
+//     return { shouldSkip: true, newIgnoreRule: mkToIgnore };
+//   }
+//   return { shouldSkip: false, newIgnoreRule: mkToIgnore };
+// }
 
 /**
  * **【辅助函数】更新连续处理计数**
@@ -98,61 +98,97 @@ function updateConsecutiveMkCount(): number {
  * **【任务执行器】**
  * 负责执行单个事件任务，包含所有前置、后置处理和错误捕获。
  * @param {EventJob} job - 要执行的事件任务。
- * @param {IgnoreRule | null} mkToIgnore - 当前的忽略规则。**作用域**: 仅在单次批处理 (event queue processing loop) 中生效。
- * @returns {Promise<IgnoreRule | null>} - 返回更新后的忽略规则。
+ * @param {any} _mkToIgnore - (已弃用) 当前的忽略规则。
+ * @returns {Promise<any>} - (已弃用) 返回更新后的忽略规则。
  */
-export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRule | null): Promise<IgnoreRule | null> {
+export async function dispatchAndExecuteTask(job: EventJob, _mkToIgnore: any): Promise<any> {
   const { type: eventType } = job;
   const eventGroup = getEventGroup(eventType);
   let message_id: number | null = null;
   const eventDetail = job.detail;
-
+  logger.debug(
+    'dispatchAndExecuteTask',
+    '全处理开始前快照，所有消息',
+    getChatMessages('0-{{lastMessageId}}', { include_swipes: true }),
+  );
   // 在每轮任务开始时，初始化操作记录器
-  const actionsTaken: ActionsTaken = { rollback: false, apply: false, resync: false, api: false, apiWrite: false };
+  const actionsTaken: ActionsTaken = {
+    rollback: false,
+    apply: false,
+    resync: false,
+    api: false,
+    apiWrite: false,
+    editedResync: false,
+    swipedRollback: false,
+  };
 
   try {
     // **入口保障**: 尝试获取最新消息内容，内置的重试和延迟机制可以应对酒馆消息更新延迟。
-    // 即使最终失败，也继续执行，目的只是为了“等待”。
-    await getMessageContentWithRetry();
+    const initialContent = await getMessageContentWithRetry();
+    if (initialContent === null) {
+      //logger.warn('dispatchAndExecuteTask', '无法获取任何消息内容，ERA 框架停止运行。');
+      //return null;
+    }
 
     const latestMessage = getChatMessages(-1, { include_swipes: true })?.[0];
     if (!latestMessage) {
       logger.warn('dispatchAndExecuteTask', '无法获取最新消息，跳过任务执行。');
-      return mkToIgnore;
+      return null;
     }
 
-    // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
-    logger.log('dispatchAndExecuteTask', '调用 ensureMkForLatestMessage');
-    const { mk, message_id: msgId, isNewKey } = await ensureMkForLatestMessage(latestMessage);
-    if (!mk || msgId === null) {
-      logger.warn('dispatchAndExecuteTask', '无法获取有效的 MK 或消息 ID，跳过任务执行。');
-      return mkToIgnore;
+    let mk: string;
+    let msgId: number | null;
+    // let isNewKey: boolean;
+
+    // 在 combo_swipe_and_regenerate 事件中，我们不应该注入新的 MK 或占位符，因为该消息即将被回滚。
+    if (eventType === 'combo_swipe_and_regenerate') {
+      logger.log('dispatchAndExecuteTask', '检测到 combo_swipe_and_regenerate 事件，跳过 MK 和占位符注入。');
+      msgId = latestMessage.message_id;
+      mk = ''; // 使用空字符串作为回退
+      // isNewKey = false;
+    } else {
+      // **前置保障**: 确保最新消息有 MK 并设置日志上下文。
+      logger.log('dispatchAndExecuteTask', '调用 ensureMkForLatestMessage');
+      const { mk: newMk, message_id: newMsgId, isNewKey: newIsNewKey } = await ensureMkForLatestMessage(latestMessage);
+
+      if (!newMk || newMsgId === null) {
+        logger.warn('dispatchAndExecuteTask', '无法获取有效的 MK 或消息 ID，跳过任务执行。');
+        return null;
+      }
+      mk = newMk;
+      msgId = newMsgId;
+      // isNewKey = newIsNewKey;
+
+      // **前置保障**: 确保 AI 消息有占位符
+      logger.log('dispatchAndExecuteTask', '调用 ensurePlaceholder');
+      await ensurePlaceholder(msgId);
+    }
+
+    if (msgId === null) {
+      logger.warn('dispatchAndExecuteTask', '无法获取有效的消息 ID，跳过任务执行。');
+      return null;
     }
     logContext.mk = mk;
     message_id = msgId;
 
     const is_user = isUserMessage(latestMessage);
 
-    // **前置保障**: 确保 AI 消息有占位符
-    logger.log('dispatchAndExecuteTask', '调用 ensurePlaceholder');
-    await ensurePlaceholder(message_id);
+    // // 如果 ensureMkForLatestMessage 刚刚注入了一个新的 MK，就创建或更新忽略规则。
+    // if (isNewKey && mk) {
+    //   mkToIgnore = {
+    //     mk: mk,
+    //     ignoreCount: RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION,
+    //   };
+    // }
 
-    // 如果 ensureMkForLatestMessage 刚刚注入了一个新的 MK，就创建或更新忽略规则。
-    if (isNewKey && mk) {
-      mkToIgnore = {
-        mk: mk,
-        ignoreCount: RENDER_EVENTS_TO_IGNORE_AFTER_MK_INJECTION,
-      };
-    }
-
-    // **核心优化**: 检查并处理由 MK 注入触发的冗余渲染事件。
-    logger.debug('dispatchAndExecuteTask', '调用 handleRedundantRenderEvent');
-    const { shouldSkip, newIgnoreRule } = handleRedundantRenderEvent(eventType, mk, mkToIgnore);
-    mkToIgnore = newIgnoreRule; // 更新忽略规则的状态
-    if (shouldSkip) {
-      // 如果事件被忽略，则直接返回，不更新连续处理计数
-      return mkToIgnore;
-    }
+    // // **核心优化**: 检查并处理由 MK 注入触发的冗余渲染事件。
+    // logger.debug('dispatchAndExecuteTask', '调用 handleRedundantRenderEvent');
+    // const { shouldSkip, newIgnoreRule } = handleRedundantRenderEvent(eventType, mk, mkToIgnore);
+    // mkToIgnore = newIgnoreRule; // 更新忽略规则的状态
+    // if (shouldSkip) {
+    //   // 如果事件被忽略，则直接返回，不更新连续处理计数
+    //   return mkToIgnore;
+    // }
 
     logger.log('dispatchAndExecuteTask', `执行任务: ${eventType} (分组: ${eventGroup})`);
 
@@ -190,38 +226,51 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
         break;
       case 'DIRECTED_SYNC': {
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();
-        let targetedMessageId: number | null = null;
 
-        // 检查是否是“滑动并重新生成”的组合事件
         if (eventType === 'combo_swipe_and_regenerate') {
-          // 目标是前一条消息
-          targetedMessageId = message_id - 1;
+          // 处理“滑动并重新生成”事件
+          actionsTaken.swipedRollback = true;
+          const targetedMessageId = message_id - 1; // 目标是前一条消息
+          const stopAtTarget = true; // 滑动后，同步应该在目标处停止
+
           logger.log(
             'dispatchAndExecuteTask',
-            `检测到 combo_swipe_and_regenerate 事件，目标消息 ID 设置为: ${targetedMessageId}`,
+            `处理 combo_swipe_and_regenerate 事件，目标消息 ID: ${targetedMessageId}, stopAtTarget: ${stopAtTarget}`,
           );
+
+          if (targetedMessageId < 0) {
+            logger.warn('dispatchAndExecuteTask', '无法对第一条消息执行滑动回退，按普通同步处理。');
+            await handleSyncEvent(job, actionsTaken, payload);
+          } else {
+            await handleSyncEvent(job, actionsTaken, payload, targetedMessageId, stopAtTarget);
+          }
+        } else if (eventType === tavern_events.MESSAGE_EDITED) {
+          // 处理“消息编辑”事件
+          actionsTaken.editedResync = true;
+          const targetedMessageId = extractMessageIdFromDetail(eventDetail);
+          const stopAtTarget = false; // 编辑后，同步应该完整执行到最新状态
+
+          logger.log(
+            'dispatchAndExecuteTask',
+            `处理 MESSAGE_EDITED 事件，目标消息 ID: ${targetedMessageId}, stopAtTarget: ${stopAtTarget}`,
+          );
+
+          if (targetedMessageId === null || targetedMessageId < 0) {
+            logger.warn('dispatchAndExecuteTask', 'MESSAGE_EDITED 事件缺少或无效的 message_id，按普通同步处理。', {
+              eventDetail,
+            });
+            await handleSyncEvent(job, actionsTaken, payload);
+          } else {
+            await handleSyncEvent(job, actionsTaken, payload, targetedMessageId, stopAtTarget);
+          }
         } else {
-          // 其他定向同步事件（如 MESSAGE_EDITED）
-          targetedMessageId = extractMessageIdFromDetail(eventDetail);
-        }
-
-        if (targetedMessageId === null || targetedMessageId < 0) {
-          logger.warn('dispatchAndExecuteTask', '定向同步事件缺少或无效的 message_id，按普通同步处理。', {
-            eventDetail,
-            calculatedId: targetedMessageId,
-          });
+          // 处理未知的定向同步事件
+          logger.warn(
+            'dispatchAndExecuteTask',
+            `接收到未明确处理的 DIRECTED_SYNC 事件: ${eventType}，按普通同步处理。`,
+          );
           await handleSyncEvent(job, actionsTaken, payload);
-          break;
         }
-
-        // 决定是否要在目标处停止
-        const stopAtTarget = eventType === 'combo_swipe_and_regenerate';
-
-        logger.log(
-          'dispatchAndExecuteTask',
-          `调用 handleSyncEvent for DIRECTED_SYNC (message_id: ${targetedMessageId}, stopAtTarget: ${stopAtTarget})`,
-        );
-        await handleSyncEvent(job, actionsTaken, payload, targetedMessageId, stopAtTarget);
         break;
       }
     }
@@ -235,6 +284,10 @@ export async function dispatchAndExecuteTask(job: EventJob, mkToIgnore: IgnoreRu
     //暂时取消等待逻辑，提高即时性。
     //await new Promise(resolve => setTimeout(resolve, 50));
   }
-
-  return mkToIgnore;
+  // logger.debug(
+  //   'dispatchAndExecuteTask',
+  //   '全处理结束后快照，所有消息',
+  //   getChatMessages('0-{{lastMessageId}}', { include_swipes: true }),
+  // );
+  return null;
 }

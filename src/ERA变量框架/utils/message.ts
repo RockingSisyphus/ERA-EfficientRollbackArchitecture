@@ -236,7 +236,7 @@ export function findLastAiMessage(): any | null {
  */
 export async function getMessageContentWithRetry(
   messageOrId?: any | number,
-  retries: number = 5,
+  retries: number = 20,
   delay: number = 50,
 ): Promise<string | null> {
   let msg: any;
@@ -287,8 +287,8 @@ export async function updateMessageContent(
   refresh: 'none' | 'affected' | 'all' = 'none',
 ) {
   const oldContent = getMessageContent(message);
-  log.debug('updateMessageContent', '更新前的消息内容:', oldContent);
-  log.debug('updateMessageContent', '更新后的消息内容:', newContent);
+  //log.debug('updateMessageContent', '更新前的消息内容:', oldContent);
+  //log.debug('updateMessageContent', '更新后的消息内容:', newContent);
 
   const updatePayload: { message_id: number; message?: string; swipes?: string[] } = {
     message_id: message.message_id,

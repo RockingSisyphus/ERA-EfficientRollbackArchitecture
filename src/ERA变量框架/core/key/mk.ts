@@ -215,22 +215,21 @@ export const ensureMkForLatestMessage = async (
  * **【更新最新已选 MK】**
  * 这是一个“保险”函数，用于在每次事件处理的最后，强制校准 `SelectedMks` 数组中关于**最新消息**的记录。
  * 它确保即使在复杂的异步流程中，`SelectedMks` 的尾部也始终与实际的最新消息保持严格同步。
+ * @param {string} mk - 要更新的最新消息的 MK。
  * @returns {Promise<void>}
  */
-export const updateLatestSelectedMk = async () => {
+export const updateLatestSelectedMk = async (mk: string) => {
   const msg = getChatMessages(-1, { include_swipes: true })?.[0];
   if (!msg || typeof msg.message_id !== 'number') return;
 
-  // 确保 MK 存在并获取它
-  const { mk: MK } = await ensureMessageKey(msg);
-  if (!MK) return;
+  if (!mk) return;
 
   // 更新 ERAMetaData 中的 SelectedMks 数组
   await updateEraMetaData(meta => {
     const selectedMks = _.get(meta, SEL_PATH, []);
     // 只有在记录不一致时才执行写操作，以优化性能
-    if (selectedMks[msg.message_id] !== MK) {
-      selectedMks[msg.message_id] = MK;
+    if (selectedMks[msg.message_id] !== mk) {
+      selectedMks[msg.message_id] = mk;
       _.set(meta, SEL_PATH, selectedMks);
     }
     return meta;
