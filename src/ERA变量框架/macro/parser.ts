@@ -1,5 +1,4 @@
 import { ERA_EVENT_EMITTER, type WriteDonePayload } from '../utils/constants';
-import { unescapeEraData } from '../utils/data';
 import { getEraData, removeMetaFields } from '../utils/era_data';
 import { Logger } from '../utils/log';
 
@@ -48,13 +47,11 @@ export function parseEraMacros(text: string, statWithMeta?: object | null, statW
       return ''; // 路径未找到, 返回空字符串
     }
 
-    // 因为我们已经从正确的数据源获取了数据，所以不再需要在这里手动移除 meta 字段
-    // 直接反转义即可
-    const finalData = unescapeEraData(data);
+    // 数据直接从 stat 中获取，无需反转义
+    const finalData = data;
 
-    logger.debug(funcName, `宏替换数据反转义: ${trimmedPath}`, {
-      before: data,
-      after: finalData,
+    logger.debug(funcName, `宏替换数据: ${trimmedPath}`, {
+      data: finalData,
     });
 
     if (typeof finalData === 'object' && finalData !== null) {

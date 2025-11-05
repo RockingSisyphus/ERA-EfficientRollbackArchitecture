@@ -140,9 +140,12 @@ export async function dispatchAndExecuteTask(job: EventJob, _mkToIgnore: any): P
     let msgId: number | null;
     // let isNewKey: boolean;
 
-    // 在 combo_swipe_and_regenerate 事件中，我们不应该注入新的 MK 或占位符，因为该消息即将被回滚。
-    if (eventType === 'combo_swipe_and_regenerate') {
-      logger.log('dispatchAndExecuteTask', '检测到 combo_swipe_and_regenerate 事件，跳过 MK 和占位符注入。');
+    // 在 combo_swipe_and_regenerate 事件或 API 事件中，我们不应该注入新的 MK 或占位符。
+    if (eventType === 'combo_swipe_and_regenerate' || getEventGroup(eventType) === 'API') {
+      logger.log(
+        'dispatchAndExecuteTask',
+        `检测到 ${eventType} 事件，跳过 MK 和占位符注入。`,
+      );
       msgId = latestMessage.message_id;
       mk = ''; // 使用空字符串作为回退
       // isNewKey = false;
