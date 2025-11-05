@@ -104,12 +104,8 @@ const handleWriteDone = (payload: WriteDonePayload) => {
       return;
     }
 
-    const parsedMessage = messageHasMacro
-      ? parseEraMacros(rawMessage!, payload.stat, payload.statWithoutMeta)
-      : null;
-    const parsedHtml = htmlHasMacro
-      ? parseEraMacros(currentHtml, payload.stat, payload.statWithoutMeta)
-      : currentHtml;
+    const parsedMessage = messageHasMacro ? parseEraMacros(rawMessage!, payload.stat, payload.statWithoutMeta) : null;
+    const parsedHtml = htmlHasMacro ? parseEraMacros(currentHtml, payload.stat, payload.statWithoutMeta) : currentHtml;
 
     const messageChanged = parsedMessage !== null && parsedMessage !== rawMessage;
     const htmlChanged = parsedHtml !== currentHtml;
@@ -275,4 +271,3 @@ $(() => {
     eventRemoveListener(tavern_events.GENERATE_AFTER_DATA, handleGenerateAfterData);
   });
 });
-
