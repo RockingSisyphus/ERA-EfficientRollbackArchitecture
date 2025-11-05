@@ -144,8 +144,11 @@ const handleWriteDone = (payload: WriteDonePayload) => {
     }
 
     if (!hasUpdated && htmlChanged) {
-      $messageDiv.html(parsedHtml);
-      hasUpdated = true;
+      const domPatched = replaceEraMacrosInElement($messageDiv, payload.stat, payload.statWithoutMeta);
+      if (domPatched) {
+        logger.debug('handleWriteDone', `Patched macros in-place for message_id: ${message_id}`);
+        hasUpdated = true;
+      }
     }
 
     if (hasUpdated) {
@@ -170,6 +173,52 @@ function setupMacroAutoRefresh() {
 function removeMacroAutoRefresh() {
   eventRemoveListener(ERA_EVENT_EMITTER.WRITE_DONE, handleWriteDone);
   logger.log('removeMacroAutoRefresh', 'Macro auto-refresh listener has been removed.');
+}
+
+function replaceEraMacrosInElement(
+  $root: JQuery<HTMLElement>,
+  statWithMeta?: object | null,
+  statWithoutMeta?: object | null,
+): boolean {
+  let hasPatched = false;
+  const quickMacroCheck = /{{\s*ERA/i;
+
+  const visit = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const original = node.nodeValue ?? '';
+      if (!quickMacroCheck.test(original)) {
+        return;
+      }
+
+      const replaced = parseEraMacros(original, statWithMeta, statWithoutMeta);
+      if (replaced !== original) {
+        node.nodeValue = replaced;
+        hasPatched = true;
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+
+    const element = node as HTMLElement;
+    const tagName = element.tagName;
+    if (tagName === 'SCRIPT' || tagName === 'STYLE' || tagName === 'TEXTAREA') {
+      return;
+    }
+
+    const children = Array.from(node.childNodes);
+    for (const child of children) {
+      visit(child);
+    }
+  };
+
+  $root.each((_, element) => {
+    visit(element);
+  });
+
+  return hasPatched;
 }
 
 /**
