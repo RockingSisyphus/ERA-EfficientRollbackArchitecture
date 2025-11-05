@@ -222,7 +222,7 @@ export async function dispatchAndExecuteTask(job: EventJob, _mkToIgnore: any): P
         break;
       case 'UPDATE_MK_ONLY':
         logger.log('dispatchAndExecuteTask', '调用 handleUpdateMkOnlyEvent');
-        await handleUpdateMkOnlyEvent();
+        await handleUpdateMkOnlyEvent(mk);
         break;
       case 'DIRECTED_SYNC': {
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();

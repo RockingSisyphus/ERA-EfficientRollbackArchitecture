@@ -95,12 +95,64 @@ const handleWriteDone = (payload: WriteDonePayload) => {
       return;
     }
 
-    // 使用 payload 中的数据来解析宏
-    const newHtml = parseEraMacros(currentHtml, payload.stat, payload.statWithoutMeta);
+    const chatMessage = SillyTavern?.chat?.[message_id];
+    const rawMessage = typeof chatMessage?.mes === 'string' ? chatMessage.mes : null;
+    const messageHasMacro = rawMessage !== null && rawMessage.includes('{{ERA');
+    const htmlHasMacro = currentHtml.includes('{{ERA');
 
-    // 仅当内容发生变化时才更新 DOM，以避免不必要的重绘
-    if (newHtml !== currentHtml) {
-      $messageDiv.html(newHtml);
+    if (!messageHasMacro && !htmlHasMacro) {
+      return;
+    }
+
+    const parsedMessage = messageHasMacro
+      ? parseEraMacros(rawMessage!, payload.stat, payload.statWithoutMeta)
+      : null;
+    const parsedHtml = htmlHasMacro
+      ? parseEraMacros(currentHtml, payload.stat, payload.statWithoutMeta)
+      : currentHtml;
+
+    const messageChanged = parsedMessage !== null && parsedMessage !== rawMessage;
+    const htmlChanged = parsedHtml !== currentHtml;
+
+    if (!messageChanged && !htmlChanged) {
+      return;
+    }
+
+    let hasUpdated = false;
+
+    if (messageChanged) {
+      const formatFn = typeof formatAsDisplayedMessage === 'function' ? formatAsDisplayedMessage : null;
+      let formattedHtml: string | null = null;
+
+      if (formatFn) {
+        try {
+          formattedHtml = formatFn(parsedMessage!, { message_id }) ?? null;
+        } catch (formatError) {
+          logger.warn('handleWriteDone', 'formatAsDisplayedMessage failed; falling back to DOM patch.', formatError);
+        }
+      }
+
+      const updateMessageBlock = SillyTavern?.updateMessageBlock;
+      if (typeof updateMessageBlock === 'function') {
+        const patch: Record<string, unknown> = { mes: parsedMessage! };
+        if (formattedHtml !== null) {
+          patch.message = formattedHtml;
+        }
+
+        updateMessageBlock.call(SillyTavern, message_id, patch, { rerenderMessage: true });
+        hasUpdated = true;
+      } else if (formattedHtml !== null) {
+        $messageDiv.html(formattedHtml);
+        hasUpdated = true;
+      }
+    }
+
+    if (!hasUpdated && htmlChanged) {
+      $messageDiv.html(parsedHtml);
+      hasUpdated = true;
+    }
+
+    if (hasUpdated) {
       logger.debug('handleWriteDone', `Successfully re-rendered macros for message_id: ${message_id}`);
     }
   } catch (error) {
@@ -223,3 +275,4 @@ $(() => {
     eventRemoveListener(tavern_events.GENERATE_AFTER_DATA, handleGenerateAfterData);
   });
 });
+
