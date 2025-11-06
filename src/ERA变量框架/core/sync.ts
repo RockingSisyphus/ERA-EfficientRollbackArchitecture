@@ -30,7 +30,7 @@ import { parseEditLog } from '../utils/data';
 import { getEraData, settings, updateEraMetaData, updateEraStatData } from '../utils/era_data';
 import { Logger } from '../utils/log';
 import { ApplyVarChangeForMessage } from './crud/patcher';
-import { readMessageKey } from './key/mk';
+import { ensureMessageKey, readMessageKey } from './key/mk';
 import { rollbackStatToMK } from './timetravel';
 
 const logger = new Logger();
@@ -236,21 +236,31 @@ export const resyncStateOnHistoryChange = async (
       _.set(contextMeta, SEL_PATH, newSelectedMks.slice(0, i));
       // --- 修复结束 ---
 
-      // 使用这个有正确作用域的上下文来调用纯函数
+      let ensuredMkForCurrent: string | null = readMessageKey(msg) || null;
+      if (!ensuredMkForCurrent) {
+        logger.debug('resyncStateOnHistoryChange', `当前消息id: ${msg?.message_id ?? 'unknown'}) 缺少 MK。为其生成.`);
+        try {
+          const { mk: ensuredMk } = await ensureMessageKey(msg);
+          ensuredMkForCurrent = ensuredMk;
+          //mk注入程序只会为消息增加mk，所以不需要刷新消息
+        } catch (ensureError: any) {
+          logger.error('resyncStateOnHistoryChange', `mk注入失败，跳过消息`, {
+            ensureError,
+            message_id: msg?.message_id,
+          });
+          continue;
+        }
+      }
+
+      // 调用当前消息的变量写入
       const { finalStat, finalEditLog, mk } = await ApplyVarChangeForMessage(msg, statForRecalc, contextMeta, config);
 
-      newSelectedMks[i] = mk; // 记录当前消息的 MK
-      logger.debug('resyncStateOnHistoryChange', `[重算] 正在处理消息索引: ${i}, MK: ${mk}`);
-
-      if (!mk) {
-        logger.debug('resyncStateOnHistoryChange', `消息 (ID: ${i}) 无 MK，跳过变量计算。`);
-        continue; // 如果是用户消息等，则跳过
-      }
+      newSelectedMks[i] = ensuredMkForCurrent;
 
       // 更新状态，为下一次循环做准备
       statForRecalc = finalStat;
       // 将新生成的日志写入主 metaForRecalc 对象，为下一次循环的 clone 做准备
-      _.set(metaForRecalc, [LOGS_PATH, mk], finalEditLog);
+      _.set(metaForRecalc, [LOGS_PATH, ensuredMkForCurrent], finalEditLog);
     }
     logger.debug('resyncStateOnHistoryChange', '顺序重算完成。');
 
