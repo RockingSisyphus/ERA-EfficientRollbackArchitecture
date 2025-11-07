@@ -53,6 +53,7 @@ export function applyInsertAtLevel(
 
   // --- 2. 检查路径存在性，决定执行策略 ---
   const currentNodeInVars = basePath ? _.get(statData, basePath) : statData;
+  const unInsertAble = _.get(currentNodeInVars, ['$meta', 'unInsertAble']);
   logger.debug(
     'applyInsertAtLevel',
     `[路径检查] at path: "${basePath || 'root'}". currentNodeInVars 的值:`,
@@ -76,12 +77,32 @@ export function applyInsertAtLevel(
   // **策略二：递归补充 (Recursive Supplement)**
   // 如果当前路径已存在，并且补丁和当前值都是对象，则深入递归。
   if (_.isPlainObject(currentNodeInVars) && _.isPlainObject(patchObj)) {
+    const patchKeys = Object.keys(patchObj);
+    const isMetaOnlyPatch = patchKeys.every(key => key === '$meta');
+    const hasMeaningfulPatch = patchKeys.length > 0;
+
+    if (unInsertAble === 'all' && hasMeaningfulPatch && !isMetaOnlyPatch) {
+      logger.warn(
+        'applyInsertAtLevel',
+        `VariableInsert 失败 <${basePath || 'root'}> 受到 "$meta.unInsertAble: all" 的保护，不允许插入`,
+        { basePath, patchObj, currentNodeInVars },
+      );
+      return;
+    }
     logger.debug(
       'applyInsertAtLevel',
       `[递归补充] at path: "${basePath || 'root'}"
       - 当前层级模板 (localTplContent): ${JSON.stringify(localTplContent)}`,
     );
-    for (const key of Object.keys(patchObj)) {
+    for (const key of patchKeys) {
+      if (unInsertAble === 'self' && key !== '$meta' && !_.has(currentNodeInVars, key)) {
+        logger.warn(
+          'applyInsertAtLevel',
+          `VariableInsert 失败 <${basePath || 'root'}> 受到 "$meta.unInsertAble: self" 不允许插入 "${key}"`,
+          { basePath, patchObj, currentNodeInVars, rejectedKey: key },
+        );
+        continue;
+      }
       const subPath = basePath ? `${basePath}.${key}` : key;
       const subPatch = patchObj[key];
       // 调用 getInheritedTemplateContent，从当前模板内容中为子节点查找其应继承的内容
