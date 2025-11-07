@@ -6,6 +6,9 @@
  * **设计理念**:
  * - **指令驱动**: 递归行为由指令对象的结构驱动。空对象 `{}` 表示删除当前节点，非空对象表示递归删除子节点。
  * - **安全第一**: 删除是破坏性操作，因此引入了 `$meta.necessary` 权限机制来防止误删。
+ *   - `self`: 保护当前节点不被直接删除。
+ *   - `children`: 保护所有直属子节点不被删除。
+ *   - `all`: 保护当前节点及其所有后代节点不被删除。
  * - **精确豁免**: `necessary` 的保护只有在删除指令明确指向 `necessary` 属性自身时才会被绕过。
  * - **原子性日志**: 为每一次删除生成单一、精确的 `EditLog`，确保操作可完全回滚。
  */
@@ -64,6 +67,25 @@ function applyDeleteAtLevel(statData: any, basePath: string, patchObj: any, edit
     for (const key of Object.keys(patchObj)) {
       const fullPath = basePath ? `${basePath}.${key}` : key;
       const subPatchObj = patchObj[key];
+
+      // 新增：检查 'children' 保护
+      // 这会阻止直接删除受保护节点的直属子节点。
+      if (necessary === 'children' && _.isPlainObject(subPatchObj) && _.isEmpty(subPatchObj)) {
+        // 豁免条件：允许通过特定指令删除 '$meta' 来解除保护。
+        if (key === '$meta' && isBypassingProtection) {
+          // 明确意图是移除保护，允许操作继续。
+        } else {
+          logger.warn(
+            'applyDeleteAtLevel',
+            `VariableDelete 失败：父路径 <${
+              basePath || '(root)'
+            }> 受 "necessary: children" 保护，其直属子节点 <${key}> 无法被删除。`,
+            { basePath, key, patchObj, currentNodeInVars },
+          );
+          continue; // 跳过此子节点的删除，继续处理下一个。
+        }
+      }
+
       applyDeleteAtLevel(statData, fullPath, subPatchObj, editLog);
     }
     return; // 子节点处理完毕，返回。
