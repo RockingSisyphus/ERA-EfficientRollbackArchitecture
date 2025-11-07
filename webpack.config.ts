@@ -378,7 +378,9 @@ function parse_configuration(entry: Entry, is_release = false): (_env: any, argv
           configFile: path.join(__dirname, 'tsconfig.json'),
         }),
       ],
-      alias: {},
+      alias: {
+        'ERA变量框架': path.resolve(__dirname, 'src/ERA变量框架'),
+      },
     },
     plugins: (is_release
       ? []
@@ -481,6 +483,10 @@ function parse_configuration(entry: Entry, is_release = false): (_env: any, argv
     },
     externals: ({ context, request }, callback) => {
       if (!context || !request) {
+        return callback();
+      }
+
+      if (request.startsWith('ERA变量框架')) {
         return callback();
       }
 

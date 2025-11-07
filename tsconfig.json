@@ -13,7 +13,11 @@
     "module": "ESNext",
     "outDir": "dist",
     "baseUrl": "src",
-    "paths": {},
+    "paths": {
+      "ERA变量框架/*": [
+        "ERA变量框架/*"
+      ]
+    },
     "moduleDetection": "auto",
     "moduleResolution": "bundler",
     "allowUmdGlobalAccess": true,
