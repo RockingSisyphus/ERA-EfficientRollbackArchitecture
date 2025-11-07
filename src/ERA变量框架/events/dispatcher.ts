@@ -1,5 +1,6 @@
 'use strict';
 
+import { ERA_EVENT_EMITTER } from 'ERA变量框架/utils/constants';
 import { ensureMkForLatestMessage } from '../core/key/mk';
 import { initializeExternalSettings } from '../initer/auto/settings';
 import { ensurePlaceholder } from '../macro/placeholder';
@@ -212,6 +213,9 @@ export async function dispatchAndExecuteTask(job: EventJob, _mkToIgnore: any): P
         await handleSyncEvent(job, actionsTaken, payload);
         break;
       case 'SYNC':
+        if (eventType === ERA_EVENT_EMITTER.API_WRITE) {
+          actionsTaken.apiWrite = true;
+        }
         payload.consecutiveProcessingCount = updateConsecutiveMkCount();
         logger.log('dispatchAndExecuteTask', '调用 handleSyncEvent for SYNC');
         await handleSyncEvent(job, actionsTaken, payload);
