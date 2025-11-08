@@ -33,25 +33,27 @@ export type TagMatchMode = 'exact' | 'prefix' | 'suffix' | 'contains' | 'any';
  * 辅助函数：根据关键字和模式创建用于匹配标签名的正则表达式。
  * @param {string} [keyword=''] - 标签关键字。
  * @param {TagMatchMode} [mode='exact'] - 匹配模式。
+ * @param {boolean} [ignoreCase=false] - 是否忽略大小写。
  * @returns {RegExp} 生成的正则表达式。
  */
-export function createTagRegex(keyword: string = '', mode: TagMatchMode = 'exact'): RegExp {
+export function createTagRegex(keyword: string = '', mode: TagMatchMode = 'exact', ignoreCase: boolean = false): RegExp {
+  const flags = ignoreCase ? 'i' : '';
   if (mode === 'any' || keyword === '*') {
-    return /([a-zA-Z][a-zA-Z0-9_]*)/;
+    return new RegExp('([a-zA-Z][a-zA-Z0-9_]*)', flags);
   }
   // 对 keyword 进行转义，防止特殊字符影响正则
   const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   switch (mode) {
     case 'exact':
-      return new RegExp(`(${escapedKeyword})`);
+      return new RegExp(`(${escapedKeyword})`, flags);
     case 'prefix':
-      return new RegExp(`(${escapedKeyword}[a-zA-Z0-9_]*)`);
+      return new RegExp(`(${escapedKeyword}[a-zA-Z0-9_]*)`, flags);
     case 'suffix':
-      return new RegExp(`([a-zA-Z0-9_]*${escapedKeyword})`);
+      return new RegExp(`([a-zA-Z0-9_]*${escapedKeyword})`, flags);
     case 'contains':
     default:
-      return new RegExp(`([a-zA-Z0-9_]*${escapedKeyword}[a-zA-Z0-9_]*)`);
+      return new RegExp(`([a-zA-Z0-9_]*${escapedKeyword}[a-zA-Z0-9_]*)`, flags);
   }
 }
 
@@ -237,7 +239,7 @@ export function extractBlocksByRegex(text: string, tagNameRegex: RegExp): string
  */
 export function extractValidBlocks(text: string, targetTagNameRegex: RegExp, toSimplified: boolean = false): string[] {
   // 1. 预处理：移除所有包含 "think" 的标签块
-  const thinkRegex = createTagRegex('think', 'contains');
+  const thinkRegex = createTagRegex('think', 'contains', true);
   const processedText = removeTagsByRegex(text, thinkRegex);
 
   // 2. 提取：从尾部开始查找目标 tag，确保标签闭合

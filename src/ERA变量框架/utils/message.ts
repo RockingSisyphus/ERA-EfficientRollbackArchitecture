@@ -9,14 +9,7 @@
 import { ERA_DATA_REGEX } from './constants';
 import { escapeEraData, parseJsonl } from './data';
 import { Logger } from './log';
-import {
-  containsXMLTags,
-  createTagRegex,
-  extractValidBlocks,
-  removeTagsByRegex,
-  stripCodeFence,
-  traditionalToSimplified,
-} from './string';
+import { containsXMLTags, createTagRegex, removeTagsByRegex, stripCodeFence, traditionalToSimplified } from './string';
 import { parseCharacterMacros } from './text';
 
 const log = new Logger();
@@ -329,73 +322,78 @@ export interface EraCommand {
  * @returns {EraCommand[]} - 包含所有指令的有序数组。
  */
 export function extractAndParseCommands(msg: any, toSimplified: boolean = false): EraCommand[] {
-  let rawContent = getMessageContent(msg) || '';
+  const rawContent = getMessageContent(msg) || '';
+  if (!rawContent) return [];
 
-  // 预处理：移除所有 <think> 块，以避免干扰指令解析
-  const thinkRegex = createTagRegex('think', 'contains');
-  rawContent = removeTagsByRegex(rawContent, thinkRegex);
+  const commands: (EraCommand & { index: number })[] = [];
 
-  // 正则表达式：一次性捕获所有三种类型的指令块及其内容
-  // 使用 's' 标志允许 '.' 匹配换行符，'g' 标志进行全局搜索
-  const commandRegex = /<(VariableInsert|VariableEdit|VariableDelete)>([\s\S]*?)<\/\1>/g;
+  // 采纳了用户的建议，使用一个包含负向先行断言的强大正则表达式。
+  // 这可以一次性、正确地提取出指令块，同时忽略所有嵌套的、不相关的标签。
+  const commandRegex =
+    /<(Variable(Insert|Edit|Delete))>\s*(?=[\s\S]*?\S[\s\S]*?<\/\1>)((?:(?!<(?:era_data|Variable(?:Think|Insert|Edit|Delete))>|<\/\1>)[\s\S])*?)\s*<\/\1>/gi;
 
-  const commands: EraCommand[] = [];
   let match;
-
-  // 循环遍历所有匹配项，保持原始顺序
   while ((match = commandRegex.exec(rawContent)) !== null) {
-    const tagName = match[1];
-    let blockContent = match[2];
+    const fullTagName = match[1]; // e.g., "VariableInsert"
+    const shortTagName = match[2]; // e.g., "Insert"
+    let blockContent = match[3]; // The content inside the tags
 
-    // 1. 清理和校验块内容
+    // 1. 清理块内容
     const cleanedBlock = stripCodeFence(blockContent.trim());
-
-    // 如果清理后的块内部仍包含任何XML标签，则视为无效并跳过
-    if (containsXMLTags(cleanedBlock)) {
+    if (!cleanedBlock) {
       continue;
     }
 
-    if (cleanedBlock) {
-      // 2. (可选) 繁转简
-      if (toSimplified) {
-        blockContent = traditionalToSimplified(cleanedBlock);
-      } else {
-        blockContent = cleanedBlock;
-      }
+    // 2. (可选) 繁转简
+    const contentToParse = toSimplified ? traditionalToSimplified(cleanedBlock) : cleanedBlock;
 
-      // 3. 解析 JSONL 内容
-      const parsedData = parseJsonl(blockContent);
-      if (parsedData.length === 0) {
+    // 3. 解析内容：尝试 JSONL，如果失败则回退到单个 JSON
+    let parsedData = parseJsonl(contentToParse);
+    if (parsedData.length === 0) {
+      try {
+        const singleJson = JSON.parse(contentToParse);
+        parsedData = Array.isArray(singleJson) ? singleJson : [singleJson];
+      } catch (e) {
+        log.debug('extractAndParseCommands', '块内容既不是有效的 JSONL 也不是有效的 JSON，已跳过。', {
+          content: contentToParse,
+        });
         continue;
       }
-
-      // 4. 转义数据以供内部处理
-      const escapedData = escapeEraData(parsedData);
-
-      // 5. 确定指令类型
-      let type: 'insert' | 'edit' | 'delete';
-      switch (tagName) {
-        case 'VariableInsert':
-          type = 'insert';
-          break;
-        case 'VariableEdit':
-          type = 'edit';
-          break;
-        case 'VariableDelete':
-          type = 'delete';
-          break;
-        default:
-          // 此情况理论上不会发生，因为正则表达式已限定了标签名
-          continue;
-      }
-
-      // 6. 将解析后的指令添加到结果数组
-      commands.push({
-        type,
-        data: escapedData,
-      });
     }
+
+    if (parsedData.length === 0) {
+      continue;
+    }
+
+    // 4. 转义数据以供内部处理
+    const escapedData = escapeEraData(parsedData);
+
+    // 5. 确定指令类型
+    let type: EraCommand['type'];
+    switch (shortTagName.toLowerCase()) {
+      case 'insert':
+        type = 'insert';
+        break;
+      case 'edit':
+        type = 'edit';
+        break;
+      case 'delete':
+        type = 'delete';
+        break;
+      default:
+        continue;
+    }
+
+    // 6. 将解析后的指令添加到结果数组，并记录其在原始字符串中的位置
+    commands.push({
+      type,
+      data: escapedData,
+      index: match.index,
+    });
   }
+
+  // 根据在原始字符串中的出现位置对所有指令进行排序
+  commands.sort((a, b) => a.index - b.index);
 
   if (commands.length === 0) {
     log.debug('extractAndParseCommands', `消息 (ID: ${msg.message_id}) 未检测到变量修改标签。`);
@@ -403,5 +401,6 @@ export function extractAndParseCommands(msg: any, toSimplified: boolean = false)
     log.debug('extractAndParseCommands', '解析出的有序指令列表', commands);
   }
 
-  return commands;
+  // 移除临时的 index 属性
+  return commands.map(({ index, ...rest }) => rest);
 }
