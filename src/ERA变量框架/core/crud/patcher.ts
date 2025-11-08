@@ -24,7 +24,7 @@
 import { readMessageKey } from '../../core/key/mk';
 import { EraConfig } from '../../utils/constants';
 import { Logger } from '../../utils/log';
-import { extractAndParseCommands } from '../../utils/message';
+import { EraCommand, extractAndParseCommands } from '../../utils/message';
 import { processDeleteBlocks } from './delete';
 import { processInsertBlocks } from './insert/insert';
 import { processEditBlocks } from './update';
@@ -59,50 +59,62 @@ export const ApplyVarChangeForMessage = async (
   const mk = readMessageKey(msg);
   logger.debug('ApplyVarChangeForMessage (Pure)', `获取到当前消息mk`, mk);
   try {
-    logger.debug('ApplyVarChangeForMessage (Pure)', `开始指令转义`);
-    // 1. 从消息中提取、解析并转义所有指令。
-    const { allInserts, allEdits, allDeletes } = extractAndParseCommands(msg, config.繁体转简体);
+    logger.debug('ApplyVarChangeForMessage (Pure)', `开始提取并解析指令...`);
+    // 1. 从消息中提取、解析并转义所有指令，得到一个按顺序排列的指令数组。
+    const commands: EraCommand[] = extractAndParseCommands(msg, config.繁体转简体);
 
-    // --- 纯函数处理流水线：insert -> edit -> delete ---
-    logger.debug('ApplyVarChangeForMessage (Pure)', '准备开始处理变量更改语句，当前语句为：', {
-      allInserts,
-      allEdits,
-      allDeletes,
+    let currentStat = initialStat;
+    const accumulatedLogs: any[] = [];
+
+    logger.debug('ApplyVarChangeForMessage (Pure)', '开始按顺序处理指令...', commands);
+
+    // 2. 循环处理指令
+    for (const command of commands) {
+      let result;
+      switch (command.type) {
+        case 'insert':
+          result = await processInsertBlocks(command.data, currentStat);
+          logger.debug('ApplyVarChangeForMessage (Pure)', '处理 Insert 指令完成', {
+            inputStat: currentStat,
+            outputStat: result.finalStat,
+            log: result.editLog,
+          });
+          break;
+        case 'edit':
+          result = await processEditBlocks(command.data, msg.message_id, currentStat, meta);
+          logger.debug('ApplyVarChangeForMessage (Pure)', '处理 Edit 指令完成', {
+            inputStat: currentStat,
+            outputStat: result.finalStat,
+            log: result.editLog,
+          });
+          break;
+        case 'delete':
+          result = await processDeleteBlocks(command.data, currentStat);
+          logger.debug('ApplyVarChangeForMessage (Pure)', '处理 Delete 指令完成', {
+            inputStat: currentStat,
+            outputStat: result.finalStat,
+            log: result.editLog,
+          });
+          break;
+        default:
+          logger.warn('ApplyVarChangeForMessage (Pure)', '遇到未知的指令类型', command);
+          continue; // 跳过未知指令
+      }
+
+      // 更新当前状态，为下一条指令做准备
+      currentStat = result.finalStat;
+      // 累积日志
+      if (result.editLog && result.editLog.length > 0) {
+        accumulatedLogs.push(...result.editLog);
+      }
+    }
+
+    // 3. 返回最终计算结果
+    logger.debug('ApplyVarChangeForMessage (Pure)', '所有指令处理完成', {
+      finalStat: currentStat,
+      finalEditLog: accumulatedLogs,
     });
-    // 2. 处理插入操作
-    const { finalStat: statAfterInsert, editLog: insertLog } = await processInsertBlocks(allInserts, initialStat);
-
-    logger.debug('ApplyVarChangeForMessage (Pure)', '完成插入，输出stat和editLog为：', {
-      statAfterInsert,
-      insertLog,
-    });
-
-    // 3. 处理编辑操作
-    const { finalStat: statAfterEdit, editLog: editBlockLog } = await processEditBlocks(
-      allEdits,
-      msg.message_id,
-      statAfterInsert,
-      meta,
-    );
-
-    logger.debug('ApplyVarChangeForMessage (Pure)', '完成编辑，输出stat和editLog为：', {
-      statAfterEdit,
-      editBlockLog,
-    });
-
-    // 4. 处理删除操作
-    const { finalStat: statAfterDelete, editLog: deleteLog } = await processDeleteBlocks(allDeletes, statAfterEdit);
-
-    logger.debug('ApplyVarChangeForMessage (Pure)', '完成删除，输出stat和editLog为：', {
-      statAfterDelete,
-      deleteLog,
-    });
-
-    // 5. 合并所有日志
-    const finalEditLog = [...(insertLog || []), ...(editBlockLog || []), ...(deleteLog || [])];
-
-    // 6. 返回计算结果
-    return { finalStat: statAfterDelete, finalEditLog, mk };
+    return { finalStat: currentStat, finalEditLog: accumulatedLogs, mk };
   } catch (err: any) {
     logger.error('ApplyVarChangeForMessage (Pure)', `变量计算异常: ${err?.message || err}`, {
       error: err,

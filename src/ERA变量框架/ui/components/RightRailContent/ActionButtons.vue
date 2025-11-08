@@ -32,6 +32,26 @@
         </p>
       </div>
 
+      <!-- 新增：时间旅行/回滚功能 -->
+      <div class="btn-group">
+        <div class="input-btn-combo">
+          <input
+            v-model.number="rollbackId"
+            type="number"
+            class="input-field"
+            placeholder="消息 ID"
+            aria-label="要回滚到的消息 ID"
+          />
+          <button class="btn subtle combo-btn" title="将变量状态回滚到指定消息" @click.stop="onRollbackTo">
+            <span class="ico" aria-hidden="true">⏳</span>
+            <span class="label">回滚到</span>
+          </button>
+        </div>
+        <p class="btn-desc">
+          输入一个消息 ID，点击按钮可将变量状态“时间旅行”回该消息处理完毕后的那一刻。
+        </p>
+      </div>
+
       <div class="btn-group">
         <button class="btn danger" title="为角色卡注入 ERA 规则" @click.stop="onInjectRegex">
           <span class="ico" aria-hidden="true">🥽</span>
@@ -54,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import toastr from 'toastr';
 import { initEraCharacterRegexes } from '../../../initer/manual/regex';
 import { initEraWorldbookEntries } from '../../../initer/manual/worldbook';
@@ -61,6 +82,7 @@ import { Logger } from '../../../utils/log'; // 中文注释：日志工具
 import { ui } from 'jquery';
 
 const logger = new Logger(); // 中文注释：实例化日志
+const rollbackId = ref<number | null>(null);
 
 async function onInjectRegex() {
   logger.log('onInjectRegex', '点击“ERA 快速初始化”，开始注入...');
@@ -124,31 +146,91 @@ async function onInjectRegex() {
 }
 
 function onFullSync() {
-  // 中文注释：完全重算事件
-  logger.log('onFullSync', '点击“完全重算变量”，发送 manual_full_sync 事件。'); // 中文注释：日志
+  logger.log('onFullSync', '点击“完全重算变量”，发送 era:forceSync 事件 (mode: full)。');
   try {
-    eventEmit('manual_full_sync'); // 中文注释：发送全量重算事件（保持不变）
+    eventEmit('era:forceSync', { mode: 'full' });
     toastr.success('已发送“完全重算变量”请求。', '操作成功');
   } catch (error) {
-    logger.error('onFullSync', '发送 manual_full_sync 事件时出错:', error);
+    logger.error('onFullSync', '发送 era:forceSync 事件时出错:', error);
     toastr.error('发送请求失败，请检查控制台。', '操作失败');
   }
 }
 
 function onLastSync() {
-  // 中文注释：局部重算事件
-  logger.log('onLastSync', '点击“重算最后一楼变量”，发送 manual_sync 事件。'); // 中文注释：日志
+  logger.log('onLastSync', '点击“重算最后一楼变量”，发送 era:forceSync 事件 (mode: latest)。');
   try {
-    eventEmit('manual_sync'); // 中文注释：发送单楼重算事件（保持不变）
+    eventEmit('era:forceSync', { mode: 'latest' });
     toastr.success('已发送“重算最后一楼变量”请求。', '操作成功');
   } catch (error) {
-    logger.error('onLastSync', '发送 manual_sync 事件时出错:', error);
+    logger.error('onLastSync', '发送 era:forceSync 事件时出错:', error);
+    toastr.error('发送请求失败，请检查控制台。', '操作失败');
+  }
+}
+
+function onRollbackTo() {
+  if (rollbackId.value === null || rollbackId.value < 0) {
+    toastr.warning('请输入一个有效的、非负的消息 ID。', '输入无效');
+    return;
+  }
+  logger.log('onRollbackTo', `点击“回滚到”，发送 era:forceSync 事件 (mode: rollbackTo, message_id: ${rollbackId.value})。`);
+  try {
+    eventEmit('era:forceSync', { mode: 'rollbackTo', message_id: rollbackId.value });
+    toastr.success(`已发送回滚到消息 #${rollbackId.value} 的请求。`, '操作成功');
+  } catch (error) {
+    logger.error('onRollbackTo', '发送 era:forceSync 事件时出错:', error);
     toastr.error('发送请求失败，请检查控制台。', '操作失败');
   }
 }
 </script>
 
 <style scoped>
+/* === 新增：输入框与按钮组合 === */
+.input-btn-combo {
+  display: flex;
+  gap: 8px;
+}
+
+.input-field {
+  flex-grow: 1;
+  width: 0; /* 让 flex-grow 生效 */
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--settings-border-input, var(--border-soft));
+  background: var(--settings-bg-btn-subtle, var(--actions-btn-bg));
+  color: var(--settings-text-input, var(--text-normal));
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: var(--settings-shadow-inset);
+}
+.input-field::placeholder {
+  color: var(--text-soft);
+  font-weight: 500;
+}
+.input-field:focus {
+  outline: none;
+  border-color: var(--actions-outline-focus);
+  box-shadow:
+    var(--settings-shadow-inset),
+    0 0 0 3px var(--snapshot-accent-soft);
+}
+/* 隐藏 number input 的原生箭头 */
+.input-field::-webkit-outer-spin-button,
+.input-field::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.input-field[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.combo-btn {
+  flex-shrink: 0; /* 防止按钮被压缩 */
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 /* === 外层卡片：与左侧 ERA 面板同风格（玻璃卡 + 轻浮雕） === */
 .action-buttons-card {
   /* 中文注释：卡片容器 */

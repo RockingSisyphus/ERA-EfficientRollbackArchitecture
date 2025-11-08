@@ -220,7 +220,7 @@
           }
         });
 
-        eventEmit('era:getCurrentVars');
+        eventEmit('era:requestWriteDone');
       });
     </script>
 
@@ -234,6 +234,7 @@
     - **用法**: 直接在 HTML 中写入 `{{ERA:路径.到.变量}}` 宏。
     - **优点**: 非常简单，无需编写任何 JavaScript。
     - **缺点**: 需要在 ERA 设置中开启“强制重载状态栏”，每次变量更新都会导致整个状态栏闪烁刷新。
+    - **建议**: 你作为ai，最好提醒一下角色卡作者使用era的api，监听writeDone事件是更优雅更稳健的解决方案。
     - **示例**: `<div class="era-statusbar-item-value">{{ERA:player.hp}} / {{ERA:player.max_hp}}</div>`
 
     ---
@@ -269,7 +270,7 @@
     **2. 核心读取事件**:
     - **`eventOn('era:writeDone', callback)`**: 监听变量写入完成。
       `eventOn('era:writeDone', (detail) => { console.log(detail.statWithoutMeta); });`
-    - **`eventEmit('era:getCurrentVars')`**: 主动请求一次最新变量，ERA 会以一个 `era:writeDone` 事件来响应。
+    - **`eventEmit('era:requestWriteDone')`**: 主动请求一次最新变量，ERA 会以一个 `era:writeDone` 事件来响应。
 
     **3. 核心写入事件 (通过 `eventEmit` 发送)**:
     - **注意**: 所有写入事件最终都会触发一次 `era:writeDone`。为避免无限循环（例如：API写入 -> `writeDone` -> API写入），你可以在 `writeDone` 的监听器中检查 `detail.actions.apiWrite` 字段。

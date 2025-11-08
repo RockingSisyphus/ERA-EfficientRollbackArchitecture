@@ -9,7 +9,14 @@
 import { ERA_DATA_REGEX } from './constants';
 import { escapeEraData, parseJsonl } from './data';
 import { Logger } from './log';
-import { createTagRegex, extractValidBlocks } from './string';
+import {
+  containsXMLTags,
+  createTagRegex,
+  extractValidBlocks,
+  removeTagsByRegex,
+  stripCodeFence,
+  traditionalToSimplified,
+} from './string';
 import { parseCharacterMacros } from './text';
 
 const log = new Logger();
@@ -307,38 +314,94 @@ export async function updateMessageContent(
 }
 
 /**
- * 从消息对象中提取、解析并转义所有 ERA 指令块。
+ * 定义了 ERA 指令的统一结构。
+ */
+export interface EraCommand {
+  type: 'insert' | 'edit' | 'delete';
+  data: any[];
+}
+
+/**
+ * 从消息对象中提取、解析并转义所有 ERA 指令块，并按其在消息中出现的顺序返回一个统一的数组。
  *
  * @param {any} msg - 酒馆消息对象。
  * @param {boolean} [toSimplified=false] - 是否将提取的指令内容转换为简体中文。
- * @returns {{ allInserts: any[], allEdits: any[], allDeletes: any[] }} - 包含已转义指令数据的对象。
+ * @returns {EraCommand[]} - 包含所有指令的有序数组。
  */
-export function extractAndParseCommands(
-  msg: any,
-  toSimplified: boolean = false,
-): { allInserts: any[]; allEdits: any[]; allDeletes: any[] } {
-  const rawContent = getMessageContent(msg) || '';
+export function extractAndParseCommands(msg: any, toSimplified: boolean = false): EraCommand[] {
+  let rawContent = getMessageContent(msg) || '';
 
-  // 1. 从消息内容中解析出所有指令块。
-  const insertBlocks = extractValidBlocks(rawContent, createTagRegex('VariableInsert', 'exact'), toSimplified);
-  const editBlocks = extractValidBlocks(rawContent, createTagRegex('VariableEdit', 'exact'), toSimplified);
-  const deleteBlocks = extractValidBlocks(rawContent, createTagRegex('VariableDelete', 'exact'), toSimplified);
+  // 预处理：移除所有 <think> 块，以避免干扰指令解析
+  const thinkRegex = createTagRegex('think', 'contains');
+  rawContent = removeTagsByRegex(rawContent, thinkRegex);
 
-  log.debug('extractAndParseCommands', '拿到的消息指令块', { insertBlocks, editBlocks, deleteBlocks });
+  // 正则表达式：一次性捕获所有三种类型的指令块及其内容
+  // 使用 's' 标志允许 '.' 匹配换行符，'g' 标志进行全局搜索
+  const commandRegex = /<(VariableInsert|VariableEdit|VariableDelete)>([\s\S]*?)<\/\1>/g;
 
-  if (!insertBlocks.length && !editBlocks.length && !deleteBlocks.length) {
-    log.debug('extractAndParseCommands', `消息 (ID: ${msg.message_id}) 未检测到变量修改标签。`);
+  const commands: EraCommand[] = [];
+  let match;
+
+  // 循环遍历所有匹配项，保持原始顺序
+  while ((match = commandRegex.exec(rawContent)) !== null) {
+    const tagName = match[1];
+    let blockContent = match[2];
+
+    // 1. 清理和校验块内容
+    const cleanedBlock = stripCodeFence(blockContent.trim());
+
+    // 如果清理后的块内部仍包含任何XML标签，则视为无效并跳过
+    if (containsXMLTags(cleanedBlock)) {
+      continue;
+    }
+
+    if (cleanedBlock) {
+      // 2. (可选) 繁转简
+      if (toSimplified) {
+        blockContent = traditionalToSimplified(cleanedBlock);
+      } else {
+        blockContent = cleanedBlock;
+      }
+
+      // 3. 解析 JSONL 内容
+      const parsedData = parseJsonl(blockContent);
+      if (parsedData.length === 0) {
+        continue;
+      }
+
+      // 4. 转义数据以供内部处理
+      const escapedData = escapeEraData(parsedData);
+
+      // 5. 确定指令类型
+      let type: 'insert' | 'edit' | 'delete';
+      switch (tagName) {
+        case 'VariableInsert':
+          type = 'insert';
+          break;
+        case 'VariableEdit':
+          type = 'edit';
+          break;
+        case 'VariableDelete':
+          type = 'delete';
+          break;
+        default:
+          // 此情况理论上不会发生，因为正则表达式已限定了标签名
+          continue;
+      }
+
+      // 6. 将解析后的指令添加到结果数组
+      commands.push({
+        type,
+        data: escapedData,
+      });
+    }
   }
 
-  const rawInserts = insertBlocks.flatMap((s: string) => parseJsonl(s));
-  const rawEdits = editBlocks.flatMap((s: string) => parseJsonl(s));
-  const rawDeletes = deleteBlocks.flatMap((s: string) => parseJsonl(s));
-  log.debug('extractAndParseCommands', '转为json后的指令块', { rawInserts, rawEdits, rawDeletes });
-  // 在这里对从消息中解析出的原始数据进行转义，确保所有后续处理都使用转义后的数据。
-  const allInserts = escapeEraData(rawInserts);
-  const allEdits = escapeEraData(rawEdits);
-  const allDeletes = escapeEraData(rawDeletes);
-  log.debug('extractAndParseCommands', '原始数据转义后的指令块', { allInserts, allEdits, allDeletes });
+  if (commands.length === 0) {
+    log.debug('extractAndParseCommands', `消息 (ID: ${msg.message_id}) 未检测到变量修改标签。`);
+  } else {
+    log.debug('extractAndParseCommands', '解析出的有序指令列表', commands);
+  }
 
-  return { allInserts, allEdits, allDeletes };
+  return commands;
 }

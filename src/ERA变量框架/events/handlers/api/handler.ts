@@ -23,6 +23,9 @@ import { getEraData, removeMetaFields } from '../../../utils/era_data';
 import { Logger } from '../../../utils/log';
 import { findLastAiMessage, getMessageContent, isUserMessage, updateMessageContent } from '../../../utils/message';
 import { debouncedEmitApiWrite, emitQueryResultEvent, emitWriteDoneEvent } from '../../emitters/events';
+import { EventJob } from '../../merger';
+import { ActionsTaken, DispatcherPayload } from '../../types';
+import { handleSyncEvent } from '../sync';
 
 const logger = new Logger();
 let lastWriteDonePayload: WriteDonePayload | null = null;
@@ -443,4 +446,79 @@ export function handleRequestWriteDone() {
   } else {
     logger.warn('handleRequestWriteDone', '没有可供重播的 writeDone 事件。');
   }
+}
+
+/**
+ * @section API Event: 'era:forceSync'
+ * @description 强制触发一次变量同步，用于手动修复状态或在外部逻辑变更后更新变量。
+ * @param {object} [detail] - （可选）包含同步模式和相关参数的对象。
+ * @param {'full' | 'latest' | 'auto' | 'rollbackTo'} [detail.mode='auto'] - 同步模式:
+ *   - `'full'`: 强制从头开始完全重算整个聊天记录。
+ *   - `'latest'`: 只重算最后一条消息，并将状态停留在最新。
+ *   - `'auto'` (默认): 触发一次标准的差异同步，自动修复不一致。
+ *   - `'rollbackTo'`: 将变量状态回滚到指定 `message_id` 处理完毕后的状态，并停留在那里。需要提供 `message_id` 参数。
+ * @param {number} [detail.message_id] - 当 `mode` 为 `'rollbackTo'` 时，必须提供此参数。
+ * @example
+ * // 触发标准同步
+ * eventEmit('era:forceSync');
+ *
+ * // 强制完全重算
+ * eventEmit('era:forceSync', { mode: 'full' });
+ *
+ * // 将状态回滚到第 5 条消息之后
+ * eventEmit('era:forceSync', { mode: 'rollbackTo', message_id: 5 });
+ */
+export async function handleForceSync(
+  job: EventJob,
+  actionsTaken: ActionsTaken,
+  payload: DispatcherPayload,
+): Promise<void> {
+  const detail = job.detail;
+  const mode = detail?.mode || 'auto';
+  logger.log('handleForceSync', `接收到强制同步请求，模式: ${mode}`);
+
+  let targetMessageId: number | undefined = undefined;
+  let stopAtTarget = false;
+  let isFullSync = false;
+
+  switch (mode) {
+    case 'full':
+      isFullSync = true;
+      break;
+    case 'latest': {
+      const latestMessage = getChatMessages(-1, { include_swipes: true })?.[0];
+      if (latestMessage) {
+        targetMessageId = latestMessage.message_id;
+        // 在这里，stopAtTarget 为 false，因为我们要重算到结尾（虽然起点是最后一条，但逻辑上是完整的）
+        // 但为了实现“只重算最后一条”的精确效果，我们依然可以利用 stopAtTarget
+        stopAtTarget = false;
+      } else {
+        logger.warn('handleForceSync', '聊天记录为空，无法执行 "latest" 模式。');
+        return;
+      }
+      break;
+    }
+    case 'rollbackTo': {
+      const msgId = detail?.message_id;
+      if (typeof msgId !== 'number') {
+        logger.error('handleForceSync', '"rollbackTo" 模式需要一个有效的 "message_id" 参数。');
+        return;
+      }
+      targetMessageId = msgId;
+      stopAtTarget = true; // 核心：处理完目标消息后就停止
+      break;
+    }
+    case 'auto':
+    default:
+      // 使用 handleSyncEvent 的默认行为，不设置 targetMessageId 和 stopAtTarget
+      break;
+  }
+
+  // 创建一个新的 job 对象，将 isFullSync 标志传递给 handleSyncEvent
+  const syncJob: EventJob = {
+    ...job,
+    type: isFullSync ? 'manual_full_sync' : job.type,
+  };
+
+  await handleSyncEvent(syncJob, actionsTaken, payload, targetMessageId, stopAtTarget);
 }

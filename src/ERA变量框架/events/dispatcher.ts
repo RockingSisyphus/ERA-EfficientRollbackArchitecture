@@ -1,6 +1,6 @@
 'use strict';
 
-import { ERA_EVENT_EMITTER } from 'ERA变量框架/utils/constants';
+import { ERA_API_EVENTS, ERA_EVENT_EMITTER } from 'ERA变量框架/utils/constants';
 import { ensureMkForLatestMessage } from '../core/key/mk';
 import { initializeExternalSettings } from '../initer/auto/settings';
 import { ensurePlaceholder } from '../macro/placeholder';
@@ -141,8 +141,11 @@ export async function dispatchAndExecuteTask(job: EventJob, _mkToIgnore: any): P
     let msgId: number | null;
     // let isNewKey: boolean;
 
-    // 在 combo_swipe_and_regenerate 事件或 API 事件中，我们不应该注入新的 MK 或占位符。
-    if (eventType === 'combo_swipe_and_regenerate' || getEventGroup(eventType) === 'API') {
+    // 对于大多数 API 事件和 combo_swipe_and_regenerate 事件，我们不应该注入新的 MK 或占位符。
+    // 但 era:forceSync 是个例外，它虽然是 API 事件，但其行为更像一个同步事件，需要最新的 MK 作为上下文。
+    const isApiBypassEvent = getEventGroup(eventType) === 'API' && eventType !== ERA_API_EVENTS.FORCE_SYNC;
+
+    if (eventType === 'combo_swipe_and_regenerate' || isApiBypassEvent) {
       logger.log('dispatchAndExecuteTask', `检测到 ${eventType} 事件，跳过 MK 和占位符注入。`);
       msgId = latestMessage.message_id;
       mk = ''; // 使用空字符串作为回退

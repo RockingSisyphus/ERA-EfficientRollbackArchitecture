@@ -1,8 +1,12 @@
 'use strict';
 
+import { ERA_API_EVENTS } from '../../../utils/constants';
+import { EventJob } from '../../merger';
+import { ActionsTaken, DispatcherPayload } from '../../types';
 import {
   deleteByObject,
   deleteByPath,
+  handleForceSync,
   handleGetCurrentVars,
   handleGetSnapshotAtMId,
   handleGetSnapshotAtMk,
@@ -14,9 +18,6 @@ import {
   updateByObject,
   updateByPath,
 } from './handler';
-import { ERA_API_EVENTS } from '../../../utils/constants';
-import { EventJob } from '../../merger';
-import { ActionsTaken, DispatcherPayload } from '../../types';
 
 export function handleApiEvent(job: EventJob, actionsTaken: ActionsTaken, payload: DispatcherPayload): void {
   const { type: eventType, detail } = job;
@@ -35,4 +36,5 @@ export function handleApiEvent(job: EventJob, actionsTaken: ActionsTaken, payloa
   else if (eventType === ERA_API_EVENTS.GET_SNAPSHOT_AT_MID) handleGetSnapshotAtMId(detail);
   else if (eventType === ERA_API_EVENTS.GET_SNAPSHOTS_BETWEEN_MIDS) handleGetSnapshotsBetweenMIds(detail);
   else if (eventType === ERA_API_EVENTS.REQUEST_WRITE_DONE) handleRequestWriteDone();
+  else if (eventType === ERA_API_EVENTS.FORCE_SYNC) handleForceSync(job, actionsTaken, payload);
 }

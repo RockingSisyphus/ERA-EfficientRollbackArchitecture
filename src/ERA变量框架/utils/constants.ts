@@ -146,6 +146,8 @@ export const ERA_API_EVENTS = {
   GET_SNAPSHOTS_BETWEEN_MIDS: 'era:getSnapshotsBetweenMIds',
   /** 请求 ERA 重新广播最新的 `writeDone` 事件 */
   REQUEST_WRITE_DONE: 'era:requestWriteDone',
+  /** 强制触发一次同步，可指定范围 */
+  FORCE_SYNC: 'era:forceSync',
 } as const;
 
 /**

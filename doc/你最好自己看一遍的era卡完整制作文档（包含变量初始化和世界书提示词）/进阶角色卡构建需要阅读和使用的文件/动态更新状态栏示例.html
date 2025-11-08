@@ -1,133 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>动态更新状态栏</title>
-  <style>
-    /* 
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>动态更新状态栏</title>
+    <style>
+      /* 
       这是一个进阶示例，演示如何通过监听 ERA 事件来动态更新状态栏，
       从而避免使用 ERA 宏和“强制重载”功能。
     */
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
 
-    body {
-      font-family: 'Noto Sans SC', sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: transparent;
-    }
-
-    .era-statusbar {
-      color: #E0E0E0;
-      background: linear-gradient(145deg, #2c3e50, #34495e);
-      border-radius: 12px;
-      padding: 16px;
-      margin-top: 20px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-      border: 1px solid #4a6278;
-      overflow: hidden;
-    }
-
-    .era-statusbar-header {
-      display: flex;
-      align-items: center;
-      border-bottom: 1px solid #4a6278;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
-    }
-
-    .era-statusbar-header h4 {
-      margin: 0;
-      font-size: 1.1em;
-      font-weight: 700;
-      color: #1abc9c;
-      text-shadow: 0 0 5px rgba(26, 188, 156, 0.5);
-    }
-
-    .era-statusbar-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px;
-    }
-
-    .era-statusbar-item {
-      background-color: rgba(255, 255, 255, 0.05);
-      padding: 8px 12px;
-      border-radius: 8px;
-    }
-
-    .era-statusbar-item-label {
-      font-size: 0.85em;
-      color: #bdc3c7;
-      margin-bottom: 4px;
-    }
-
-    .era-statusbar-item-value {
-      font-size: 1em;
-      font-weight: 700;
-      color: #ecf0f1;
-    }
-  </style>
-</head>
-<body>
-  <div class="era-statusbar">
-    <div class="era-statusbar-header">
-      <h4>角色状态</h4>
-    </div>
-    <div class="era-statusbar-grid">
-      <div class="era-statusbar-item">
-        <div class="era-statusbar-item-label">生命值</div>
-        <div class="era-statusbar-item-value" id="player-hp">-- / --</div>
-      </div>
-      <div class="era-statusbar-item">
-        <div class="era-statusbar-item-label">金钱</div>
-        <div class="era-statusbar-item-value" id="player-gold">-- G</div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // 确保在 DOM 完全加载后再执行脚本
-    document.addEventListener('DOMContentLoaded', () => {
-      // 获取需要更新的 DOM 元素
-      const hpElement = document.getElementById('player-hp');
-      const goldElement = document.getElementById('player-gold');
-
-      /**
-       * 更新 UI 的函数
-       * @param {object} stat - 从 era:writeDone 事件中获取的 statWithoutMeta 对象
-       */
-      function updateUI(stat) {
-        // 使用 lodash 的 _.get 方法安全地获取嵌套属性，如果路径不存在则提供默认值
-        const hp = _.get(stat, 'player.hp', '--');
-        const maxHp = _.get(stat, 'player.max_hp', '--');
-        const gold = _.get(stat, 'player.gold', '--');
-
-        // 更新 DOM 元素的内容
-        if (hpElement) {
-          hpElement.textContent = `${hp} / ${maxHp}`;
-        }
-        if (goldElement) {
-          goldElement.textContent = `${gold} G`;
-        }
+      body {
+        font-family: 'Noto Sans SC', sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: transparent;
       }
 
-      // 监听 ERA 框架的变量写入完成事件
-      // 这是动态更新数据的核心
-      eventOn('era:writeDone', (detail) => {
-        console.log('ERA:writeDone event received:', detail);
-        // 使用 statWithoutMeta 来更新 UI，它是不包含 ERA 内部字段的纯净数据
-        if (detail && detail.statWithoutMeta) {
-          updateUI(detail.statWithoutMeta);
-        }
-      });
+      .era-statusbar {
+        color: #e0e0e0;
+        background: linear-gradient(145deg, #2c3e50, #34495e);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 20px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        border: 1px solid #4a6278;
+        overflow: hidden;
+      }
 
-      // 在脚本加载时，主动请求一次当前变量状态，用于初始化UI
-      // ERA 会以一个 era:writeDone 事件来响应这个请求
-      console.log('Requesting initial ERA variables...');
-      eventEmit('era:getCurrentVars');
-    });
-  </script>
-</body>
+      .era-statusbar-header {
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #4a6278;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+
+      .era-statusbar-header h4 {
+        margin: 0;
+        font-size: 1.1em;
+        font-weight: 700;
+        color: #1abc9c;
+        text-shadow: 0 0 5px rgba(26, 188, 156, 0.5);
+      }
+
+      .era-statusbar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .era-statusbar-item {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 8px 12px;
+        border-radius: 8px;
+      }
+
+      .era-statusbar-item-label {
+        font-size: 0.85em;
+        color: #bdc3c7;
+        margin-bottom: 4px;
+      }
+
+      .era-statusbar-item-value {
+        font-size: 1em;
+        font-weight: 700;
+        color: #ecf0f1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="era-statusbar">
+      <div class="era-statusbar-header">
+        <h4>角色状态</h4>
+      </div>
+      <div class="era-statusbar-grid">
+        <div class="era-statusbar-item">
+          <div class="era-statusbar-item-label">生命值</div>
+          <div class="era-statusbar-item-value" id="player-hp">-- / --</div>
+        </div>
+        <div class="era-statusbar-item">
+          <div class="era-statusbar-item-label">金钱</div>
+          <div class="era-statusbar-item-value" id="player-gold">-- G</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 确保在 DOM 完全加载后再执行脚本
+      document.addEventListener('DOMContentLoaded', () => {
+        // 获取需要更新的 DOM 元素
+        const hpElement = document.getElementById('player-hp');
+        const goldElement = document.getElementById('player-gold');
+
+        /**
+         * 更新 UI 的函数
+         * @param {object} stat - 从 era:writeDone 事件中获取的 statWithoutMeta 对象
+         */
+        function updateUI(stat) {
+          // 使用 lodash 的 _.get 方法安全地获取嵌套属性，如果路径不存在则提供默认值
+          const hp = _.get(stat, 'player.hp', '--');
+          const maxHp = _.get(stat, 'player.max_hp', '--');
+          const gold = _.get(stat, 'player.gold', '--');
+
+          // 更新 DOM 元素的内容
+          if (hpElement) {
+            hpElement.textContent = `${hp} / ${maxHp}`;
+          }
+          if (goldElement) {
+            goldElement.textContent = `${gold} G`;
+          }
+        }
+
+        // 监听 ERA 框架的变量写入完成事件
+        // 这是动态更新数据的核心
+        eventOn('era:writeDone', detail => {
+          console.log('ERA:writeDone event received:', detail);
+          // 使用 statWithoutMeta 来更新 UI，它是不包含 ERA 内部字段的纯净数据
+          if (detail && detail.statWithoutMeta) {
+            updateUI(detail.statWithoutMeta);
+          }
+        });
+
+        // 在脚本加载时，主动请求一次当前变量状态，用于初始化UI
+        // ERA 会以一个 era:writeDone 事件来响应这个请求
+        console.log('Requesting initial ERA variables...');
+        eventEmit('era:requestWriteDone');
+      });
+    </script>
+  </body>
 </html>
