@@ -47,9 +47,7 @@
             <span class="label">回滚到</span>
           </button>
         </div>
-        <p class="btn-desc">
-          输入一个消息 ID，点击按钮可将变量状态“时间旅行”回该消息处理完毕后的那一刻。
-        </p>
+        <p class="btn-desc">输入一个消息 ID，点击按钮可将变量状态“时间旅行”回该消息处理完毕后的那一刻。</p>
       </div>
 
       <div class="btn-group">
@@ -172,7 +170,10 @@ function onRollbackTo() {
     toastr.warning('请输入一个有效的、非负的消息 ID。', '输入无效');
     return;
   }
-  logger.log('onRollbackTo', `点击“回滚到”，发送 era:forceSync 事件 (mode: rollbackTo, message_id: ${rollbackId.value})。`);
+  logger.log(
+    'onRollbackTo',
+    `点击“回滚到”，发送 era:forceSync 事件 (mode: rollbackTo, message_id: ${rollbackId.value})。`,
+  );
   try {
     eventEmit('era:forceSync', { mode: 'rollbackTo', message_id: rollbackId.value });
     toastr.success(`已发送回滚到消息 #${rollbackId.value} 的请求。`, '操作成功');
