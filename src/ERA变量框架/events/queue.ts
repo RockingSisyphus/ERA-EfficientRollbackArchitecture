@@ -79,7 +79,7 @@ async function processQueue() {
   // 【加锁】
   // 正式开始处理，加锁以阻止其他调用进入。
   isProcessing = true;
-  logger.debug('processQueue', '处理器启动');
+  logger.debug('processQueue', '处理器启动！');
 
   // 【防抖】
   const firstJob = eventQueue[0];

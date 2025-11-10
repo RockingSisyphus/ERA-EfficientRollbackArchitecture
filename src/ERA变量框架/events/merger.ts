@@ -76,7 +76,7 @@ export const EVENT_COMBO_MAP = new Map<
     {
       next: tavern_events.GENERATION_STARTED,
       resultType: 'combo_edit_and_continue',
-      maxInterval: 1600,
+      maxInterval: 1500,
       immediate: true,
     },
   ],
