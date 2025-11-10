@@ -64,17 +64,30 @@ export const EVENT_COLLISION_MAP = new Map<string, { next: string; maxInterval: 
  * // 当用户消息被AI编辑后立刻开始生成下一条消息时，会依次触发 `MESSAGE_UPDATED` 和 `GENERATION_STARTED`。
  * // 这条规则会捕获这种模式并将它们合并为一个 `combo_sync` 事件，以确保数据一致性。
  * new Map([
- *   [tavern_events.MESSAGE_UPDATED, { next: tavern_events.GENERATION_STARTED, resultType: 'combo_sync', maxInterval: 2100 }]
+ *   [tavern_events.MESSAGE_UPDATED, { next: tavern_events.GENERATION_STARTED, resultType: 'combo_sync', maxInterval: 2100, immediate: true }]
  * ])
  */
-export const EVENT_COMBO_MAP = new Map<string, { next: string; resultType: string; maxInterval: number }>([
+export const EVENT_COMBO_MAP = new Map<
+  string,
+  { next: string; resultType: string; maxInterval: number; immediate?: boolean }
+>([
   [
     tavern_events.MESSAGE_UPDATED,
-    { next: tavern_events.GENERATION_STARTED, resultType: 'combo_edit_and_continue', maxInterval: 1600 },
+    {
+      next: tavern_events.GENERATION_STARTED,
+      resultType: 'combo_edit_and_continue',
+      maxInterval: 1600,
+      immediate: true,
+    },
   ],
   [
     tavern_events.MESSAGE_SWIPED,
-    { next: tavern_events.GENERATION_STARTED, resultType: 'combo_swipe_and_regenerate', maxInterval: 600 },
+    {
+      next: tavern_events.GENERATION_STARTED,
+      resultType: 'combo_swipe_and_regenerate',
+      maxInterval: 600,
+      immediate: true,
+    },
   ],
 ]);
 
@@ -122,6 +135,37 @@ export function getEventGroup(eventType: string): string {
   if ((EVENT_GROUPS.COMBO_STARTERS as string[]).includes(eventType)) return 'COMBO_STARTERS';
   if ((EVENT_GROUPS.DIRECTED_SYNC as string[]).includes(eventType)) return 'DIRECTED_SYNC';
   return 'UNKNOWN';
+}
+
+/**
+ * 检查事件队列中是否存在应立即处理的紧急事件组合。
+ * @param {EventJob[]} queue - 当前的事件队列。
+ * @returns {boolean} - 如果找到紧急组合，则返回 true。
+ */
+export function hasImmediateCombo(queue: EventJob[]): boolean {
+  if (queue.length < 2) {
+    return false;
+  }
+
+  for (let i = 0; i < queue.length - 1; i++) {
+    const currentJob = queue[i];
+    const nextJob = queue[i + 1];
+
+    const comboRule = EVENT_COMBO_MAP.get(currentJob.type);
+    // 检查是否存在规则，并且该规则被标记为 immediate
+    if (comboRule && comboRule.immediate && nextJob.type === comboRule.next) {
+      const timeDifference = nextJob.timestamp - currentJob.timestamp;
+      if (timeDifference <= comboRule.maxInterval) {
+        logger.debug(
+          'hasImmediateCombo',
+          `检测到紧急事件组合: ${currentJob.type} + ${nextJob.type} -> ${comboRule.resultType}`,
+        );
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 /**

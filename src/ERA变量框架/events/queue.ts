@@ -17,7 +17,7 @@
 
 import { Logger } from '../utils/log';
 import { dispatchAndExecuteTask } from './dispatcher';
-import { EVENT_DEBOUNCE_MAP, EventJob, getEventGroup, mergeEventBatch } from './merger';
+import { EVENT_DEBOUNCE_MAP, EventJob, getEventGroup, hasImmediateCombo, mergeEventBatch } from './merger';
 
 const logger = new Logger();
 
@@ -85,9 +85,27 @@ async function processQueue() {
   const firstJob = eventQueue[0];
   const group = getEventGroup(firstJob.type);
   if (group !== 'API') {
-    const debounceTime = EVENT_DEBOUNCE_MAP.get(firstJob.type) ?? 300;
-    logger.debug('processQueue', `启动事件收集窗口，等待 ${debounceTime}ms...`);
-    await new Promise(resolve => setTimeout(resolve, debounceTime));
+    const debounceTime = EVENT_DEBOUNCE_MAP.get(firstJob.type) ?? 100;
+    const checkInterval = 20; // 每20ms检查一次
+    let elapsedTime = 0;
+
+    logger.debug('processQueue', `启动事件收集窗口，最长等待 ${debounceTime}ms...`);
+
+    while (elapsedTime < debounceTime) {
+      // 检查是否存在需要立即处理的组合事件
+      if (hasImmediateCombo(eventQueue)) {
+        logger.debug('processQueue', '检测到紧急事件组合，立即结束等待。');
+        break; // 如果有，立即跳出循环
+      }
+
+      // 等待一个检查间隔
+      await new Promise(resolve => setTimeout(resolve, checkInterval));
+      elapsedTime += checkInterval;
+    }
+
+    if (elapsedTime >= debounceTime) {
+      logger.debug('processQueue', `等待时间达到 ${debounceTime}ms，正常结束等待。`);
+    }
   }
 
   // 【调试日志】
