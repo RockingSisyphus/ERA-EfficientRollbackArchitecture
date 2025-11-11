@@ -242,4 +242,42 @@ onMounted(() => {
       0% 0%;
   }
 }
+
+/* === [新增] 自动隐身：无交互时极低可见度，交互时显现 === */
+
+/* 1) 默认闲置态：几乎不可见，但仍可点击/触发 hover */
+.floating-ball {
+  /* 可调“隐身强度”参数（需要更透明可把 0.08 调小到 0.04~0.06） */
+  --idle-opacity: 0.08; /* 闲置不聚焦时的不透明度 */
+  --idle-filter: saturate(0.45) brightness(0.95) blur(0.2px); /* 轻微去饱和与柔化 */
+
+  opacity: var(--idle-opacity); /* 应用闲置透明度 */
+  filter: var(--idle-filter); /* 应用闲置滤镜 */
+  transition:
+    opacity 0.28s ease,
+    filter 0.28s ease,
+    transform 0.28s ease,
+    box-shadow 0.28s ease; /* 与原有过渡保持一致 */
+}
+
+/* 2) 交互显现：鼠标悬停或键盘聚焦时恢复为清晰可见 */
+.floating-ball:hover,
+.floating-ball:focus-visible {
+  opacity: 1; /* 完全不透明 */
+  filter: none; /* 清除柔化/去饱和 */
+}
+
+/* 3) 触屏/无 hover 设备：保持可见，避免用户“找不到球” */
+@media (hover: none), (pointer: coarse) {
+  .floating-ball {
+    opacity: 0.96; /* 触屏几乎完全可见 */
+    filter: none; /* 不做柔化 */
+  }
+}
+
+/* 4) 可选：离开后再慢一点回到隐身（需要时可解注释）
+.floating-ball:not(:hover):not(:focus-visible) {
+  transition-delay: 0.25s;             // 鼠标离开 250ms 后再开始变淡
+}
+*/
 </style>
