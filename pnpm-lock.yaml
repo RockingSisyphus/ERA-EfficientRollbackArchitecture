@@ -1256,8 +1256,8 @@ packages:
   camel-case@4.1.2:
     resolution: {integrity: sha512-gxGWBrTT1JuMx6R+o5PTXMmUnhnVzLQ9SNutD4YqKtI6ap897t3tKECYla6gCWEkplXnlNybEkZg9GEGxKFCgw==}
 
-  caniuse-lite@1.0.30001754:
-    resolution: {integrity: sha512-x6OeBXueoAceOmotzx3PO4Zpt4rzpeIFsSr6AAePTZxSkXiYDUmpypEl7e2+8NCd9bD7bXjqyef8CJYPC1jfxg==}
+  caniuse-lite@1.0.30001755:
+    resolution: {integrity: sha512-44V+Jm6ctPj7R52Na4TLi3Zri4dWUljJd+RDm+j8LtNCc/ihLCT+X1TzoOAkRETEWqjuLnh9581Tl80FvK7jVA==}
 
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
@@ -1482,8 +1482,8 @@ packages:
   cssom@0.5.0:
     resolution: {integrity: sha512-iKuQcq+NdHqlAcwUY0o/HL69XQrUaQdMjmStJ8JFmUaiiQErlhrmuigkg/CU4E2J0IyUKUrMAgl36TvN67MqTw==}
 
-  csstype@3.2.1:
-    resolution: {integrity: sha512-98XGutrXoh75MlgLihlNxAGbUuFQc7l1cqcnEZlLNKc0UrVdPndgmaDmYTDDh929VS/eqTZV0rozmhu2qqT1/g==}
+  csstype@3.2.2:
+    resolution: {integrity: sha512-D80T+tiqkd/8B0xNlbstWDG4x6aqVfO52+OlSUNIdkTvmNw0uQpJLeos2J/2XvpyidAFuTPmpad+tUxLndwj6g==}
 
   data-view-buffer@1.0.2:
     resolution: {integrity: sha512-EmKO5V3OLXh1rtK2wgXRansaK1/mtVdTUEiEI0W8RkvgT05kfxaH29PliLnpLP73yYO6142Q72QNa8Wx/A5CqQ==}
@@ -4628,7 +4628,7 @@ snapshots:
       '@vue/reactivity': 3.5.24
       '@vue/runtime-core': 3.5.24
       '@vue/shared': 3.5.24
-      csstype: 3.2.1
+      csstype: 3.2.2
 
   '@vue/server-renderer@3.5.24(vue@3.5.24(typescript@6.0.0-dev.20250807))':
     dependencies:
@@ -4897,7 +4897,7 @@ snapshots:
   autoprefixer@10.4.22(postcss@8.5.6):
     dependencies:
       browserslist: 4.28.0
-      caniuse-lite: 1.0.30001754
+      caniuse-lite: 1.0.30001755
       fraction.js: 5.3.4
       normalize-range: 0.1.2
       picocolors: 1.1.1
@@ -4956,7 +4956,7 @@ snapshots:
   browserslist@4.28.0:
     dependencies:
       baseline-browser-mapping: 2.8.28
-      caniuse-lite: 1.0.30001754
+      caniuse-lite: 1.0.30001755
       electron-to-chromium: 1.5.254
       node-releases: 2.0.27
       update-browserslist-db: 1.1.4(browserslist@4.28.0)
@@ -4987,7 +4987,7 @@ snapshots:
       pascal-case: 3.1.2
       tslib: 2.8.1
 
-  caniuse-lite@1.0.30001754: {}
+  caniuse-lite@1.0.30001755: {}
 
   ccount@2.0.1: {}
 
@@ -5245,7 +5245,7 @@ snapshots:
 
   cssom@0.5.0: {}
 
-  csstype@3.2.1: {}
+  csstype@3.2.2: {}
 
   data-view-buffer@1.0.2:
     dependencies:
