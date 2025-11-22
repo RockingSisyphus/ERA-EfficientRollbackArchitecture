@@ -118,8 +118,8 @@ importers:
         specifier: ^4.16.1
         version: 4.16.1(@typescript-eslint/utils@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@6.0.0-dev.20250807))(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-pinia:
-        specifier: ^0.4.1
-        version: 0.4.1(@typescript-eslint/utils@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@6.0.0-dev.20250807))(eslint@9.39.1(jiti@2.6.1))
+        specifier: ^0.4.2
+        version: 0.4.2(@typescript-eslint/utils@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@6.0.0-dev.20250807))(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-vue:
         specifier: ^10.5.1
         version: 10.5.1(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@6.0.0-dev.20250807))(eslint@9.39.1(jiti@2.6.1))(vue-eslint-parser@10.2.0(eslint@9.39.1(jiti@2.6.1)))
@@ -313,8 +313,8 @@ packages:
     resolution: {integrity: sha512-yL/sLrpmtDaFEiUj1osRP4TI2MDz1AddJL+jZ7KSqvBuliN4xqYY54IfdN8qD8Toa6g1iloph1fxQNkjOxrrpQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@eslint/css-tree@3.6.7':
-    resolution: {integrity: sha512-5nUrHEkMeZ8eTXHj9tlkH+k5gcRdjXiAtQOr+po0W2LRxHZeoVFRX2iqeA+C3Khjs2dRuo84Ntmrakr9xEzCEA==}
+  '@eslint/css-tree@3.6.8':
+    resolution: {integrity: sha512-s0f40zY7dlMp8i0Jf0u6l/aSswS0WRAgkhgETgiCJRcxIWb4S/Sp9uScKHWbkM3BnoFLbJbmOYk5AZUDFVxaLA==}
     engines: {node: ^10 || ^12.20.0 || ^14.13.0 || >=15.0.0}
 
   '@eslint/eslintrc@3.3.1':
@@ -1775,8 +1775,8 @@ packages:
       eslint-import-resolver-node:
         optional: true
 
-  eslint-plugin-pinia@0.4.1:
-    resolution: {integrity: sha512-fiidH7GZ/OMbTHDwHS/tpbdBVBwCk/uEpWCZfzCK7HeiLKUGBBQr3MfHMYx15ACmgRyVu2eGwKELB3s6SMoWbQ==}
+  eslint-plugin-pinia@0.4.2:
+    resolution: {integrity: sha512-Bf6x2iMa+NOP52OsW66ewg5Xn7rkoolxnWWBud0yFoUF6xVk/rm9F88GsSIMyNajobYws4DweEzL1sWKZg+YNQ==}
     engines: {node: '>= 18'}
     peerDependencies:
       '@typescript-eslint/utils': '>= 7.5 || 8.0.1'
@@ -2474,8 +2474,8 @@ packages:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
 
-  libphonenumber-js@1.12.28:
-    resolution: {integrity: sha512-sDB+nY8l1d2SHC0TnBat4uovsx1EjrkesK9U8Arl2/LQluXn3OQczwqr2M/1V2Lo0ajnaY/nZjvacg6vmbqWUQ==}
+  libphonenumber-js@1.12.29:
+    resolution: {integrity: sha512-P2aLrbeqHbmh8+9P35LXQfXOKc7XJ0ymUKl7tyeyQjdRNfzunXWxQXGc4yl3fUf28fqLRfPY+vIVvFXK7KEBTw==}
 
   lightningcss-android-arm64@1.30.2:
     resolution: {integrity: sha512-BH9sEdOCahSgmkVhBLeU7Hc9DWeZ1Eb6wNS6Da8igvUwAe0sqROHddIlvU06q3WyXVEOYDZ6ykBZQnjTbmo4+A==}
@@ -4037,7 +4037,7 @@ snapshots:
     dependencies:
       '@types/json-schema': 7.0.15
 
-  '@eslint/css-tree@3.6.7':
+  '@eslint/css-tree@3.6.8':
     dependencies:
       mdn-data: 2.23.0
       source-map-js: 1.2.1
@@ -5079,7 +5079,7 @@ snapshots:
   class-validator@0.14.1:
     dependencies:
       '@types/validator': 13.15.10
-      libphonenumber-js: 1.12.28
+      libphonenumber-js: 1.12.29
       validator: 13.15.23
 
   clean-css@5.3.3:
@@ -5561,7 +5561,7 @@ snapshots:
 
   eslint-plugin-better-tailwindcss@3.7.11(eslint@9.39.1(jiti@2.6.1))(tailwindcss@4.1.17):
     dependencies:
-      '@eslint/css-tree': 3.6.7
+      '@eslint/css-tree': 3.6.8
       enhanced-resolve: 5.18.3
       eslint: 9.39.1(jiti@2.6.1)
       jiti: 2.6.1
@@ -5589,7 +5589,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-pinia@0.4.1(@typescript-eslint/utils@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@6.0.0-dev.20250807))(eslint@9.39.1(jiti@2.6.1)):
+  eslint-plugin-pinia@0.4.2(@typescript-eslint/utils@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@6.0.0-dev.20250807))(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
       eslint: 9.39.1(jiti@2.6.1)
     optionalDependencies:
@@ -6358,7 +6358,7 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
 
-  libphonenumber-js@1.12.28: {}
+  libphonenumber-js@1.12.29: {}
 
   lightningcss-android-arm64@1.30.2:
     optional: true
