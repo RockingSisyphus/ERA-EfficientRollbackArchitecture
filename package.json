@@ -55,7 +55,7 @@
     "socket.io": "^4.8.1",
     "style-loader": "^4.0.0",
     "tailwindcss": "^4.1.17",
-    "terser-webpack-plugin": "^5.3.14",
+    "terser-webpack-plugin": "^5.3.15",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
     "tsconfig-paths-webpack-plugin": "^4.2.0",
