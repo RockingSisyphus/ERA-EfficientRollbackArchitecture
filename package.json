@@ -12,7 +12,7 @@
     "defaults and partially supports es6-module"
   ],
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^9.39.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/jquery": "^3.5.33",
     "@types/jqueryui": "^1.12.24",
@@ -24,7 +24,7 @@
     "@typescript-eslint/parser": "^8.49.0",
     "autoprefixer": "^10.4.22",
     "css-loader": "^7.1.2",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-better-tailwindcss": "^3.8.0",
@@ -77,7 +77,7 @@
     "@vueuse/integrations": "^13.9.0",
     "@vueuse/shared": "^13.9.0",
     "dedent": "^1.7.0",
-    "gsap": "^3.14.1",
+    "gsap": "^3.14.2",
     "jquery": "^3.7.1",
     "jqueryui": "^1.11.1",
     "klona": "^2.0.6",
