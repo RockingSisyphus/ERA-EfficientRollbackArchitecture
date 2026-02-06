@@ -51,7 +51,7 @@
     "remark-html": "^16.0.1",
     "remark-loader": "^6.0.0",
     "sass": "^1.97.3",
-    "sass-loader": "^16.0.6",
+    "sass-loader": "^16.0.7",
     "socket.io": "^4.8.3",
     "style-loader": "^4.0.0",
     "tailwindcss": "^4.1.18",
