@@ -82,7 +82,7 @@
     "jqueryui": "^1.11.1",
     "klona": "^2.0.6",
     "lodash": "^4.18.1",
-    "opencc-js": "^1.3.0",
+    "opencc-js": "^1.3.1",
     "pinia": "^3.0.4",
     "pixi.js": "^8.18.1",
     "toastr": "^2.1.4",
