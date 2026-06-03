@@ -122,7 +122,7 @@ importers:
         version: 0.4.2(@typescript-eslint/utils@8.60.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.0-dev.20250807))(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-vue:
         specifier: ^10.9.1
-        version: 10.9.1(@typescript-eslint/parser@8.60.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.0-dev.20250807))(eslint@9.39.4(jiti@2.7.0))(vue-eslint-parser@10.4.0(eslint@9.39.4(jiti@2.7.0)))
+        version: 10.9.1(@typescript-eslint/parser@8.60.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.0-dev.20250807))(eslint@9.39.4(jiti@2.7.0))(vue-eslint-parser@10.4.1(eslint@9.39.4(jiti@2.7.0)))
       eslint-webpack-plugin:
         specifier: ^5.0.3
         version: 5.0.3(eslint@9.39.4(jiti@2.7.0))(webpack@5.107.2)
@@ -226,8 +226,8 @@ importers:
         specifier: ^29.2.0
         version: 29.2.0(@babel/parser@7.29.7)(vue@3.5.35(typescript@6.0.0-dev.20250807))
       vue-eslint-parser:
-        specifier: ^10.4.0
-        version: 10.4.0(eslint@9.39.4(jiti@2.7.0))
+        specifier: ^10.4.1
+        version: 10.4.1(eslint@9.39.4(jiti@2.7.0))
       vue-loader:
         specifier: ^17.4.2
         version: 17.4.2(vue@3.5.35(typescript@6.0.0-dev.20250807))(webpack@5.107.2)
@@ -1678,8 +1678,8 @@ packages:
   earcut@3.0.2:
     resolution: {integrity: sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ==}
 
-  electron-to-chromium@1.5.364:
-    resolution: {integrity: sha512-G/dYE3+AYhyHwzTwg8UbnXf7zqMERYh7l2jJ3QujhFsH8agSYwtnGAR2aZ7f0AakIKJXd5En/Hre4igIUrdlYw==}
+  electron-to-chromium@1.5.366:
+    resolution: {integrity: sha512-OlRuhb688YTCzzU3gXPLn6nGyd+F+53INE1qaKKlu6kETErE8FYsyDh0XqXEU+uBRn0MpCzz2vfNwORhkap8qg==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -2885,8 +2885,8 @@ packages:
   node-addon-api@7.1.1:
     resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
 
-  node-releases@2.0.46:
-    resolution: {integrity: sha512-GYVXHE2KnrzAfsAjl4uP++evGFCrAU1jta4ubEjIG7YWt/64Gqv66a30yKwWczVjA6j3bM4nBwH7Pk1JmDHaxQ==}
+  node-releases@2.0.47:
+    resolution: {integrity: sha512-Uzmd6LXpouKo8EUK68IjH4+E01w/hXyV3R3g/geCJo+rXLNfh1xucB+LOzYEOQPSiUK3h/xZf0cQGcSsmyL2Og==}
     engines: {node: '>=18'}
 
   normalize-path@3.0.0:
@@ -3868,8 +3868,8 @@ packages:
       '@vue/composition-api':
         optional: true
 
-  vue-eslint-parser@10.4.0:
-    resolution: {integrity: sha512-Vxi9pJdbN3ZnVGLODVtZ7y4Y2kzAAE2Cm0CZ3ZDRvydVYxZ6VrnBhLikBsRS+dpwj4Jv4UCv21PTEwF5rQ9WXg==}
+  vue-eslint-parser@10.4.1:
+    resolution: {integrity: sha512-Gk6gRDj0n/fkRa3C3l0bBheoBckUq/Rs0F/TvMWIS6nzzx67amAViMe9CkNgsP2tXyQONvGiHQESHwFtZ3aYDA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
@@ -5077,8 +5077,8 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.10.33
       caniuse-lite: 1.0.30001793
-      electron-to-chromium: 1.5.364
-      node-releases: 2.0.46
+      electron-to-chromium: 1.5.366
+      node-releases: 2.0.47
       update-browserslist-db: 1.2.3(browserslist@4.28.2)
 
   buffer-from@1.1.2: {}
@@ -5522,7 +5522,7 @@ snapshots:
 
   earcut@3.0.2: {}
 
-  electron-to-chromium@1.5.364: {}
+  electron-to-chromium@1.5.366: {}
 
   emoji-regex@8.0.0: {}
 
@@ -5732,7 +5732,7 @@ snapshots:
     optionalDependencies:
       '@typescript-eslint/utils': 8.60.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.0-dev.20250807)
 
-  eslint-plugin-vue@10.9.1(@typescript-eslint/parser@8.60.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.0-dev.20250807))(eslint@9.39.4(jiti@2.7.0))(vue-eslint-parser@10.4.0(eslint@9.39.4(jiti@2.7.0))):
+  eslint-plugin-vue@10.9.1(@typescript-eslint/parser@8.60.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.0-dev.20250807))(eslint@9.39.4(jiti@2.7.0))(vue-eslint-parser@10.4.1(eslint@9.39.4(jiti@2.7.0))):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.4(jiti@2.7.0))
       eslint: 9.39.4(jiti@2.7.0)
@@ -5740,7 +5740,7 @@ snapshots:
       nth-check: 2.1.1
       postcss-selector-parser: 7.1.1
       semver: 7.8.1
-      vue-eslint-parser: 10.4.0(eslint@9.39.4(jiti@2.7.0))
+      vue-eslint-parser: 10.4.1(eslint@9.39.4(jiti@2.7.0))
       xml-name-validator: 4.0.0
     optionalDependencies:
       '@typescript-eslint/parser': 8.60.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.0-dev.20250807)
@@ -6912,7 +6912,7 @@ snapshots:
   node-addon-api@7.1.1:
     optional: true
 
-  node-releases@2.0.46: {}
+  node-releases@2.0.47: {}
 
   normalize-path@3.0.0: {}
 
@@ -7988,7 +7988,7 @@ snapshots:
     dependencies:
       vue: 3.5.35(typescript@6.0.0-dev.20250807)
 
-  vue-eslint-parser@10.4.0(eslint@9.39.4(jiti@2.7.0)):
+  vue-eslint-parser@10.4.1(eslint@9.39.4(jiti@2.7.0)):
     dependencies:
       debug: 4.4.3
       eslint: 9.39.4(jiti@2.7.0)
