@@ -1459,8 +1459,8 @@ packages:
     resolution: {integrity: sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==}
     engines: {node: '>= 0.10'}
 
-  cosmiconfig@9.0.1:
-    resolution: {integrity: sha512-hr4ihw+DBqcvrsEDioRO31Z17x71pUYoNe/4h6Z0wB72p7MU7/9gH8Q3s12NFhHPfYBBOV3qyfUxmr/Yn3shnQ==}
+  cosmiconfig@9.0.2:
+    resolution: {integrity: sha512-gtTZxTDau1wL7Y7zifc2dd8jHSK/k6BTx/2Xp/BpdlAdnlYWFVt7qhJqgwi7637yRwRQ3qL4ZidbB4I8tA5VOg==}
     engines: {node: '>=14'}
     peerDependencies:
       typescript: '>=4.9.5'
@@ -5283,7 +5283,7 @@ snapshots:
       object-assign: 4.1.1
       vary: 1.1.2
 
-  cosmiconfig@9.0.1(typescript@6.0.0-dev.20250807):
+  cosmiconfig@9.0.2(typescript@6.0.0-dev.20250807):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
@@ -7151,7 +7151,7 @@ snapshots:
 
   postcss-loader@8.2.1(postcss@8.5.15)(typescript@6.0.0-dev.20250807)(webpack@5.107.2):
     dependencies:
-      cosmiconfig: 9.0.1(typescript@6.0.0-dev.20250807)
+      cosmiconfig: 9.0.2(typescript@6.0.0-dev.20250807)
       jiti: 2.7.0
       postcss: 8.5.15
       semver: 7.8.2
