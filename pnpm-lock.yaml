@@ -134,10 +134,10 @@ importers:
         version: 0.2.1
       html-inline-css-webpack-plugin:
         specifier: ^1.11.2
-        version: 1.11.2(html-webpack-plugin@5.6.7(webpack@5.109.0))
+        version: 1.11.2(html-webpack-plugin@5.6.8(webpack@5.109.0))
       html-inline-script-webpack-plugin:
         specifier: ^3.2.1
-        version: 3.2.1(html-webpack-plugin@5.6.7(webpack@5.109.0))(webpack@5.109.0)
+        version: 3.2.1(html-webpack-plugin@5.6.8(webpack@5.109.0))(webpack@5.109.0)
       html-loader:
         specifier: ^5.1.0
         version: 5.1.0(webpack@5.109.0)
@@ -145,8 +145,8 @@ importers:
         specifier: ^2.3.0
         version: 2.3.0
       html-webpack-plugin:
-        specifier: ^5.6.7
-        version: 5.6.7(webpack@5.109.0)
+        specifier: ^5.6.8
+        version: 5.6.8(webpack@5.109.0)
       javascript-obfuscator:
         specifier: ^4.2.2
         version: 4.2.2
@@ -1237,8 +1237,8 @@ packages:
     resolution: {integrity: sha512-lGe34o6EHj9y3Kts9R4ZYs/Gr+6N7MCaMlIFA3F1R2O5/m7K06AxfSeO5530PEERE6/WyEg3lsuyw4GHlPZHog==}
     engines: {node: ^4.5.0 || >= 5.9}
 
-  baseline-browser-mapping@2.11.1:
-    resolution: {integrity: sha512-HYXq73DDpCtNzOmrFsm9eSwCvWCql0RzqjpDzXN9EadiLJ4DNat0nsZ/Bzmy+Ud12mb4/zKDY0cQ805ZzN+i0A==}
+  baseline-browser-mapping@2.11.3:
+    resolution: {integrity: sha512-sbT0Ui/CZwyAyy7icT1Gw5P1LKRlFaHwaF6tDCW5YHq2X5SeeZFphBuIagopSfwSSZq3sQcbmEL072yphxm7ew==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -2191,11 +2191,11 @@ packages:
   html-webpack-inline-svg-plugin@2.3.0:
     resolution: {integrity: sha512-NMeirc/kQX2/5qwr6fYrWwqYQsQt5ZcasgR2Jpm04fgZLr1eVm55cetgd5Dr/w7TyEYb+ZlWhAugZCktbgbUNw==}
 
-  html-webpack-plugin@5.6.7:
-    resolution: {integrity: sha512-md+vXtdCAe60s1k6AU3dUyMJnDxUyQAwfwPKoLisvgUF1IXjtlLsk2se54+qfL9Mdm26bbwvjJybpNx48NKRLw==}
+  html-webpack-plugin@5.6.8:
+    resolution: {integrity: sha512-MZmKQcTnhEh1SPSyMiEytIeDZDUoBZVorNHivQGXMASHf/BSGGOrKa2xQ5bGx3TCe1n109ecCt+cpww7wwWhKA==}
     engines: {node: '>=10.13.0'}
     peerDependencies:
-      '@rspack/core': 0.x || 1.x
+      '@rspack/core': 0.x || 1.x || 2.x
       webpack: ^5.20.0
     peerDependenciesMeta:
       '@rspack/core':
@@ -5065,7 +5065,7 @@ snapshots:
 
   base64id@2.0.0: {}
 
-  baseline-browser-mapping@2.11.1: {}
+  baseline-browser-mapping@2.11.3: {}
 
   batch@0.6.1: {}
 
@@ -5092,7 +5092,7 @@ snapshots:
 
   browserslist@4.28.7:
     dependencies:
-      baseline-browser-mapping: 2.11.1
+      baseline-browser-mapping: 2.11.3
       caniuse-lite: 1.0.30001806
       electron-to-chromium: 1.5.396
       node-releases: 2.0.51
@@ -6127,15 +6127,15 @@ snapshots:
       - debug
       - supports-color
 
-  html-inline-css-webpack-plugin@1.11.2(html-webpack-plugin@5.6.7(webpack@5.109.0)):
+  html-inline-css-webpack-plugin@1.11.2(html-webpack-plugin@5.6.8(webpack@5.109.0)):
     dependencies:
-      html-webpack-plugin: 5.6.7(webpack@5.109.0)
+      html-webpack-plugin: 5.6.8(webpack@5.109.0)
       lodash: 4.18.1
       tslib: 2.8.1
 
-  html-inline-script-webpack-plugin@3.2.1(html-webpack-plugin@5.6.7(webpack@5.109.0))(webpack@5.109.0):
+  html-inline-script-webpack-plugin@3.2.1(html-webpack-plugin@5.6.8(webpack@5.109.0))(webpack@5.109.0):
     dependencies:
-      html-webpack-plugin: 5.6.7(webpack@5.109.0)
+      html-webpack-plugin: 5.6.8(webpack@5.109.0)
       webpack: 5.109.0(postcss@8.5.23)(webpack-cli@6.0.1)
 
   html-loader@5.1.0(webpack@5.109.0):
@@ -6177,7 +6177,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  html-webpack-plugin@5.6.7(webpack@5.109.0):
+  html-webpack-plugin@5.6.8(webpack@5.109.0):
     dependencies:
       '@types/html-minifier-terser': 6.1.0
       html-minifier-terser: 6.1.0
