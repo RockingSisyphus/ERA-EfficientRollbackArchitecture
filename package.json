@@ -50,7 +50,7 @@
     "remark": "^15.0.1",
     "remark-html": "^16.0.1",
     "remark-loader": "^6.0.0",
-    "sass": "^1.102.0",
+    "sass": "^1.103.0",
     "sass-loader": "^16.0.8",
     "socket.io": "^4.8.3",
     "style-loader": "^4.0.0",
