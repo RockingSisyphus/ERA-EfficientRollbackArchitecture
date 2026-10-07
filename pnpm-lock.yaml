@@ -1650,8 +1650,8 @@ packages:
   earcut@3.2.4:
     resolution: {integrity: sha512-FHc6yNpnTORB0tM5kmZ03iD2mDuNakDE2lvf4Hw1XkfxtEHIGVi01B/GqUSwx+NcC1WGjidAfpTXzeALtPtfpg==}
 
-  electron-to-chromium@1.5.445:
-    resolution: {integrity: sha512-iX7o1nF+qNb3Bv5mLYgqfgF9Znh9e/8MKXdmbb8Gv2Q47OKIzTwEPD1oda1HrgEwYatTLJj0wQjHvIFt8Db53Q==}
+  electron-to-chromium@1.5.448:
+    resolution: {integrity: sha512-c3DEaf2iJbLz7XvmYGZQrzaxy6Azt2/NcWAV1r3GkibEyRNkVer6t3JevvwAQ6gW2JBGGY2N/MGMS/QV+77Ldw==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -3309,8 +3309,8 @@ packages:
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
 
-  resolve@1.22.12:
-    resolution: {integrity: sha512-TyeJ1zif53BPfHootBGwPRYT1RUt6oGWsaQr8UyZW/eAm9bKoijtvruSDEmZHm92CwS9nj7/fWttqPCgzep8CA==}
+  resolve@1.22.13:
+    resolution: {integrity: sha512-Dj/cW9zBV2aRj6XzCxuGIs3ESZKv02jixne3q6jFZYZ3/Tg09gHHviSMDL4kObh9pqSahdRHEnDoaP2gn8YLhA==}
     engines: {node: '>= 0.4'}
     hasBin: true
 
@@ -5081,7 +5081,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.11.27
       caniuse-lite: 1.0.30001814
-      electron-to-chromium: 1.5.445
+      electron-to-chromium: 1.5.448
       node-releases: 2.0.57
       update-browserslist-db: 1.3.3(browserslist@4.29.3)
 
@@ -5524,7 +5524,7 @@ snapshots:
 
   earcut@3.2.4: {}
 
-  electron-to-chromium@1.5.445: {}
+  electron-to-chromium@1.5.448: {}
 
   emoji-regex@8.0.0: {}
 
@@ -7152,7 +7152,7 @@ snapshots:
       postcss: 8.5.29
       postcss-value-parser: 4.2.0
       read-cache: 1.0.2
-      resolve: 1.22.12
+      resolve: 1.22.13
 
   postcss-load-config@5.1.0(jiti@2.7.0)(postcss@8.5.29):
     dependencies:
@@ -7270,7 +7270,7 @@ snapshots:
 
   rechoir@0.8.0:
     dependencies:
-      resolve: 1.22.12
+      resolve: 1.22.13
 
   reflect-metadata@0.2.2: {}
 
@@ -7364,7 +7364,7 @@ snapshots:
 
   resolve-pkg-maps@1.0.0: {}
 
-  resolve@1.22.12:
+  resolve@1.22.13:
     dependencies:
       es-errors: 1.3.0
       is-core-module: 2.17.0
