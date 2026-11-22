@@ -163,8 +163,8 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1(jiti@2.7.0)(postcss@8.5.33)(yaml@2.9.1)
       postcss-loader:
-        specifier: ^8.2.1
-        version: 8.2.1(postcss@8.5.33)(typescript@6.0.0-dev.20250807)(webpack@5.113.0)
+        specifier: ^8.2.2
+        version: 8.2.2(postcss@8.5.33)(typescript@6.0.0-dev.20250807)(webpack@5.113.0)
       postcss-minify:
         specifier: ^1.2.0
         version: 1.2.0(postcss@8.5.33)
@@ -3103,8 +3103,8 @@ packages:
       yaml:
         optional: true
 
-  postcss-loader@8.2.1:
-    resolution: {integrity: sha512-k98jtRzthjj3f76MYTs9JTpRqV1RaaMhEU0Lpw9OTmQZQdppg4B30VZ74BojuBHt3F4KyubHJoXCMUeM8Bqeow==}
+  postcss-loader@8.2.2:
+    resolution: {integrity: sha512-NMFUxyFeNHdQSnK0wewFwnkYwsjmohSZzGUBTjcxPMJzOOf7BVANeU8rljwkfjuWhZVRSGgCaXwV6YSkfETeyg==}
     engines: {node: '>= 18.12.0'}
     peerDependencies:
       '@rspack/core': 0.x || ^1.0.0 || ^2.0.0-0
@@ -3531,8 +3531,8 @@ packages:
     peerDependencies:
       webpack: ^5.27.0
 
-  superjson@2.2.6:
-    resolution: {integrity: sha512-H+ue8Zo4vJmV2nRjpx86P35lzwDT3nItnIsocgumgr0hHMQ+ZGq5vrERg9kJBo5AWGmxZDhzDo+WVIJqkB0cGA==}
+  superjson@2.2.7:
+    resolution: {integrity: sha512-QK/H+tosbovdRvIuGqcWn8g3IxPZY7B8ZPowCAmWsV8bPvCk+bGMlZt90C4AxZjnzMO2WBRDacr1+0i1AOy/5g==}
     engines: {node: '>=16'}
 
   supports-color@5.5.0:
@@ -4687,7 +4687,7 @@ snapshots:
       mitt: 3.0.1
       perfect-debounce: 1.0.0
       speakingurl: 14.0.1
-      superjson: 2.2.6
+      superjson: 2.2.7
 
   '@vue/devtools-shared@7.7.10':
     dependencies:
@@ -7142,7 +7142,7 @@ snapshots:
       postcss: 8.5.33
       yaml: 2.9.1
 
-  postcss-loader@8.2.1(postcss@8.5.33)(typescript@6.0.0-dev.20250807)(webpack@5.113.0):
+  postcss-loader@8.2.2(postcss@8.5.33)(typescript@6.0.0-dev.20250807)(webpack@5.113.0):
     dependencies:
       cosmiconfig: 9.0.2(typescript@6.0.0-dev.20250807)
       jiti: 2.7.0
@@ -7601,7 +7601,7 @@ snapshots:
     dependencies:
       webpack: 5.113.0(postcss@8.5.33)(webpack-cli@6.0.1)
 
-  superjson@2.2.6:
+  superjson@2.2.7:
     dependencies:
       copy-anything: 4.1.5
 
