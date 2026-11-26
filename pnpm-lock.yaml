@@ -203,7 +203,7 @@ importers:
         version: 9.6.2(loader-utils@1.4.2)(typescript@6.0.0-dev.20250807)(webpack@5.113.0)
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@26.6.7)(typescript@6.0.0-dev.20250807)
+        version: 10.9.2(@types/node@26.6.11)(typescript@6.0.0-dev.20250807)
       tsconfig-paths-webpack-plugin:
         specifier: ^4.2.0
         version: 4.2.0
@@ -652,8 +652,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@26.6.7':
-    resolution: {integrity: sha512-tovuRfrUILu6v46bMG+BgXxMvsqPBx2WO2as8Rpln+JTff1dbexMtAM4KFTejmL0axsnSWViCW7MecUQpLuBRA==}
+  '@types/node@26.6.11':
+    resolution: {integrity: sha512-uUyQ2XLEz+EXh34lmS3GhKrkqn/8FU7KUiKRpk347At2bmnMVWss45yz8b4FG/tUtmV1tV/+TVkITItPROyeeQ==}
 
   '@types/opencc-js@1.4.2':
     resolution: {integrity: sha512-j69S4b2gB04gYbGXKwkoKYAUzNdedtw4i51ceQnb/AN+M7sAS9qPTaykxFyI2SWq+1JmTX+NZdaiKVftL1zptw==}
@@ -1361,8 +1361,8 @@ packages:
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
-  colord@2.14.0:
-    resolution: {integrity: sha512-eSdMel9EBvdFxnchObp7gljRoqYQLr+zXhaxjkym7syVphw1FIhfQwgsA5Bv3jArflZPJEa1rmQtGpa7NRc7Rw==}
+  colord@2.14.1:
+    resolution: {integrity: sha512-oAnRdUZtIoONz9y5JZEM/Ogg4m/eYIvpCvzFZIFOPfraLqVYTmevf61yeIhcLq/9EXztGOwF4O36pCu143BqGw==}
 
   colorette@2.0.20:
     resolution: {integrity: sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w==}
@@ -1389,8 +1389,8 @@ packages:
     resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
     engines: {node: '>= 12'}
 
-  comment-parser@1.4.9:
-    resolution: {integrity: sha512-+2AvZKjJaNq9GQljm3tr0utwrig5BL+jgJGvz5rDpGKNIp+ojcRXWUwBbh/sGIi1QCprR6PsKFakub+w1v+4hQ==}
+  comment-parser@1.4.10:
+    resolution: {integrity: sha512-qN5/9lBWFYHsHLflPH/3iyu5khw7tKs75V6NH26H0P6Cp1j2JqdZZch7hyplkz6ATok3WOoZxO+IzB9s3mnTBA==}
     engines: {node: '>= 12.0.0'}
 
   concat-map@0.0.1:
@@ -2194,8 +2194,8 @@ packages:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
 
-  ignore@7.0.16:
-    resolution: {integrity: sha512-52N+Y4HRMOJmbLmr+DqO4iSRyyB7N52gm7PWCT6h0p978+oKbqHCB7gIJIwZvBUsjlSdWbrBFqUSmIFNZMpn0A==}
+  ignore@7.0.17:
+    resolution: {integrity: sha512-0c3zcBRlWmcKhcIQWckzkYncJRv5HHB8O32wO/FcWL8DDXWDJgiEF6SX9ThbTv5h/eZ+xJK+VvDjjQ+cQJhp3Q==}
     engines: {node: '>= 4'}
 
   immutable@5.2.1:
@@ -4192,7 +4192,7 @@ snapshots:
       '@jest/schemas': 29.6.3
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -4369,7 +4369,7 @@ snapshots:
 
   '@types/cors@2.8.19':
     dependencies:
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
 
   '@types/debug@4.1.13':
     dependencies:
@@ -4426,7 +4426,7 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@26.6.7':
+  '@types/node@26.6.11':
     dependencies:
       undici-types: 8.9.0
 
@@ -4454,7 +4454,7 @@ snapshots:
 
   '@types/webpack@5.28.5(postcss@8.5.33)(webpack-cli@6.0.1)':
     dependencies:
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
       tapable: 2.3.4
       webpack: 5.113.0(postcss@8.5.33)(webpack-cli@6.0.1)
     transitivePeerDependencies:
@@ -4478,7 +4478,7 @@ snapshots:
 
   '@types/ws@8.18.2':
     dependencies:
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
 
   '@types/yargs-parser@21.0.3': {}
 
@@ -4495,7 +4495,7 @@ snapshots:
       '@typescript-eslint/utils': 8.74.0(eslint@9.39.5(jiti@2.7.0))(typescript@6.0.0-dev.20250807)
       '@typescript-eslint/visitor-keys': 8.74.0
       eslint: 9.39.5(jiti@2.7.0)
-      ignore: 7.0.16
+      ignore: 7.0.17
       natural-compare: 1.4.0
       ts-api-utils: 2.5.0(typescript@6.0.0-dev.20250807)
       typescript: 6.0.0-dev.20250807
@@ -5209,7 +5209,7 @@ snapshots:
 
   color-name@1.1.4: {}
 
-  colord@2.14.0: {}
+  colord@2.14.1: {}
 
   colorette@2.0.20: {}
 
@@ -5227,7 +5227,7 @@ snapshots:
 
   commander@8.3.0: {}
 
-  comment-parser@1.4.9: {}
+  comment-parser@1.4.10: {}
 
   concat-map@0.0.1: {}
 
@@ -5509,7 +5509,7 @@ snapshots:
   engine.io@6.6.13:
     dependencies:
       '@types/cors': 2.8.19
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
       '@types/ws': 8.18.2
       accepts: 1.3.8
       cookie: 0.7.2
@@ -5692,7 +5692,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.74.0
       cjs-module-lexer: 2.3.0
-      comment-parser: 1.4.9
+      comment-parser: 1.4.10
       debug: 4.4.3
       es-module-lexer: 3.0.5
       eslint: 9.39.5(jiti@2.7.0)
@@ -6175,7 +6175,7 @@ snapshots:
 
   ignore@5.3.2: {}
 
-  ignore@7.0.16: {}
+  ignore@7.0.17: {}
 
   immutable@5.2.1: {}
 
@@ -6400,7 +6400,7 @@ snapshots:
   jest-util@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.12
@@ -6408,13 +6408,13 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
   jest-worker@29.7.0:
     dependencies:
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
       jest-util: 29.7.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
@@ -7078,7 +7078,7 @@ snapshots:
       '@types/earcut': 3.2.4
       '@webgpu/types': 0.1.74
       '@xmldom/xmldom': 0.8.15
-      colord: 2.14.0
+      colord: 2.14.1
       earcut: 3.2.4
       eventemitter3: 5.0.4
       gifuct-js: 2.1.2
@@ -7704,14 +7704,14 @@ snapshots:
     optionalDependencies:
       loader-utils: 1.4.2
 
-  ts-node@10.9.2(@types/node@26.6.7)(typescript@6.0.0-dev.20250807):
+  ts-node@10.9.2(@types/node@26.6.11)(typescript@6.0.0-dev.20250807):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.14
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 26.6.7
+      '@types/node': 26.6.11
       acorn: 8.19.0
       acorn-walk: 8.3.5
       arg: 4.1.3
